@@ -14,6 +14,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.i18n.LocaleChangeInterceptor;
 import org.springframework.web.servlet.i18n.SessionLocaleResolver; // Added SessionLocaleResolver import
@@ -51,10 +52,13 @@ public class WebConfig implements WebMvcConfigurer {
                     @Override
                     protected Resource getResource(@NonNull String resourcePath, @NonNull Resource location) throws IOException {
                         Resource requested = location.createRelative(resourcePath);
-                        if (requested.exists() && requested.isReadable()) {
+                        // 실제 정적 "파일"이 있으면 그걸 서빙(js/css/img 등).
+                        //  빈 경로("/app/")나 디렉터리 요청("/app/foo/")은 파일이 아니므로 폴백 대상.
+                        boolean isFileRequest = !resourcePath.isEmpty() && !resourcePath.endsWith("/");
+                        if (isFileRequest && requested.exists() && requested.isReadable()) {
                             return requested;
                         }
-                        // 매칭되는 정적 파일이 없으면 SPA 진입점으로 폴백
+                        // 매칭되는 정적 파일이 없으면 SPA 진입점으로 폴백(딥링크·루트 진입 대응)
                         return new ClassPathResource("/static/app/index.html");
                     }
                 });
@@ -93,6 +97,18 @@ public class WebConfig implements WebMvcConfigurer {
         return lci;
     }
     
+    /**
+     * SPA 루트 진입점(/app, /app/)을 index.html 로 포워딩.
+     *  - 리소스 핸들러(/app/**)는 하위경로가 "비어 있는"(/app/) 요청을 리졸버 호출 전에 404 처리하므로,
+     *    루트만 여기서 forward 로 보정한다(내부 포워드라 리다이렉트 루프 위험 없음).
+     *  - 딥링크(/app/admin/... 등)는 리소스 핸들러가 index.html 로 폴백하므로 여기서 다루지 않는다.
+     */
+    @Override
+    public void addViewControllers(@NonNull ViewControllerRegistry registry) {
+        registry.addViewController("/app").setViewName("forward:/app/index.html");
+        registry.addViewController("/app/").setViewName("forward:/app/index.html");
+    }
+
     /**
      * 인터셉터 등록
      */

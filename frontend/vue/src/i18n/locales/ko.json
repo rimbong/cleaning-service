@@ -4,7 +4,8 @@
     },
     "nav": {
         "home": "홈",
-        "auth": "인증(Auth)"
+        "auth": "인증(Auth)",
+        "adminArea": "관리자"
     },
     "lang": {
         "label": "언어",

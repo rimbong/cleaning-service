@@ -26,11 +26,13 @@ import { configureAuth } from '@/plugins/http/axios'
 export const useAuthStore = defineStore('auth', () => {
     // ── 상태 ──
     const user = ref(null)          // 세션 로그인 사용자명(null = 미로그인)
+    const roles = ref([])           // 로그인 사용자의 권한 목록(예: ['ROLE_ADMIN'])
     const accessToken = ref(null)   // JWT access (짧은 수명)
     const refreshToken = ref(null)  // JWT refresh (긴 수명, 갱신용)
 
     const isLoggedIn = computed(() => user.value !== null)
     const hasTokens = computed(() => accessToken.value !== null)
+    const isAdmin = computed(() => roles.value.includes('ROLE_ADMIN'))
 
     // axios 인터셉터에 토큰 접근/갱신 함수 등록(스토어 최초 사용 시 1회 실행).
     // 이 등록 덕분에 컴포넌트는 Bearer 첨부·401 갱신을 전혀 신경 쓰지 않는다.
@@ -39,10 +41,17 @@ export const useAuthStore = defineStore('auth', () => {
         refresh: refreshTokens,
     })
 
-    /** ① 세션 로그인 — 성공 시 user 설정(쿠키는 브라우저가 보관) */
+    /** ① 세션 로그인 — 성공 시 user·roles 설정(쿠키는 브라우저가 보관) */
     async function sessionLogin(username, password) {
         const res = await authService.sessionLogin(username, password)
         user.value = res.data.data.username
+        // 권한 조회(관리자 판별 등에 사용) — 실패해도 로그인 자체는 유효
+        try {
+            const meRes = await authService.me()
+            roles.value = meRes.data.data.roles || []
+        } catch (e) {
+            roles.value = []
+        }
         return res.data
     }
 
@@ -111,6 +120,7 @@ export const useAuthStore = defineStore('auth', () => {
             await authService.sessionLogout()
         } finally {
             user.value = null
+            roles.value = []
             clearTokens()
         }
     }
@@ -128,10 +138,12 @@ export const useAuthStore = defineStore('auth', () => {
 
     return {
         user,
+        roles,
         accessToken,
         refreshToken,
         isLoggedIn,
         hasTokens,
+        isAdmin,
         sessionLogin,
         issueTokens,
         refreshTokens,

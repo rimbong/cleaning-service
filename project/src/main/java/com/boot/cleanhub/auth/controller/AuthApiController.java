@@ -54,9 +54,12 @@ public class AuthApiController {
      */
     @GetMapping("/me")
     public ApiResponse<Map<String, Object>> me(Authentication authentication) {
+        List<String> roles = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("username", authentication.getName());
-        data.put("authorities", authentication.getAuthorities().toString());
+        data.put("roles", roles);
         return ApiResponse.ok(data);
     }
 

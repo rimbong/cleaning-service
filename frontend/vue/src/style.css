@@ -4,6 +4,18 @@
     --bg: #ffffff;
     --border: #e5e4e7;
 
+    /* 브랜드/UI 토큰 (청소 서비스 톤 — 청량한 teal) */
+    --primary: #0d9488;
+    --primary-hover: #0f766e;
+    --primary-soft: #ccfbf1;
+    --primary-fg: #ffffff;
+    --muted: #f7f8f9;
+    --muted-2: #eef0f2;
+    --danger: #dc2626;
+    --danger-soft: #fee2e2;
+    --radius: 10px;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     line-height: 1.6;
     color: var(--text-h);
