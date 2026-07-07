@@ -1,0 +1,21 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "UnicodeEnDeCoder",
+            "request": "launch",
+            "mainClass": "com.boot.project.util.security.UnicodeEnDeCoder",
+            "projectName": "project"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-ProjectApplication<project>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.boot.project.ProjectApplication",
+            "projectName": "project",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

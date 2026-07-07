@@ -1,0 +1,51 @@
+{
+    "app": {
+        "title": "CleanHub"
+    },
+    "nav": {
+        "home": "Home",
+        "auth": "Auth"
+    },
+    "lang": {
+        "label": "Language",
+        "ko": "한국어",
+        "en": "English"
+    },
+    "common": {
+        "loading": "Loading…",
+        "ok": "OK",
+        "cancel": "Cancel"
+    },
+    "home": {
+        "heading": "CleanHub",
+        "desc": "Cleaning quotation & settlement management system."
+    },
+    "auth": {
+        "heading": "Auth practice — session login → JWT issue → API zone",
+        "desc": "Login/issue in the session zone (/auth); the JWT zone (/api) uses Bearer. Attaching Bearer and auto-refresh on 401 are handled by axios interceptors (not in this screen's code).",
+        "session": "Session",
+        "none": "none",
+        "username": "Username (user1 / admin1)",
+        "password": "Password (1234)",
+        "login": "1. Session login",
+        "me": "2. My info",
+        "issue": "3. Issue JWT",
+        "callApi": "4. Call API",
+        "callAdmin": "4-2. Admin API",
+        "autoRefresh": "5. Auto-refresh demo (corrupt token)",
+        "logout": "6. Logout",
+        "log": "Progress log (latest first)",
+        "msg": {
+            "loggedIn": "Session login succeeded.",
+            "loginFailed": "Login failed.",
+            "issued": "JWT issued.",
+            "needLogin": "Session login required.",
+            "needTokens": "Issue JWT (3) first.",
+            "adminOk": "Admin API access granted (ROLE_ADMIN).",
+            "forbidden": "Forbidden (403). Log in and issue tokens as an admin account (admin1).",
+            "autoRefreshed": "Interceptor detected 401, refreshed, and retried.",
+            "confirmLogout": "Logout? (revoke JWT + end session)",
+            "loggedOut": "Logged out."
+        }
+    }
+}

@@ -1,0 +1,50 @@
+# ===================== 개발(dev) 프로파일 =====================
+# 기본 활성 프로파일. application.yml 공통 설정을 상속하고 아래 값만 개발용으로 지정한다.
+# 개발 DB = 로컬 PostgreSQL. 접속값은 db.properties(PropertySourceConfig)에서 ${...} 로 치환.
+spring:
+  # ----- 개발 DB: PostgreSQL (localhost:5432/cleanhub) -----
+  datasource:
+    url: ${db.url}
+    driver-class-name: ${db.driver-class-name}
+    username: ${db.username}
+    password: ${db.password}
+    hikari:
+     minimum-idle: ${db.minimum-idle}
+     maximum-pool-size: ${db.maximum-pool-size}
+     idle-timeout: ${db.idle-timeout}
+     connection-timeout: ${db.connection-timeout}
+     connection-test-query: ${db.connection-test-query}
+     leak-detection-threshold: ${db.leak-detection-threshold}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      # 스키마의 소스는 Flyway(아래). JPA 는 엔티티↔테이블 일치만 검증(수정 안 함).
+      ddl-auto: validate
+  flyway:
+    enabled: true                             # DB 마이그레이션으로 스키마 관리(db/migration/V*.sql)
+    baseline-on-migrate: true                 # 기존 DB 에 처음 붙일 때 baseline 자동 생성
+
+  thymeleaf:
+    cache: false          # 개발: 템플릿 캐시 OFF (수정 즉시 반영)
+
+logging:
+  file:
+    path: ./logs          # 개발: 실행 폴더 기준 ./logs 에 하드코딩
+  level:                  # 개발: 상세 로그
+    root: info
+    '[com.boot.cleanhub]': debug
+    '[org.mybatis]': debug
+    '[java.sql]': debug
+    '[org.hibernate]': debug
+    '[org.hibernate.type]': trace
+    '[org.springframework.security]': debug
+
+# 개발: Actuator 넓게 노출(디버깅 편의) + health 상세 항상 표시
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,env,beans,mappings
+  endpoint:
+    health:
+      show-details: always

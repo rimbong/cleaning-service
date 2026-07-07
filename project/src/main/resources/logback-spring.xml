@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  운영 환경용 로깅 설정 (Logback).
+
+  ■ 파일명이 logback-spring.xml 인 이유
+    Spring 확장 태그(<springProfile>, <springProperty>)를 쓰려면 반드시 -spring 접미사가 필요하다.
+    (logback.xml 로 두면 Spring 이 개입하기 전에 로드되어 프로파일/프로퍼티 연동이 안 됨)
+
+  ■ 역할 분담 (application.yml 과의 관계)
+    - 이 파일: "어디에·어떻게" 기록할지 (파일 분리·롤링·보관정책·패턴)
+    - application-*.yml 의 logging.level.* : "무엇을 어느 레벨로" 남길지 (프로파일별)
+      → 레벨은 yml 이 그대로 오버라이드하므로 여기서는 기본값(INFO)만 둔다.
+    - logging.file.path : 로그 디렉터리(프로파일별). 아래 springProperty 로 읽어온다.
+
+  ■ 생성되는 파일 (LOG_PATH 아래)
+    project-info.log   : INFO 이상 전체 (운영 상시 확인용)
+    project-error.log  : ERROR 만 모음 (장애 추적용 — 이 파일만 열면 에러만 보임)
+    project-debug.log  : DEBUG 이상 (dev 프로파일에서만 — 상세 추적용)
+    각 파일은 매일(+100MB 초과 시) 롤링되고, 30일/총 3GB 상한으로 오래된 것은 자동 삭제.
+-->
+<configuration>
+
+    <!-- application.yml(프로파일)의 logging.file.path 를 읽어온다. 없으면 ./logs -->
+    <springProperty name="LOG_PATH" source="logging.file.path" defaultValue="./logs"/>
+
+    <property name="LOG_PATTERN"
+              value="[%-5level] %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %logger{36} - %msg%n"/>
+
+    <!-- ─────────────── 콘솔 ─────────────── -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ─────────────── INFO 이상 전체 파일 ─────────────── -->
+    <appender name="FILE_INFO" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/project-info.log</file>
+        <!-- INFO 미만(DEBUG/TRACE)은 이 파일에서 제외 -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>INFO</level>
+        </filter>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+        <!-- 날짜 롤링 + 파일당 100MB 상한 + 30일 보관 + 총 3GB 상한 -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/archive/project-info.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- ─────────────── ERROR 만 모으는 파일 ─────────────── -->
+    <appender name="FILE_ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/project-error.log</file>
+        <!-- 정확히 ERROR 레벨만 통과(그 외는 거부) → 에러 전용 파일 -->
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/archive/project-error.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>60</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- ─────────────── DEBUG 이상 파일 (dev 전용) ─────────────── -->
+    <appender name="FILE_DEBUG" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/project-debug.log</file>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>DEBUG</level>
+        </filter>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/archive/project-debug.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>7</maxHistory>
+            <totalSizeCap>2GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- ─────────────── 프로파일별 루트 배선 ───────────────
+         레벨(root/개별 로거)은 application-*.yml 의 logging.level.* 이 최종 결정한다.
+         여기서는 "어느 appender 에 흘려보낼지"만 프로파일별로 다르게 건다. -->
+
+    <!-- dev: 콘솔 + info/error/debug 파일 전부 (상세 추적) -->
+    <springProfile name="dev">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE_INFO"/>
+            <appender-ref ref="FILE_ERROR"/>
+            <appender-ref ref="FILE_DEBUG"/>
+        </root>
+    </springProfile>
+
+    <!-- prod: 콘솔(컨테이너 stdout 수집용) + info/error 파일. debug 파일은 안 만듦 -->
+    <springProfile name="prod">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE_INFO"/>
+            <appender-ref ref="FILE_ERROR"/>
+        </root>
+    </springProfile>
+
+    <!-- 프로파일 미지정(테스트 등): 콘솔만 -->
+    <springProfile name="!dev &amp; !prod">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+</configuration>

@@ -1,0 +1,16 @@
+/.metadata/
+Servers/
+/**/.classpath
+/**/.project
+project/bin/
+project/.settings/
+logs/
+.gemini/question.txt
+.gemini/result.md
+
+# 빌드 스킬 머신 전용 설정 (절대경로·SSL 우회 — 커밋 금지)
+.claude/scripts/build.env.ps1
+
+# 프론트(SPA) 빌드 산출물 — `npm run build` 로 생성되는 생성물이라 커밋하지 않는다.
+#   배포 시 프론트 빌드를 먼저 돌려 이 폴더를 채운 뒤 백엔드를 패키징한다.
+/project/src/main/resources/static/app/

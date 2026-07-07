@@ -1,0 +1,81 @@
+spring:
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+  application:
+    name: cleanhub
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}   # 기본 dev. 운영은 SPRING_PROFILES_ACTIVE=prod 로 전환
+  batch:
+    job:
+      enabled: false          # 기동 시 자동 실행 방지(엔드포인트로 수동 실행). ※ 스키마 초기화는 프로파일별
+  mail:
+    host: ${mail.host}
+    port: ${mail.port}
+    username: ${mail.username}
+    password: ${mail.password}
+    properties:
+      mail:
+        smtp:
+          auth: ${mail.smtp.auth}
+          starttls:
+            enable: ${mail.smtp.starttls}
+        '[mail.mime.charset]': UTF-8
+  devtools:
+    livereload:
+      enabled: true
+    restart:
+      enabled: true
+  jpa:                        # DB 무관 공통 JPA 동작. (실제 연결/방언/ddl-auto 는 프로파일별)
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format-sql: true
+        use-new-id-generator-mappings: false
+        '[jdbc.batch_size]': 10
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 40MB
+      file-size-threshold: 20MB
+  web:
+    resources:
+      add-mappings: false
+  mvc:
+    throw-exception-if-no-handler-found: true
+    view:
+      prefix: /app/
+      suffix: .html
+  thymeleaf:
+    prefix: classpath:/templates/
+    suffix: .html
+    # cache 는 프로파일별(application-dev / application-prod)에서 설정
+
+mybatis:
+  config-location: classpath:mybatis/context/sql-config.xml
+  mapper-locations: classpath:mybatis/mapper/**/*.xml
+  type-aliases-package: com.boot.cleanhub.common.dto
+
+server:
+  port: 70
+  servlet:
+    context-path: /
+    session:
+      timeout: 30m
+    encoding:
+      enabled: true
+      charset: UTF-8
+      force: true
+
+# CORS 허용 오리진: 환경변수 CORS_ALLOWED_ORIGINS 로 오버라이드(콤마 구분). 기본값은 개발용 로컬 프론트.
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://localhost:3000}
+
+# ※ DB(datasource·ddl-auto·flyway·스키마초기화) · Actuator · 로그 path/level 은
+#   프로파일별 파일(application-dev.yml / application-prod.yml)에서 설정한다.
+
+# ※ 로그 파일 분리·롤링·보관정책·패턴은 logback-spring.xml 에서 설정한다(운영용).
+#    여기 yml 은 프로파일별 "레벨"(logging.level.*)과 "경로"(logging.file.path)만 담당.
+#    - logging.file.path : logback-spring.xml 이 <springProperty> 로 읽어 로그 디렉터리로 사용
+#    - logging.level.*    : logback 설정과 무관하게 Spring 이 최종 적용(프로파일별)

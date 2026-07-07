@@ -1,0 +1,46 @@
+{
+    // 프로젝트에서 사용할 자바설정
+    "java.configuration.runtimes": [
+        // {
+        //     "name": "JavaSE-17",
+        //     "path": "C:\\NANUM\\java\\JavaSE-17",
+        //     "default": true
+        // },      
+        {
+            "name": "JavaSE-1.8",
+            "path": "C:/ininext/java/openjdk8.0_181(x64)",
+        },
+    ],
+    "java.configuration.maven.userSettings": "D:/private/mvn/apache-maven-3.9.11/conf/settings.xml",
+    "java.import.maven.enabled": true, 
+    
+    
+    // maven 설정 -----
+    "maven.terminal.customEnv": [
+        {
+            "environmentVariable": "JAVA_HOME",
+            "value": "C:/ininext/java/openjdk8.0_181(x64)"
+        },
+        {
+            "environmentVariable": "MAVEN_OPTS",
+            "value": "-Dmaven.repo.local=D:/private/mvn/repo"
+        }
+    ],
+    "maven.executable.path": "D:/private/mvn/apache-maven-3.9.11/bin/mvn.cmd",
+    "maven.executable.options": "-s D:/private/mvn/apache-maven-3.9.11/conf/settings.xml",
+    "maven.executable.preferMavenWrapper": false,
+    // -----
+    
+    // vscode(java language server) 가 사용할 자바 버전
+    "java.jdt.ls.java.home": "C:/ininext/java/jdk-17.0.8.7",
+    "spring-boot.ls.java.home": "C:/ininext/java/jdk-17.0.8.7",
+    
+    // 빌드 구성 변경시 사용자 동의 여부
+    "java.configuration.updateBuildConfiguration": "automatic",
+    
+    "java.compile.nullAnalysis.mode": "automatic",
+    
+    // java 빌드,배포 설정
+    "java.autobuild.enabled": false,
+    "java.debug.settings.hotCodeReplace": "manual",
+}

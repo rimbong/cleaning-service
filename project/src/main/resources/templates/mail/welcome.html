@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${subject} ?: '알림'">메일 제목</title>
+</head>
+<!-- 메일 클라이언트는 외부 CSS/클래스를 신뢰하지 않으므로 모든 스타일은 인라인으로 작성한다. -->
+<body style="margin:0; padding:0; background-color:#f1f5f9; font-family:'Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9; padding:32px 0;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0"
+                       style="width:600px; max-width:600px; background-color:#ffffff; border-radius:16px; overflow:hidden; box-shadow:0 10px 30px -12px rgba(2,6,23,0.25);">
+                    <!-- 헤더 -->
+                    <tr>
+                        <td style="background:linear-gradient(135deg,#6366f1,#8b5cf6); padding:28px 32px;">
+                            <span style="color:#ffffff; font-size:20px; font-weight:700; letter-spacing:-0.01em;">Spring Boot Lab</span>
+                        </td>
+                    </tr>
+                    <!-- 본문 -->
+                    <tr>
+                        <td style="padding:32px;">
+                            <h1 style="margin:0 0 12px; font-size:22px; color:#0f172a;"
+                                th:text="${title} ?: '안녕하세요 👋'">제목</h1>
+                            <p style="margin:0 0 20px; font-size:15px; line-height:1.7; color:#334155;"
+                               th:text="${message} ?: '메일 본문 내용이 여기에 표시됩니다.'">본문</p>
+
+                            <!-- 선택적 CTA 버튼: actionUrl 이 있을 때만 표시 -->
+                            <table role="presentation" cellpadding="0" cellspacing="0" th:if="${actionUrl}">
+                                <tr>
+                                    <td style="border-radius:10px; background:linear-gradient(135deg,#6366f1,#4f46e5);">
+                                        <a th:href="${actionUrl}" th:text="${actionText} ?: '확인하기'"
+                                           style="display:inline-block; padding:12px 22px; color:#ffffff; font-size:14px; font-weight:600; text-decoration:none;">확인하기</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <!-- 푸터 -->
+                    <tr>
+                        <td style="padding:20px 32px; border-top:1px solid #e2e8f0;">
+                            <p style="margin:0; font-size:12px; color:#94a3b8;">
+                                본 메일은 발신 전용입니다. · Spring Boot 2.7 테스트 베드
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

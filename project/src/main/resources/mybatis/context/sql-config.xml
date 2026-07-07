@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config3.0//EN"
+    "http://www.mybatis.org/dtd/mybatis-3-config.dtd">
+
+<!-- MYBATIS RESOURCE CONFIGURATION -->
+<configuration>	
+    <settings>
+        <!-- sanke to camel -->
+        <setting name="mapUnderscoreToCamelCase" value="true"/>
+        <!-- Map으로 받을 시, value 값이 Null 일때 칼럼이 누락되는 현상을 막아준다. -->
+        <setting name="callSettersOnNulls" value="true"/>
+        <!-- 쿼리에 매핑되는 값이 Null일경우 에러가 나는 것을 방지해준다. -->
+        <setting name="jdbcTypeForNull" value="NULL" />
+    </settings>
+</configuration>

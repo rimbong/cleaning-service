@@ -1,0 +1,45 @@
+# ===================== 운영(prod) 프로파일 =====================
+# 활성화: 환경변수 SPRING_PROFILES_ACTIVE=prod  또는  -Dspring.profiles.active=prod
+# application.yml 공통 설정을 상속하고 아래 값만 운영용으로 오버라이드한다.
+#
+# ※ prod 프로파일은 실제 운영 인프라(DB, 환경변수)를 전제로 한다.
+#   DB_URL/DB_USERNAME/DB_PASSWORD 환경변수와 db/migration/V*.sql 이 있어야 정상 기동한다.
+#   (자세한 절차는 DATABASE.md 참고)
+spring:
+  thymeleaf:
+    cache: true           # 운영: 템플릿 캐시 ON
+
+  # ----- 운영 DB: PostgreSQL (환경변수로 주입) -----
+  datasource:
+    url: ${DB_URL}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate  # 스키마 생성은 Flyway 가 담당, JPA 는 검증만
+  flyway:
+    enabled: true         # db/migration/V*.sql 적용
+
+logging:
+  file:
+    path: ${APP_LOG_PATH:/var/log/cleanhub}   # 운영: 환경변수 APP_LOG_PATH 로 주입(미지정 시 기본 경로)
+  level:                  # 운영: 개발용 debug/trace 를 info 로 낮춤
+    root: info
+    '[com.boot.cleanhub]': info
+    '[org.mybatis]': info
+    '[java.sql]': info
+    '[org.hibernate]': info
+    '[org.hibernate.type]': info
+    '[org.springframework.security]': info
+
+# 운영: Actuator 최소 노출 + health 상세는 인증 시에만
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
