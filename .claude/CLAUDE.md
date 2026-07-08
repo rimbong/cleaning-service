@@ -77,7 +77,8 @@ util/          # 정적 유틸 (date, excel(POI), http, json, jwt, security(RSA/
 ## 프론트엔드 (frontend/vue)
 
 - **Vue 3 + Vite + Pinia + vue-router + vue-i18n + axios + vue-query**
-- 백엔드 `/app` 경로로 서빙(`base:'/app/'`, 빌드 산출물 → `project/.../static/app`).
+- 백엔드 **루트(/)로 서빙**(`base:'/'`, 빌드 산출물 → `project/.../static/`(index.html·assets·favicon)).
+  대민 `/`, 관리자 `/admin`. `WebConfig`가 SPA 딥링크 폴백(백엔드 경로 `/api`·`/actuator`·`/ws-chat`·`/error`는 제외).
   dev 서버(:5173)는 `/api`·`/auth` 를 백엔드(:70)로 프록시.
 - 공용 인프라(유지): `stores/auth`·`stores/notify`, `services/auth`, `composables/http/useRequest`,
   `plugins/http/axios`(Bearer 자동첨부 + 401 자동갱신 인터셉터), `components/notify/NotifyHost`, i18n.

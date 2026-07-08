@@ -14,5 +14,6 @@ uploads/
 .claude/scripts/build.env.ps1
 
 # 프론트(SPA) 빌드 산출물 — `npm run build` 로 생성되는 생성물이라 커밋하지 않는다.
+#   SPA 를 루트(/)로 서빙하므로 산출물이 static/ 루트(index.html·assets·favicon)에 나온다.
 #   배포 시 프론트 빌드를 먼저 돌려 이 폴더를 채운 뒤 백엔드를 패키징한다.
-/project/src/main/resources/static/app/
+/project/src/main/resources/static/

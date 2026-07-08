@@ -14,7 +14,6 @@ import org.springframework.lang.NonNull;
 import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
-import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.i18n.LocaleChangeInterceptor;
 import org.springframework.web.servlet.i18n.SessionLocaleResolver; // Added SessionLocaleResolver import
@@ -37,33 +36,49 @@ public class WebConfig implements WebMvcConfigurer {
     private EventCheckInterceptor eventCheckInterceptor;
 
     /**
-     * 정적 리소스 핸들러 설정
+     * <pre>
+     *   정적 리소스 핸들러 — SPA(정적 프론트)를 루트(/)로 서빙한다(대민 /, 관리자 /admin).
+     *   - 요청 경로에 해당하는 정적 파일이 있으면 그 파일 서빙(js/css/img/favicon 등)
+     *   - 없으면 진입점 index.html 로 폴백 → 브라우저 딥링크 새로고침(/admin/clients 등) 대응
+     *   - 단, 백엔드(API/시스템) 경로는 폴백에서 제외해 정상 404 가 나게 한다
+     *     (예: 없는 /api/xxx 가 SPA HTML 로 200 되면 안 되므로).
+     *   ※ 리소스 핸들러는 컨트롤러(@RequestMapping)보다 우선순위가 낮아, 존재하는 /api·/auth 등은
+     *     컨트롤러가 먼저 처리한다. 여기 폴백에는 "컨트롤러가 안 가져간 미매칭 요청"만 도달한다.
+     * </pre>
      */
     @Override
     public void addResourceHandlers(@NonNull ResourceHandlerRegistry registry) {
-        // SPA(정적 프론트) 통합 경로: /app/**  (React/Vue 종류 무관)
-        //  - 요청 경로에 해당하는 정적 파일이 있으면 그 파일 서빙(js/css/img 등)
-        //  - 없으면 진입점 index.html 로 폴백 → 브라우저 딥링크 새로고침(/app/crud/list 등) 대응
-        //  - 빌드 산출물은 classpath:/static/app/ 에 배치(프론트 base 도 '/app/' 로 맞춘다)
-        registry.addResourceHandler("/app/**")
-                .addResourceLocations("classpath:/static/app/")
+        registry.addResourceHandler("/**")
+                .addResourceLocations("classpath:/static/")
                 .resourceChain(false)
                 .addResolver(new PathResourceResolver() {
                     @Override
                     protected Resource getResource(@NonNull String resourcePath, @NonNull Resource location) throws IOException {
+                        // 백엔드 경로는 SPA 폴백 대상이 아님 → null 반환(정적 파일 없으면 그대로 404)
+                        if (isBackendPath(resourcePath)) {
+                            return null;
+                        }
                         Resource requested = location.createRelative(resourcePath);
-                        // 실제 정적 "파일"이 있으면 그걸 서빙(js/css/img 등).
-                        //  빈 경로("/app/")나 디렉터리 요청("/app/foo/")은 파일이 아니므로 폴백 대상.
+                        // 실제 정적 "파일"이 있으면 그걸 서빙. 빈/디렉터리 경로는 폴백 대상.
                         boolean isFileRequest = !resourcePath.isEmpty() && !resourcePath.endsWith("/");
                         if (isFileRequest && requested.exists() && requested.isReadable()) {
                             return requested;
                         }
                         // 매칭되는 정적 파일이 없으면 SPA 진입점으로 폴백(딥링크·루트 진입 대응)
-                        return new ClassPathResource("/static/app/index.html");
+                        return new ClassPathResource("/static/index.html");
                     }
                 });
-        registry.addResourceHandler("/static/**")
-                .addResourceLocations("classpath:/static/");
+    }
+
+    /**
+     * SPA 폴백에서 제외할 백엔드(API/시스템) 경로 판별 — 여기 해당하면 index.html 폴백 대신 정상 404.
+     * (경로는 리소스 핸들러가 주는 상대경로라 앞 슬래시가 없다)
+     */
+    private static boolean isBackendPath(String path) {
+        return path.startsWith("api/")
+                || path.startsWith("actuator/") || path.equals("actuator")
+                || path.startsWith("ws-chat")
+                || path.equals("error");
     }
     
     /**
@@ -98,26 +113,17 @@ public class WebConfig implements WebMvcConfigurer {
     }
     
     /**
-     * SPA 루트 진입점(/app, /app/)을 index.html 로 포워딩.
-     *  - 리소스 핸들러(/app/**)는 하위경로가 "비어 있는"(/app/) 요청을 리졸버 호출 전에 404 처리하므로,
-     *    루트만 여기서 forward 로 보정한다(내부 포워드라 리다이렉트 루프 위험 없음).
-     *  - 딥링크(/app/admin/... 등)는 리소스 핸들러가 index.html 로 폴백하므로 여기서 다루지 않는다.
-     */
-    @Override
-    public void addViewControllers(@NonNull ViewControllerRegistry registry) {
-        registry.addViewController("/app").setViewName("forward:/app/index.html");
-        registry.addViewController("/app/").setViewName("forward:/app/index.html");
-    }
-
-    /**
-     * 인터셉터 등록
+     * 인터셉터 등록.
+     *  - eventCheckInterceptor 는 요청정보를 pBox 로 모아 컨트롤러에 넘기는 전처리기.
+     *    SPA 정적 자산(assets·favicon)·error 요청엔 불필요하므로 제외한다.
+     *    (SPA HTML 진입 자체는 index.html 폴백이라 자산 제외만으로 대부분의 정적 요청이 빠진다)
      */
     @Override
     public void addInterceptors(@NonNull InterceptorRegistry registry) {
         registry.addInterceptor(localeChangeInterceptor());
         registry.addInterceptor(eventCheckInterceptor)
                 .addPathPatterns("/**") // 모든 경로에 대해 인터셉터 적용
-                .excludePathPatterns("/static/**", "/error", "/app/**");  // static 리소스, SPA, error 페이지는 제외
+                .excludePathPatterns("/assets/**", "/favicon.svg", "/error");  // 정적 자산·error 는 제외
     }
     
 }

@@ -5,7 +5,7 @@ import axios from 'axios'
  *
  * - baseURL 을 두지 않는다: 각 요청에 '/api/...' 처럼 절대경로를 준다.
  *   개발 시에는 Vite 프록시가 /api·/auth·/test 를 백엔드(:70)로 전달하고,
- *   배포 시에는 같은 오리진(백엔드가 /app 으로 SPA 서빙)이라 그대로 동작한다.
+ *   배포 시에는 같은 오리진(백엔드가 루트로 SPA 서빙)이라 그대로 동작한다.
  * - 인증 토큰 주입/공통 에러 처리가 필요하면 아래 인터셉터에 추가한다.
  */
 const instance = axios.create({

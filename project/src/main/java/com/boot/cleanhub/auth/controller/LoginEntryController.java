@@ -29,8 +29,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 public class LoginEntryController {
 
-    /** /login 리다이렉트 대상(구성값). 기본 SPA(/app), SSR 은 실제 로그인 페이지 URL 로 오버라이드 */
-    @Value("${auth.login-redirect:/app}")
+    /** /login 리다이렉트 대상(구성값). 기본 SPA 루트(/), SSR 은 실제 로그인 페이지 URL 로 오버라이드 */
+    @Value("${auth.login-redirect:/}")
     private String loginRedirect;
 
     @GetMapping("/login")
