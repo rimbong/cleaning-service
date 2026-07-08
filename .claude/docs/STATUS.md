@@ -12,7 +12,9 @@ Spring Boot 2.7(Java 8, WAR) + Vue3 + PostgreSQL 18(Flyway). 패키지 `com.boot
 2. **거래처 도메인**(711ad82) — 첫 도메인 수직완성(백→프론트). 대민/관리자 영역 분리.
 3. **자동로그인**(e6c450e) — refreshToken HttpOnly 쿠키, 새로고침·재시작 시 로그인 유지.
 4. **계약 도메인**(4901510) — 거래처 1:N 참조 정기 월정액 계약. 관리자 CRUD 수직완성. Flyway V4.
-5. **거래처↔계약 연결 + 계약서 파일관리**(미커밋) — 거래처 상세에 계약목록/추가, 계약 걸린 거래처 삭제방지(409). 계약서 보관위치 메모 + 첨부파일(업로드/다운로드/삭제, **파일시스템 저장** file.upload-dir). 파일 I/O는 util/file/FileUtillMo로 일원화. Flyway V5·V6. (worklog 2026-07-08 참고)
+5. **거래처↔계약 연결 + 계약서 파일관리**(ab76e24·9ce0a6c) — 거래처 상세에 계약목록/추가, 계약 걸린 거래처 삭제방지(409). 계약서 보관위치 메모 + 첨부파일(업로드/다운로드/삭제, **파일시스템 저장** file.upload-dir). 파일 I/O는 util/file/FileUtillMo로 일원화. Flyway V5·V6.
+6. **코드리뷰 반영**(b271527) — 계약 종료일<시작일 검증, updatedAt 응답 정확화, 수정폼 반응성(watch).
+7. **견적 도메인**(미커밋) — 일회성 특수청소 견적. 거래처 선택(nullable)+고객 직접입력, 상태 대기/수락/거절. 거래처 삭제 시 SET NULL. 관리자 CRUD. Flyway V7. (worklog 2026-07-08 참고)
 
 ## 확정된 설계 결정 (바꾸지 말 것 — 이미 합의·구현됨)
 
@@ -41,8 +43,8 @@ Spring Boot 2.7(Java 8, WAR) + Vue3 + PostgreSQL 18(Flyway). 패키지 `com.boot
 ```
 [완료]  거래처(client) — 건물·고객
 [완료]  계약(contract) — 거래처 1:N, 정기 월정액 계약(계약명·월금액·청구일·기간·상태)
-[다음]  견적(quote) — 일회성 특수청소(입주·물탱크 등) 견적
-[이후]  정산(settlement) — 계약+견적 집계, 월 청구, 엑셀 출력
+[완료]  견적(quote) — 일회성 특수청소, 거래처 선택+고객직접입력, 대기/수락/거절
+[다음]  정산(settlement) — 계약+견적 집계, 월 청구, 엑셀 출력
 [2단계] 대민 견적요청, 후기·건의/문의(게시판 계열)
 [3단계] 대시보드 통계, PDF 견적서, 이메일 알림
 ```
@@ -58,7 +60,8 @@ Spring Boot 2.7(Java 8, WAR) + Vue3 + PostgreSQL 18(Flyway). 패키지 `com.boot
 
 ## 알아둘 것 (트랩)
 - `${username}` 등 일반 플레이스홀더는 Windows USERNAME 환경변수와 충돌 → db.properties는 `db.` 접두사.
-- 커밋 시 `.vscode/launch.json`은 제외(IDE 설정). node_modules·static/app는 gitignore.
+- 커밋 시 `.vscode/launch.json`은 제외(IDE 설정). node_modules·`static/`(SPA 빌드산출물)은 gitignore.
+- **SPA 서빙은 루트(/)** — 대민 `/`, 관리자 `/admin`. base `/`, 산출물 `static/` 루트, `WebConfig` 딥링크 폴백(백엔드 경로 제외). (2026-07-08 `/app`→`/` 전환)
 - Git Bash curl로 한글 JSON 보내면 CP949로 깨짐 → 테스트는 UTF-8 파일(`--data-binary @file`)로.
 - refresh 쿠키 Secure는 개발 false(http localhost), 운영은 env `REFRESH_COOKIE_SECURE=true`.
 
