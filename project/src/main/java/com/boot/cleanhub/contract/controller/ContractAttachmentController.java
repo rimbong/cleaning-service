@@ -13,10 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.boot.cleanhub.common.api.ApiResponse;
-import com.boot.cleanhub.contract.domain.ContractAttachment;
 import com.boot.cleanhub.contract.dto.ContractAttachmentResponse;
 import com.boot.cleanhub.contract.service.ContractAttachmentService;
-import com.boot.cleanhub.util.file.FileUtillMo;
 
 import lombok.RequiredArgsConstructor;
 
@@ -54,15 +52,12 @@ public class ContractAttachmentController {
         return ApiResponse.ok(attachmentService.upload(contractId, file), "파일이 첨부되었습니다.");
     }
 
-    /** 첨부 다운로드(파일 바이트) */
+    /** 첨부 다운로드(파일 바이트) — 읽기·응답구성 모두 서비스+FileUtillMo 로 일원화 */
     @GetMapping("/{attachmentId}/download")
     public ResponseEntity<byte[]> download(
             @PathVariable Long contractId,
             @PathVariable Long attachmentId) {
-        ContractAttachment attachment = attachmentService.getForDownload(contractId, attachmentId);
-        byte[] bytes = attachmentService.readBytes(attachment);           // 파일 읽기(FileUtillMo.readBytes)
-        // 응답 구성도 표준 유틸로 일원화(콘텐트타입=저장값, 파일명=UTF-8 퍼센트 인코딩)
-        return FileUtillMo.downloadResponse(bytes, attachment.getOriginalFilename(), attachment.getContentType());
+        return attachmentService.download(contractId, attachmentId);
     }
 
     /** 첨부 삭제 */

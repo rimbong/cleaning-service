@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -106,28 +107,20 @@ public class ContractAttachmentService {
     }
 
     /**
-     * 다운로드 단건 조회(메타 + storedPath).
+     * 첨부 다운로드 응답 — 해당 계약의 첨부인지 확인 후 파일을 읽어 표준 다운로드 응답을 만든다(FileUtillMo).
      *
      * @param contractId   계약 ID(경로)
      * @param attachmentId 첨부 ID
-     * @return 첨부 엔티티(파일 본문은 파일시스템에 있음 — readBytes 로 별도 읽음)
-     * @throws BizException 해당 계약의 첨부가 아니면 CONTRACT_ATTACHMENT_NOT_FOUND
+     * @return 다운로드용 ResponseEntity
+     * @throws BizException 해당 계약의 첨부가 아니면 CONTRACT_ATTACHMENT_NOT_FOUND, 파일 읽기 실패면 FILE_UPLOAD_FAILED
      */
-    public ContractAttachment getForDownload(Long contractId, Long attachmentId) {
-        return attachmentRepository.findByIdAndContract_Id(attachmentId, contractId)
+    public ResponseEntity<byte[]> download(Long contractId, Long attachmentId) {
+        ContractAttachment attachment = attachmentRepository.findByIdAndContract_Id(attachmentId, contractId)
                 .orElseThrow(() -> new BizException(ErrorCode.CONTRACT_ATTACHMENT_NOT_FOUND));
-    }
-
-    /**
-     * 첨부 파일 본문을 파일시스템에서 읽어 반환(FileUtillMo).
-     *
-     * @param attachment 대상 첨부(storedPath 필요)
-     * @return 파일 바이트
-     * @throws BizException 파일 읽기 실패(FILE_UPLOAD_FAILED)
-     */
-    public byte[] readBytes(ContractAttachment attachment) {
         try {
-            return FileUtillMo.readBytes(fullPath(attachment));
+            // baseDir + 저장 상대경로로 파일을 읽어 응답 구성(uploadSingleFile 과 인자 스타일 일치)
+            return FileUtillMo.downloadResponse(uploadDir, attachment.getStoredPath(),
+                    attachment.getOriginalFilename(), attachment.getContentType());
         } catch (IOException e) {
             throw new BizException(ErrorCode.FILE_UPLOAD_FAILED);
         }

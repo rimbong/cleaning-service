@@ -1,7 +1,6 @@
 package com.boot.cleanhub.util.file;
 
 import java.awt.image.BufferedImage;
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -107,204 +106,168 @@ public class FileUtillMo {
                 .body(data);
     }
 
-    /*
-	 * <pre>
-	 * 파일 읽기 메소드
-	 * </pre>
-	 *
-	 * @param file : 파일
-	 *
-	 * @return
-	 */
-	public static String readFile(File file) throws Exception {
-		BufferedReader read = new BufferedReader(new FileReader(file));
-		String line=null;
-		String fileData = "";
-		while((line = read.readLine()) != null){
-			fileData += line + "\n";
-		}
-		read.close();
-		return fileData;
-	}
-		
-	/*
-	 * <pre>
-	 * 파일 삭제 메소드
-	 * </pre>
-	 * 
-	 * @param source
-	 *            : 삭제할 파일 경로
-	 * @return
-	 */
-	public static boolean deleteFile(String source) {
-		Boolean result = false;
-		File deleteFile = null;
-		try {
-			deleteFile = new File(source);
-			if (deleteFile.exists()) {
-				deleteFile.delete();
-			}
-			result = true;
-		} catch (Exception ex) {
-			ex.printStackTrace();
-		}
-		return result;
-	}
-
     /**
      * <pre>
-     * fileDownload
+     *   파일시스템의 파일을 읽어 다운로드 응답으로 만든다(baseDir + relativePath 를 합쳐 읽음).
+     *   uploadSingleFile 이 반환한 저장 상대경로를 그대로 넘기면 되며,
+     *   uploadSingleFile(baseDir, target)·downloadFile(dirPath, filePath) 와 인자 스타일을 맞춘다.
+     *   (파일 본문을 이미 들고 있으면 byte[] 오버로드를 쓴다 — 예: DB blob·메모리 생성물)
      * </pre>
-     * 
-     * @author In-seong Hwang
-     * @version 1.0
-     * 
-    */
-    public static void downloadFile(PBox pBox, HttpServletRequest request, HttpServletResponse response)
-            throws Exception {
-        String fileName = null;
-        String fileFullPath = null;
-        String fileExt = null;
-        FileInputStream fis = null;
-        BufferedOutputStream bos = null;
-
-        try {
-            fileName = pBox.getString("fileName");
-            fileFullPath = pBox.getString("fileFullPath");
-            fileExt = separateFileName(fileFullPath)[1];
-            File file = new File(fileFullPath);
-            
-            if (!file.exists() || !file.isFile()) {
-                response.sendError(HttpServletResponse.SC_NOT_FOUND, "File not found: " + fileName);
-                return;
-            }
-
-            String docName = getDocNameByBrowser(fileName, request);
-            String contentType = Files.probeContentType(file.toPath());
-
-            if("apk".equalsIgnoreCase(fileExt)) {
-            	contentType = "application/vnd.android.package-archive";
-            }
-
-            response.setContentType(contentType);
-            response.setHeader("Expires", "0");
-            response.setHeader("Content-Disposition", "attachment; filename=\"" + docName + "\"");
-            response.setHeader("Accept-Ranges", "bytes");
-            response.setHeader("Pragma", "No-Cache");
-            response.setHeader("Cache-Control", "No-Cache");
-            response.setHeader("Content-Length", String.valueOf(file.length()) );
-
-            byte[] outputByte = new byte[1024];
-            fis = new FileInputStream(file);
-            bos = new BufferedOutputStream(response.getOutputStream(), 1024);
-            int readCount;
-            while ((readCount = fis.read(outputByte)) != -1) {
-                // 실제 읽은 바이트 수(readCount)만큼만 쓴다.
-                // (과거: 항상 1024 를 써서 파일 크기가 1024 배수가 아니면 꼬리에 쓰레기가 붙어 손상되던 버그)
-                bos.write(outputByte, 0, readCount);
-            }
-            bos.flush();
-        } catch (Exception e) {
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error while downloading file: " + e.getMessage());
-            throw e;
-        } finally {
-            try {
-                if (fis != null) {
-                    fis.close();
-                }
-            } catch (Exception e) {
-            }
-            try {
-                if (bos != null) {
-                    bos.close();
-                }
-            } catch (Exception e) {
-            }
-        }
+     *
+     * @param baseDir          저장 루트 디렉터리(설정값 file.upload-dir)
+     * @param relativePath     baseDir 기준 저장 상대경로(예: contract/10/2026..._ab.pdf)
+     * @param originalFilename 다운로드 시 보일 원본 파일명
+     * @param contentType      MIME 타입(비면 application/octet-stream)
+     * @return 다운로드용 ResponseEntity(attachment)
+     * @throws IOException 파일 읽기 실패
+     */
+    public static ResponseEntity<byte[]> downloadResponse(String baseDir, String relativePath,
+            String originalFilename, String contentType) throws IOException {
+        byte[] data = readBytes(new File(baseDir, relativePath).getPath());
+        return downloadResponse(data, originalFilename, contentType);
     }
+
     /**
      * <pre>
-     * fileDownload
+     * 파일 읽기 메소드
      * </pre>
-     * 
+     *
+     * @param file : 파일
+     * @return 파일 내용 문자열
+     */
+    public static String readFile(File file) throws Exception {
+        BufferedReader read = new BufferedReader(new FileReader(file));
+        String line = null;
+        String fileData = "";
+        while ((line = read.readLine()) != null) {
+            fileData += line + "\n";
+        }
+        read.close();
+        return fileData;
+    }
+
+    /**
+     * <pre>
+     * 파일 삭제 메소드
+     * </pre>
+     *
+     * @param source : 삭제할 파일 경로
+     * @return 성공 여부
+     */
+    public static boolean deleteFile(String source) {
+        Boolean result = false;
+        File deleteFile = null;
+        try {
+            deleteFile = new File(source);
+            if (deleteFile.exists()) {
+                deleteFile.delete();
+            }
+            result = true;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return result;
+    }
+
+    /**
+     * <pre>
+     *   파일 다운로드(서블릿 직접 스트리밍) — PBox(fileName, fileFullPath) 기반.
+     *   대용량도 메모리에 다 올리지 않고 청크 전송한다. REST 컨트롤러라면 downloadResponse 를 권장.
+     * </pre>
+     *
+     * @author In-seong Hwang
+     * @version 2.0 (2026.07 — 표준 파일명 인코딩·try-with-resources·octet-stream fallback 로 보완)
+     */
+    public static void downloadFile(PBox pBox, HttpServletResponse response) throws IOException {
+        streamToResponse(new File(pBox.getString("fileFullPath")), pBox.getString("fileName"), response);
+    }
+
+    /**
+     * <pre>
+     *   파일 다운로드(서블릿 직접 스트리밍) — dirPath + filePath 기반.
+     * </pre>
+     *
      * @author In-seong Hwang
      * @since 2023.03.14
-     * @version 1.0
-     * 
-    */
-    public static void downloadFile(String dirPath,String filePath,HttpServletRequest request, HttpServletResponse response)
-            throws Exception {
-        String fileName = null;
-        String fileExt = null;
-        String fileFullPath = null;        
-        FileInputStream fis = null;
-        BufferedOutputStream bos = null;
+     * @version 2.0 (2026.07 — 보완)
+     */
+    public static void downloadFile(String dirPath, String filePath, HttpServletResponse response) throws IOException {
+        String[] parts = separateFileName(filePath);
+        streamToResponse(new File(dirPath + filePath), parts[0] + "." + parts[1], response);
+    }
 
-        try {
-            fileName = separateFileName(filePath)[0];
-            fileExt = separateFileName(filePath)[1];
-            fileFullPath = dirPath + filePath;
-            File file = new File(fileFullPath);
-            
-            if (!file.exists() || !file.isFile()) {
-                response.sendError(HttpServletResponse.SC_NOT_FOUND, "File not found: " + fileName);
-                return;
-            }
-
-            String docName = getDocNameByBrowser(fileName, request);
-            docName = docName + "." + fileExt;
-            String contentType = Files.probeContentType(file.toPath());
-
-            if("apk".equalsIgnoreCase(fileExt)) {
-            	contentType = "application/vnd.android.package-archive";
-            }
-
-            response.setContentType(contentType);
-            response.setHeader("Expires", "0");
-            response.setHeader("Content-Disposition", "attachment; filename=\"" + docName + "\"");
-            response.setHeader("Accept-Ranges", "bytes");
-            response.setHeader("Pragma", "No-Cache");
-            response.setHeader("Cache-Control", "No-Cache");
-            response.setHeader("Content-Length", String.valueOf(file.length()) );
-
-            byte[] outputByte = new byte[1024];
-            fis = new FileInputStream(file);
-            bos = new BufferedOutputStream(response.getOutputStream(), 1024);
-            int readCount;
-            while ((readCount = fis.read(outputByte)) != -1) {
-                // 실제 읽은 바이트 수(readCount)만큼만 쓴다.
-                // (과거: 항상 1024 를 써서 파일 크기가 1024 배수가 아니면 꼬리에 쓰레기가 붙어 손상되던 버그)
-                bos.write(outputByte, 0, readCount);
-            }
-            bos.flush();
-        } catch (Exception e) {
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error while downloading file: " + e.getMessage());
-            throw e;
-        } finally {
-            try {
-                if (fis != null) {
-                    fis.close();
-                }
-            } catch (Exception e) {
-            }
-            try {
-                if (bos != null) {
-                    bos.close();
-                }
-            } catch (Exception e) {
-            }
+    /**
+     * <pre>
+     *   파일을 HTTP 응답으로 스트리밍한다(청크 전송 — 대용량도 메모리에 다 올리지 않음).
+     *   - 파일명: 브라우저 판별 없이 RFC 5987(UTF-8) 방식으로 인코딩(ASCII 대체 + filename*).
+     *   - 콘텐트타입: 디스크 추정값(없으면 application/octet-stream), apk 특례 유지.
+     *   - 자원: try-with-resources 로 정리(예외 삼키는 빈 catch 제거).
+     *   스트리밍 시작 전에 파일 존재를 확인해 404 를 먼저 보낸다.
+     * </pre>
+     *
+     * @param file         보낼 파일
+     * @param downloadName 다운로드 시 보일 파일명
+     * @param response     HTTP 응답
+     * @throws IOException 파일 읽기/응답 쓰기 실패
+     */
+    private static void streamToResponse(File file, String downloadName, HttpServletResponse response) throws IOException {
+        if (file == null || !file.exists() || !file.isFile()) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "File not found");
+            return;
         }
+        String contentType = Files.probeContentType(file.toPath());
+        if (contentType == null || contentType.isEmpty()) {
+            contentType = "application/octet-stream";
+        }
+        if (downloadName != null && downloadName.toLowerCase().endsWith(".apk")) {
+            contentType = "application/vnd.android.package-archive";
+        }
+        response.setContentType(contentType);
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, contentDisposition(downloadName));
+        response.setHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(file.length()));
+        response.setHeader(HttpHeaders.ACCEPT_RANGES, "bytes");
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache");
+
+        byte[] buffer = new byte[8192];
+        try (InputStream in = new FileInputStream(file);
+                OutputStream out = response.getOutputStream()) {
+            int n;
+            while ((n = in.read(buffer)) != -1) {
+                out.write(buffer, 0, n);
+            }
+            out.flush();
+        }
+    }
+
+    /**
+     * <pre>
+     *   Content-Disposition(attachment) 헤더값을 만든다.
+     *   비ASCII(한글 등)는 헤더에 직접 못 넣으므로, ASCII 대체 파일명 + RFC 5987 filename*(UTF-8)을 함께 준다.
+     * </pre>
+     *
+     * @param filename 원본 파일명
+     * @return Content-Disposition 헤더 값
+     */
+    private static String contentDisposition(String filename) {
+        String safe = (filename == null || filename.isEmpty()) ? "download" : filename;
+        String asciiFallback = safe.replaceAll("[^\\x20-\\x7E]", "_").replace("\"", "_");
+        String utf8 = UriUtils.encode(safe, StandardCharsets.UTF_8);
+        return "attachment; filename=\"" + asciiFallback + "\"; filename*=UTF-8''" + utf8;
     }
 
     /**
      * <pre>
      * 현재 브라우저 정보를 기반으로 파일명을 만들어준다.
      * </pre>
-     * 
-     * @param request
-     * @param fileName
-     * @throws Exception
+     *
+     * @param fileName 원본 파일명
+     * @param request  요청(User-Agent 판별용)
+     * @return 브라우저별 인코딩된 파일명
+     * @throws Exception 인코딩 실패
+     * @deprecated 브라우저 판별(User-Agent) 방식은 구식·부정확하다. 신규 코드는 표준
+     *             {@link #contentDisposition(String)}(RFC 5987) 또는 downloadResponse 를 사용할 것.
      */
+    @Deprecated
     public static String getDocNameByBrowser(String fileName, HttpServletRequest request) throws Exception {
         PBox header = new PBox();
         Enumeration<String> headerNames = request.getHeaderNames();
@@ -322,7 +285,6 @@ public class FileUtillMo {
         } else if (browser.contains("Opera")) {
             docName = new String(fileName.getBytes("UTF-8"), "ISO-8859-1");
         } else if (browser.contains("Chrome")) {
-            // docName = new String(fileName.getBytes("UTF-8"), "ISO-8859-1");
             StringBuffer sb = new StringBuffer();
             for (int i = 0; i < fileName.length(); i++) {
                 char c = fileName.charAt(i);
@@ -347,13 +309,11 @@ public class FileUtillMo {
      * <pre>
      *   파일 파일명, 확장자 분리 메소드
      * </pre>
-     * 
-     * @param oriFileName
-     *                    : 원본파일 명
-     * @return
+     *
+     * @param oriFileName : 원본파일 명
+     * @return [파일명, 확장자]
      */
     public static String[] separateFileName(String oriFileName) {
-
         int file = oriFileName.lastIndexOf("/");
         int ext = oriFileName.lastIndexOf(".");
         String fileName = oriFileName.substring(file + 1, ext);
@@ -425,149 +385,147 @@ public class FileUtillMo {
         String rel = target.endsWith("/") ? target + saveFileName : target + "/" + saveFileName;
         return rel.replace("\\", "/");
     }
-    
-    /**
-	 * <pre>
-	 * 파일 복사 메소드
-	 * </pre>
-	 * @param source
-	 *            : 원본 파일 경로 , target : 목적 파일 경로
-	 * @return
-	 */
-	public static void copyFile(String source, String target) {
-		FileInputStream fis = null;
-		FileOutputStream fos = null;
-		try {
-			fis = new FileInputStream(source);
-			fos = new FileOutputStream(target);
 
-			int data = 0;
-			byte[] outputByte = new byte[4096];
-			while ((data = fis.read(outputByte, 0, 4096)) != -1) {
-				fos.write(outputByte, 0, data);
-			}
-
-		} catch (Exception ex) {
-			ex.printStackTrace();
-		} finally {
-			if (fis != null) {
-				try {
-					fis.close();
-				} catch (IOException e) {
-				}
-			}
-			if (fos != null) {
-				try {
-					fos.close();
-				} catch (IOException e) {
-				}
-			}
-		}
-	}
     /**
-	 * <pre>
-	 * 확장자 검증 메소드
-	 * </pre>
-	 * @param srcContentType
-	 * 			: 검증할 파일의 확장자, type : 체크할 유형 (image, doc, video, audio, all)
-	 * @return  
-	 */
-	public static boolean checkFileExtension(String srcContentType, String type) {
-		boolean result = false;	// 반환값
-		List<String> extArray = null;	// 허용할 확장자를 담을 리스트 변수
-		
-		try {
-			
-			// 허용할 확장자 세팅
-			if ("image".equals(type)) {
-				// 이미지 : jpg,jpeg,gif,png,bmp
-				extArray = Arrays.asList("image/jpeg", "image/png", "image/bmp", "image/gif");
-				
-			} else if ("doc".equals(type)) {
-				// 문서 : hwp, xls xlsx, txt, doc, docx, pdf, ppt, pptx
-				extArray = Arrays.asList("application/haansofthwp", "application/x-hwp", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "text/plain", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/pdf", "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
-				
-			} else if ("video".equals(type)) {
-				// 영상 : mp4,avi,mkv,wmv,mov mpg, mpeg
-				extArray = Arrays.asList("video/mp4", "video/x-msvideo", "video/x-matroska", "video/x-ms-wmv", "video/quicktime", "video/mpeg");
-				
-			} else if ("audio".equals(type)) {
-				// 음원 : mp3, ogg, wma, wav 
-				extArray = Arrays.asList("audio/mpeg3", "audio/ogg", "audio/x-ms-wma", "audio/x-wav");
-				
-			} else if ("all".equals(type)) {
-				// 전체
-				extArray = Arrays.asList("image/jpeg", "image/png", "image/bmp", "image/gif", 
-						"application/haansofthwp", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "text/plain", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/pdf", "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-						"video/mp4", "video/x-msvideo", "video/x-matroska", "video/x-ms-wmv", "video/quicktime", "video/mpeg",
-						"audio/mpeg3", "audio/ogg", "audio/x-ms-wma", "audio/x-wav");
-				
-			} else {
-				// 잘못된 유형이 전달된 경우 false 반환
-				return false;
-			}
-			
-			// 해당 유형의 리스트에 검증할 파일의 확장자가 포함되어 있는지 확인 후 포함여부에 따라 true, false값 반환
-			result = extArray.contains(srcContentType);
-			
-		} catch (Exception ex) {
-			ex.printStackTrace();
-		}
-		
-		return result;
-	}
-    
-	/**
-	 * <pre>
-	 * 	파일을 BASE64 String으로 변환
-	 * </pre>
-	 * 
-	 * @param file
-	 * 			: String 타입으로 변환할 파일
-	 * @throws IOException
-	 * @return String으로 변환된 파일 (String)
-	 */
-	public static String fileToString(File file) throws IOException {
-		
-		String fileString = new String();
-		FileInputStream inputStream = null;
-		ByteArrayOutputStream byteOutStream = null;
-		
-		try {
-			
-			inputStream = new FileInputStream(file);
-			byteOutStream = new ByteArrayOutputStream();
-			
-			int len = 0;
-			byte[] buf = new byte[1024];
-			
-			while ((len = inputStream.read(buf)) != -1) {
-				byteOutStream.write(buf, 0, len);
-			}
-		
-			byte[] fileArray = byteOutStream.toByteArray();
-			fileString = new String(Base64.encodeBase64(fileArray));
-		
-		} catch (IOException e) {
-			e.printStackTrace();
-		} finally {
+     * <pre>
+     * 파일 복사 메소드
+     * </pre>
+     *
+     * @param source : 원본 파일 경로
+     * @param target : 목적 파일 경로
+     */
+    public static void copyFile(String source, String target) {
+        FileInputStream fis = null;
+        FileOutputStream fos = null;
+        try {
+            fis = new FileInputStream(source);
+            fos = new FileOutputStream(target);
+
+            int data = 0;
+            byte[] outputByte = new byte[4096];
+            while ((data = fis.read(outputByte, 0, 4096)) != -1) {
+                fos.write(outputByte, 0, data);
+            }
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        } finally {
+            if (fis != null) {
+                try {
+                    fis.close();
+                } catch (IOException e) {
+                }
+            }
+            if (fos != null) {
+                try {
+                    fos.close();
+                } catch (IOException e) {
+                }
+            }
+        }
+    }
+
+    /**
+     * <pre>
+     * 확장자 검증 메소드
+     * </pre>
+     *
+     * @param srcContentType : 검증할 파일의 콘텐트타입
+     * @param type           : 체크할 유형 (image, doc, video, audio, all)
+     * @return 허용 여부
+     */
+    public static boolean checkFileExtension(String srcContentType, String type) {
+        boolean result = false; // 반환값
+        List<String> extArray = null; // 허용할 확장자를 담을 리스트 변수
+
+        try {
+            // 허용할 확장자 세팅
+            if ("image".equals(type)) {
+                // 이미지 : jpg,jpeg,gif,png,bmp
+                extArray = Arrays.asList("image/jpeg", "image/png", "image/bmp", "image/gif");
+
+            } else if ("doc".equals(type)) {
+                // 문서 : hwp, xls xlsx, txt, doc, docx, pdf, ppt, pptx
+                extArray = Arrays.asList("application/haansofthwp", "application/x-hwp", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "text/plain", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/pdf", "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+
+            } else if ("video".equals(type)) {
+                // 영상 : mp4,avi,mkv,wmv,mov mpg, mpeg
+                extArray = Arrays.asList("video/mp4", "video/x-msvideo", "video/x-matroska", "video/x-ms-wmv", "video/quicktime", "video/mpeg");
+
+            } else if ("audio".equals(type)) {
+                // 음원 : mp3, ogg, wma, wav
+                extArray = Arrays.asList("audio/mpeg3", "audio/ogg", "audio/x-ms-wma", "audio/x-wav");
+
+            } else if ("all".equals(type)) {
+                // 전체
+                extArray = Arrays.asList("image/jpeg", "image/png", "image/bmp", "image/gif",
+                        "application/haansofthwp", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "text/plain", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/pdf", "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                        "video/mp4", "video/x-msvideo", "video/x-matroska", "video/x-ms-wmv", "video/quicktime", "video/mpeg",
+                        "audio/mpeg3", "audio/ogg", "audio/x-ms-wma", "audio/x-wav");
+
+            } else {
+                // 잘못된 유형이 전달된 경우 false 반환
+                return false;
+            }
+
+            // 해당 유형의 리스트에 검증할 파일의 확장자가 포함되어 있는지 확인 후 포함여부에 따라 true, false값 반환
+            result = extArray.contains(srcContentType);
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+        return result;
+    }
+
+    /**
+     * <pre>
+     * 파일을 BASE64 String으로 변환
+     * </pre>
+     *
+     * @param file : String 타입으로 변환할 파일
+     * @return String으로 변환된 파일
+     * @throws IOException 읽기 실패
+     */
+    public static String fileToString(File file) throws IOException {
+        String fileString = new String();
+        FileInputStream inputStream = null;
+        ByteArrayOutputStream byteOutStream = null;
+
+        try {
+            inputStream = new FileInputStream(file);
+            byteOutStream = new ByteArrayOutputStream();
+
+            int len = 0;
+            byte[] buf = new byte[1024];
+
+            while ((len = inputStream.read(buf)) != -1) {
+                byteOutStream.write(buf, 0, len);
+            }
+
+            byte[] fileArray = byteOutStream.toByteArray();
+            fileString = new String(Base64.encodeBase64(fileArray));
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
             if (inputStream != null) {
                 inputStream.close();
             }
             if (byteOutStream != null) {
                 byteOutStream.close();
             }
-		}
-		
-		return fileString;
-	}
+        }
 
-    public static void createQR(String input, OutputStream os) throws Exception{
+        return fileString;
+    }
+
+    public static void createQR(String input, OutputStream os) throws Exception {
         QRCodeWriter qrCodeWriter = new QRCodeWriter();
-        BitMatrix bitMatrix = qrCodeWriter.encode( input, BarcodeFormat.QR_CODE, 400, 400 );
-        BufferedImage bufferedImage = MatrixToImageWriter.toBufferedImage( bitMatrix );
+        BitMatrix bitMatrix = qrCodeWriter.encode(input, BarcodeFormat.QR_CODE, 400, 400);
+        BufferedImage bufferedImage = MatrixToImageWriter.toBufferedImage(bitMatrix);
 
         // ImageIO를 사용하여 파일쓰기
-        ImageIO.write( bufferedImage, "png", os ); 
+        ImageIO.write(bufferedImage, "png", os);
     }
 }
