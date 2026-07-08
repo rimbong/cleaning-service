@@ -1,7 +1,7 @@
 <script setup>
 // 거래처 등록/수정 겸용 폼.
 //  - props.id 없음 → 등록,  있음 → 수정(기존 값 로드).
-import { computed, reactive, ref, watchEffect } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQueryClient } from '@tanstack/vue-query'
 
@@ -30,14 +30,15 @@ const form = reactive({
     memo: '',
 })
 
-// 수정 모드면 기존 값 로드
-watchEffect(async () => {
-    if (!isEdit.value) {
+// 수정 모드면 기존 값 로드 — props.id 를 명시적으로 추적(watchEffect 는 await 이후 접근한
+// props.id 를 의존으로 못 잡아, 라우트 파라미터만 바뀌어 컴포넌트가 재사용되면 갱신이 안 됨)
+watch(() => props.id, async (id) => {
+    if (id == null) {
         return
     }
     loading.value = true
     try {
-        const res = await clientService.get(props.id)
+        const res = await clientService.get(id)
         const c = res.data.data
         form.name = c.name ?? ''
         form.address = c.address ?? ''
@@ -51,7 +52,7 @@ watchEffect(async () => {
     } finally {
         loading.value = false
     }
-})
+}, { immediate: true })
 
 function buildPayload() {
     // 빈 문자열은 null 로 보내 서버에서 NULL 로 저장되게 한다(선택 항목).

@@ -2,6 +2,7 @@ package com.boot.cleanhub.contract.dto;
 
 import java.time.LocalDate;
 
+import javax.validation.constraints.AssertTrue;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
@@ -64,4 +65,15 @@ public class ContractRequest {
     /** 계약서 원본 보관 위치/비고 */
     @Size(max = 255, message = "보관 위치는 255자 이하로 입력하세요.")
     private String documentLocation;
+
+    /**
+     * 종료일-시작일 교차검증 — 둘 다 있을 때만, 종료일이 시작일과 같거나 이후여야 한다.
+     * (무기한 계약은 종료일을 비우므로 통과) @AssertTrue 는 isXxx() getter 형태로 인식된다.
+     *
+     * @return 유효하면 true
+     */
+    @AssertTrue(message = "계약 종료일은 시작일과 같거나 이후여야 합니다.")
+    public boolean isEndDateValid() {
+        return endDate == null || startDate == null || !endDate.isBefore(startDate);
+    }
 }

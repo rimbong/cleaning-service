@@ -98,7 +98,9 @@ public class ContractService {
     public ContractResponse update(Long id, ContractRequest request) {
         Contract contract = findOrThrow(id);
         apply(contract, request);
-        return ContractResponse.from(contract); // 영속 상태라 flush 시 자동 반영
+        // flush 로 @PreUpdate(updatedAt 갱신)를 먼저 반영한 뒤 DTO 생성 — 응답의 updatedAt 이 이번 수정 시각이 되게.
+        contractRepository.saveAndFlush(contract);
+        return ContractResponse.from(contract);
     }
 
     /**

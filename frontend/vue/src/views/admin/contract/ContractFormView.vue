@@ -2,7 +2,7 @@
 // 계약 등록/수정 겸용 폼.
 //  - props.id 없음 → 등록,  있음 → 수정(기존 값 로드).
 //  - 거래처(건물)는 셀렉트로 선택(거래처 목록을 불러와 채운다).
-import { computed, reactive, ref, watchEffect } from 'vue'
+import { computed, reactive, ref, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -50,14 +50,15 @@ watchEffect(() => {
     }
 })
 
-// 수정 모드면 기존 값 로드
-watchEffect(async () => {
-    if (!isEdit.value) {
+// 수정 모드면 기존 값 로드 — props.id 를 명시적으로 추적(watchEffect 는 await 이후 접근한
+// props.id 를 의존으로 못 잡아, 라우트 파라미터만 바뀌어 컴포넌트가 재사용되면 갱신이 안 됨)
+watch(() => props.id, async (id) => {
+    if (id == null) {
         return
     }
     loading.value = true
     try {
-        const res = await contractService.get(props.id)
+        const res = await contractService.get(id)
         const c = res.data.data
         form.clientId = c.clientId ?? ''
         form.title = c.title ?? ''
@@ -73,7 +74,7 @@ watchEffect(async () => {
     } finally {
         loading.value = false
     }
-})
+}, { immediate: true })
 
 function buildPayload() {
     // 빈 문자열은 null 로 보내 서버에서 NULL 로 저장되게 한다(선택 항목).
@@ -105,6 +106,11 @@ async function onSubmit() {
     }
     if (!form.startDate) {
         notify.bar('계약 시작일은 필수입니다.', { color: 'yellow' })
+        return
+    }
+    // type="date" 값은 YYYY-MM-DD 문자열이라 사전식 비교로 대소 비교 가능
+    if (form.endDate && form.startDate && form.endDate < form.startDate) {
+        notify.bar('계약 종료일은 시작일 이후여야 합니다.', { color: 'yellow' })
         return
     }
     saving.value = true
