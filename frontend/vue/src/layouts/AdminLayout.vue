@@ -16,6 +16,7 @@ const router = useRouter()
 const menu = [
     { to: '/admin', label: '대시보드', icon: '🏠', exact: true },
     { to: '/admin/clients', label: '거래처 관리', icon: '🏢', exact: false },
+    { to: '/admin/contracts', label: '계약 관리', icon: '📄', exact: false },
 ]
 
 // 현재 페이지 제목(라우트 meta.title 우선, 없으면 앱명)

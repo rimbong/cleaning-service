@@ -1,0 +1,134 @@
+package com.boot.cleanhub.contract.service;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import com.boot.cleanhub.client.domain.Client;
+import com.boot.cleanhub.client.repository.ClientRepository;
+import com.boot.cleanhub.contract.domain.Contract;
+import com.boot.cleanhub.contract.domain.ContractStatus;
+import com.boot.cleanhub.contract.dto.ContractRequest;
+import com.boot.cleanhub.contract.dto.ContractResponse;
+import com.boot.cleanhub.contract.repository.ContractRepository;
+import com.boot.cleanhub.error.BizException;
+import com.boot.cleanhub.error.ErrorCode;
+
+import lombok.RequiredArgsConstructor;
+
+/**
+ * <pre>
+ *   계약 도메인 서비스 — 등록/조회/수정/삭제.
+ *   조회는 읽기 전용 트랜잭션, 변경은 쓰기 트랜잭션으로 구분한다.
+ *   계약은 거래처(Client)를 참조하므로 등록/수정 시 거래처 존재를 확인한다.
+ * </pre>
+ *
+ * @author In-seong Hwang
+ * @since 2026.07.08
+ * @version 1.0
+ */
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class ContractService {
+
+    private final ContractRepository contractRepository;
+    private final ClientRepository clientRepository;
+
+    /**
+     * 계약 목록 조회.
+     * clientId 가 있으면 해당 거래처의 계약만, keyword 가 있으면 계약명 검색, 둘 다 없으면 전체.
+     *
+     * @param keyword  계약명 검색어(선택)
+     * @param clientId 거래처 필터(선택)
+     * @return 최신 등록순 계약 목록
+     */
+    public List<ContractResponse> list(String keyword, Long clientId) {
+        List<Contract> contracts;
+        if (clientId != null) {
+            contracts = contractRepository.findByClientId(clientId);
+        } else if (StringUtils.hasText(keyword)) {
+            contracts = contractRepository.searchByTitle(keyword.trim());
+        } else {
+            contracts = contractRepository.findAllWithClient();
+        }
+        return contracts.stream()
+                .map(ContractResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 계약 단건 조회.
+     *
+     * @param id 계약 ID
+     * @return 계약 응답
+     * @throws BizException 존재하지 않으면 CONTRACT_NOT_FOUND
+     */
+    public ContractResponse get(Long id) {
+        return ContractResponse.from(findOrThrow(id));
+    }
+
+    /**
+     * 계약 등록.
+     *
+     * @param request 등록 요청
+     * @return 생성된 계약 응답
+     * @throws BizException 거래처가 없으면 CLIENT_NOT_FOUND
+     */
+    @Transactional
+    public ContractResponse create(ContractRequest request) {
+        Contract contract = new Contract();
+        apply(contract, request);
+        return ContractResponse.from(contractRepository.save(contract));
+    }
+
+    /**
+     * 계약 수정.
+     *
+     * @param id      계약 ID
+     * @param request 수정 요청
+     * @return 수정된 계약 응답
+     * @throws BizException 계약이 없으면 CONTRACT_NOT_FOUND, 거래처가 없으면 CLIENT_NOT_FOUND
+     */
+    @Transactional
+    public ContractResponse update(Long id, ContractRequest request) {
+        Contract contract = findOrThrow(id);
+        apply(contract, request);
+        return ContractResponse.from(contract); // 영속 상태라 flush 시 자동 반영
+    }
+
+    /**
+     * 계약 삭제.
+     *
+     * @param id 계약 ID
+     * @throws BizException 존재하지 않으면 CONTRACT_NOT_FOUND
+     */
+    @Transactional
+    public void delete(Long id) {
+        Contract contract = findOrThrow(id);
+        contractRepository.delete(contract);
+    }
+
+    /** 요청 값을 엔티티에 반영(등록/수정 공통). 거래처 연결과 상태 기본값 처리 포함 */
+    private void apply(Contract contract, ContractRequest request) {
+        Client client = clientRepository.findById(request.getClientId())
+                .orElseThrow(() -> new BizException(ErrorCode.CLIENT_NOT_FOUND));
+        contract.setClient(client);
+        contract.setTitle(request.getTitle());
+        contract.setMonthlyFee(request.getMonthlyFee());
+        contract.setBillingDay(request.getBillingDay());
+        contract.setStartDate(request.getStartDate());
+        contract.setEndDate(request.getEndDate());
+        contract.setStatus(request.getStatus() != null ? request.getStatus() : ContractStatus.ACTIVE);
+        contract.setMemo(request.getMemo());
+    }
+
+    /** ID 로 조회하되(거래처 포함) 없으면 예외 */
+    private Contract findOrThrow(Long id) {
+        return contractRepository.findByIdWithClient(id)
+                .orElseThrow(() -> new BizException(ErrorCode.CONTRACT_NOT_FOUND));
+    }
+}

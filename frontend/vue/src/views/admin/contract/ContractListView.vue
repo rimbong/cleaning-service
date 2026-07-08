@@ -1,10 +1,10 @@
 <script setup>
-// 거래처 목록 — vue-query 로 캐싱, 건물명 검색, 등록/상세/수정/삭제 진입.
+// 계약 목록 — vue-query 로 캐싱, 계약명 검색, 등록/상세/수정/삭제 진입.
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 
-import { clientService } from '@/services/client/clientService'
+import { contractService } from '@/services/contract/contractService'
 import { useNotifyStore } from '@/stores/notify/notify'
 
 const router = useRouter()
@@ -18,12 +18,12 @@ const appliedKeyword = ref('')
 
 // queryKey 에 검색어를 넣어, 검색어별로 캐시가 분리·재사용된다.
 const { data, isLoading, isError, isFetching } = useQuery({
-    queryKey: ['clients', appliedKeyword],
-    queryFn: () => clientService.list(appliedKeyword.value).then((res) => res.data.data),
-    staleTime: 30_000, // 30초 이내 재방문은 캐시 사용(목록 왕복 시 즉시 표시)
+    queryKey: ['contracts', appliedKeyword],
+    queryFn: () => contractService.list({ keyword: appliedKeyword.value }).then((res) => res.data.data),
+    staleTime: 30_000, // 30초 이내 재방문은 캐시 사용
 })
 
-const clients = computed(() => data.value ?? [])
+const contracts = computed(() => data.value ?? [])
 
 function doSearch() {
     appliedKeyword.value = searchInput.value.trim()
@@ -36,44 +36,48 @@ function resetSearch() {
 
 // 삭제 — 성공 시 목록 캐시 무효화(자동 갱신)
 const removeMutation = useMutation({
-    mutationFn: (id) => clientService.remove(id),
+    mutationFn: (id) => contractService.remove(id),
     onSuccess: () => {
         notify.toast('삭제되었습니다.', { type: 'info' })
-        queryClient.invalidateQueries({ queryKey: ['clients'] })
+        queryClient.invalidateQueries({ queryKey: ['contracts'] })
     },
     onError: (e) => {
         notify.bar(e.response?.data?.message ?? '삭제에 실패했습니다.', { color: 'red' })
     },
 })
 
-async function onDelete(client) {
-    if (!(await notify.confirm(`'${client.name}' 거래처를 삭제하시겠습니까?`))) {
+async function onDelete(contract) {
+    if (!(await notify.confirm(`'${contract.title}' 계약을 삭제하시겠습니까?`))) {
         return
     }
-    removeMutation.mutate(client.id)
+    removeMutation.mutate(contract.id)
 }
 
 function fmtDate(v) {
     return v ? String(v).slice(0, 10) : '-'
 }
 
+function fmtMoney(v) {
+    return v != null ? Number(v).toLocaleString('ko-KR') + '원' : '-'
+}
+
 // 목록 행 클릭 → 상세로 이동(수정/삭제 버튼은 @click.stop 으로 제외)
 function goDetail(id) {
-    router.push({ name: 'admin-client-detail', params: { id } })
+    router.push({ name: 'admin-contract-detail', params: { id } })
 }
 </script>
 
 <template>
-    <section class="clients">
+    <section class="contracts">
         <!-- 툴바: 검색 + 등록 -->
         <div class="toolbar">
             <form class="search" @submit.prevent="doSearch">
-                <input v-model="searchInput" placeholder="건물명으로 검색" />
+                <input v-model="searchInput" placeholder="계약명으로 검색" />
                 <button class="btn" type="submit">검색</button>
                 <button v-if="appliedKeyword" class="btn btn--ghost" type="button" @click="resetSearch">초기화</button>
             </form>
-            <button class="btn btn--primary" type="button" @click="router.push({ name: 'admin-client-new' })">
-                + 새 거래처
+            <button class="btn btn--primary" type="button" @click="router.push({ name: 'admin-contract-new' })">
+                + 새 계약
             </button>
         </div>
 
@@ -84,37 +88,37 @@ function goDetail(id) {
         <!-- 목록 -->
         <div v-else class="table-wrap">
             <div class="list-meta">
-                <span>총 <strong>{{ clients.length }}</strong>건</span>
+                <span>총 <strong>{{ contracts.length }}</strong>건</span>
                 <span v-if="isFetching" class="list-meta__sync">갱신 중…</span>
             </div>
 
-            <table v-if="clients.length" class="table">
+            <table v-if="contracts.length" class="table">
                 <thead>
                     <tr>
-                        <th>건물명</th>
-                        <th>청소 종류</th>
-                        <th>담당자</th>
-                        <th>연락처</th>
-                        <th>계약 시작일</th>
+                        <th>계약명</th>
+                        <th>거래처</th>
+                        <th>월 청구금액</th>
+                        <th>시작일</th>
+                        <th>상태</th>
                         <th class="col-actions">작업</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="c in clients" :key="c.id" class="row-click" @click="goDetail(c.id)">
+                    <tr v-for="c in contracts" :key="c.id" class="row-click" @click="goDetail(c.id)">
                         <td>
-                            <span class="name-link">{{ c.name }}</span>
+                            <span class="name-link">{{ c.title }}</span>
                         </td>
+                        <td>{{ c.clientName || '-' }}</td>
+                        <td>{{ fmtMoney(c.monthlyFee) }}</td>
+                        <td>{{ fmtDate(c.startDate) }}</td>
                         <td>
-                            <span v-if="c.cleaningType" class="tag" :class="'tag--' + c.cleaningType.toLowerCase()">
-                                {{ c.cleaningTypeLabel }}
+                            <span v-if="c.status" class="tag" :class="'tag--' + c.status.toLowerCase()">
+                                {{ c.statusLabel }}
                             </span>
                             <span v-else class="muted">-</span>
                         </td>
-                        <td>{{ c.managerName || '-' }}</td>
-                        <td>{{ c.managerPhone || '-' }}</td>
-                        <td>{{ fmtDate(c.contractStartDate) }}</td>
                         <td class="col-actions" @click.stop>
-                            <RouterLink class="btn btn--sm" :to="{ name: 'admin-client-edit', params: { id: c.id } }">
+                            <RouterLink class="btn btn--sm" :to="{ name: 'admin-contract-edit', params: { id: c.id } }">
                                 수정
                             </RouterLink>
                             <button class="btn btn--sm btn--danger" type="button" @click="onDelete(c)">삭제</button>
@@ -124,9 +128,9 @@ function goDetail(id) {
             </table>
 
             <div v-else class="empty">
-                <p>등록된 거래처가 없습니다.</p>
-                <button class="btn btn--primary" type="button" @click="router.push({ name: 'admin-client-new' })">
-                    첫 거래처 등록하기
+                <p>등록된 계약이 없습니다.</p>
+                <button class="btn btn--primary" type="button" @click="router.push({ name: 'admin-contract-new' })">
+                    첫 계약 등록하기
                 </button>
             </div>
         </div>
@@ -305,12 +309,17 @@ function goDetail(id) {
     font-weight: 600;
 }
 
-.tag--regular {
+.tag--active {
     background: var(--primary-soft);
     color: var(--primary-hover);
 }
 
-.tag--special {
+.tag--ended {
+    background: #e5e7eb;
+    color: #4b5563;
+}
+
+.tag--suspended {
     background: #fef3c7;
     color: #92400e;
 }

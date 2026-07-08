@@ -1,17 +1,20 @@
 <script setup>
-// 거래처 등록/수정 겸용 폼.
+// 계약 등록/수정 겸용 폼.
 //  - props.id 없음 → 등록,  있음 → 수정(기존 값 로드).
+//  - 거래처(건물)는 셀렉트로 선택(거래처 목록을 불러와 채운다).
 import { computed, reactive, ref, watchEffect } from 'vue'
-import { useRouter } from 'vue-router'
-import { useQueryClient } from '@tanstack/vue-query'
+import { useRoute, useRouter } from 'vue-router'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
 
-import { clientService, CLEANING_TYPES } from '@/services/client/clientService'
+import { contractService, CONTRACT_STATUSES } from '@/services/contract/contractService'
+import { clientService } from '@/services/client/clientService'
 import { useNotifyStore } from '@/stores/notify/notify'
 
 const props = defineProps({
     id: { type: [String, Number], default: null },
 })
 
+const route = useRoute()
 const router = useRouter()
 const notify = useNotifyStore()
 const queryClient = useQueryClient()
@@ -21,13 +24,29 @@ const loading = ref(false)
 const saving = ref(false)
 
 const form = reactive({
-    name: '',
-    address: '',
-    managerName: '',
-    managerPhone: '',
-    cleaningType: '',
-    contractStartDate: '',
+    clientId: '',
+    title: '',
+    monthlyFee: '',
+    billingDay: '',
+    startDate: '',
+    endDate: '',
+    status: 'ACTIVE',
     memo: '',
+})
+
+// 거래처 셀렉트 옵션 — 거래처 목록을 캐시로 불러온다.
+const { data: clientData } = useQuery({
+    queryKey: ['clients', ''],
+    queryFn: () => clientService.list('').then((res) => res.data.data),
+    staleTime: 30_000,
+})
+const clientOptions = computed(() => clientData.value ?? [])
+
+// 등록 화면에 ?clientId=... 로 진입하면(거래처 상세의 "계약 추가") 해당 거래처를 미리 선택.
+watchEffect(() => {
+    if (!isEdit.value && route.query.clientId && !form.clientId) {
+        form.clientId = Number(route.query.clientId)
+    }
 })
 
 // 수정 모드면 기존 값 로드
@@ -37,17 +56,18 @@ watchEffect(async () => {
     }
     loading.value = true
     try {
-        const res = await clientService.get(props.id)
+        const res = await contractService.get(props.id)
         const c = res.data.data
-        form.name = c.name ?? ''
-        form.address = c.address ?? ''
-        form.managerName = c.managerName ?? ''
-        form.managerPhone = c.managerPhone ?? ''
-        form.cleaningType = c.cleaningType ?? ''
-        form.contractStartDate = c.contractStartDate ?? ''
+        form.clientId = c.clientId ?? ''
+        form.title = c.title ?? ''
+        form.monthlyFee = c.monthlyFee ?? ''
+        form.billingDay = c.billingDay ?? ''
+        form.startDate = c.startDate ?? ''
+        form.endDate = c.endDate ?? ''
+        form.status = c.status ?? 'ACTIVE'
         form.memo = c.memo ?? ''
     } catch (e) {
-        notify.bar('거래처 정보를 불러오지 못했습니다.', { color: 'red' })
+        notify.bar('계약 정보를 불러오지 못했습니다.', { color: 'red' })
     } finally {
         loading.value = false
     }
@@ -56,19 +76,32 @@ watchEffect(async () => {
 function buildPayload() {
     // 빈 문자열은 null 로 보내 서버에서 NULL 로 저장되게 한다(선택 항목).
     return {
-        name: form.name.trim(),
-        address: form.address.trim() || null,
-        managerName: form.managerName.trim() || null,
-        managerPhone: form.managerPhone.trim() || null,
-        cleaningType: form.cleaningType || null,
-        contractStartDate: form.contractStartDate || null,
+        clientId: form.clientId ? Number(form.clientId) : null,
+        title: form.title.trim(),
+        monthlyFee: form.monthlyFee !== '' ? Number(form.monthlyFee) : null,
+        billingDay: form.billingDay !== '' ? Number(form.billingDay) : null,
+        startDate: form.startDate || null,
+        endDate: form.endDate || null,
+        status: form.status || 'ACTIVE',
         memo: form.memo.trim() || null,
     }
 }
 
 async function onSubmit() {
-    if (!form.name.trim()) {
-        notify.bar('건물명은 필수입니다.', { color: 'yellow' })
+    if (!form.clientId) {
+        notify.bar('거래처를 선택하세요.', { color: 'yellow' })
+        return
+    }
+    if (!form.title.trim()) {
+        notify.bar('계약명은 필수입니다.', { color: 'yellow' })
+        return
+    }
+    if (form.monthlyFee === '' || Number(form.monthlyFee) < 0) {
+        notify.bar('월 청구금액을 올바르게 입력하세요.', { color: 'yellow' })
+        return
+    }
+    if (!form.startDate) {
+        notify.bar('계약 시작일은 필수입니다.', { color: 'yellow' })
         return
     }
     saving.value = true
@@ -76,16 +109,16 @@ async function onSubmit() {
         const payload = buildPayload()
         let saved
         if (isEdit.value) {
-            saved = await clientService.update(props.id, payload)
+            saved = await contractService.update(props.id, payload)
             notify.toast('수정되었습니다.', { type: 'success' })
         } else {
-            saved = await clientService.create(payload)
+            saved = await contractService.create(payload)
             notify.toast('등록되었습니다.', { type: 'success' })
         }
-        queryClient.invalidateQueries({ queryKey: ['clients'] }) // 목록 캐시
-        queryClient.invalidateQueries({ queryKey: ['client'] })  // 상세 캐시(단건) — 수정분 즉시 반영
+        queryClient.invalidateQueries({ queryKey: ['contracts'] }) // 목록 캐시
+        queryClient.invalidateQueries({ queryKey: ['contract'] })  // 상세 캐시(단건) — 수정분 즉시 반영
         const id = saved.data.data.id
-        router.replace({ name: 'admin-client-detail', params: { id } })
+        router.replace({ name: 'admin-contract-detail', params: { id } })
     } catch (e) {
         notify.bar(e.response?.data?.message ?? '저장에 실패했습니다.', { color: 'red' })
     } finally {
@@ -104,38 +137,45 @@ function onCancel() {
 
         <form v-else class="card" @submit.prevent="onSubmit">
             <div class="field">
-                <label>건물명 <span class="req">*</span></label>
-                <input v-model="form.name" placeholder="예: 행복빌라" maxlength="100" />
+                <label>거래처 <span class="req">*</span></label>
+                <select v-model="form.clientId">
+                    <option value="">거래처 선택</option>
+                    <option v-for="cl in clientOptions" :key="cl.id" :value="cl.id">{{ cl.name }}</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label>계약명 <span class="req">*</span></label>
+                <input v-model="form.title" placeholder="예: 2026년 정기 계단청소" maxlength="100" />
             </div>
 
             <div class="row">
                 <div class="field">
-                    <label>청소 종류</label>
-                    <select v-model="form.cleaningType">
-                        <option value="">선택 안 함</option>
-                        <option v-for="t in CLEANING_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
-                    </select>
+                    <label>월 청구금액(원) <span class="req">*</span></label>
+                    <input v-model="form.monthlyFee" type="number" min="0" step="1" placeholder="예: 150000" />
                 </div>
                 <div class="field">
-                    <label>계약 시작일</label>
-                    <input v-model="form.contractStartDate" type="date" />
+                    <label>청구일(매월)</label>
+                    <input v-model="form.billingDay" type="number" min="1" max="31" placeholder="1~31" />
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="field">
+                    <label>계약 시작일 <span class="req">*</span></label>
+                    <input v-model="form.startDate" type="date" />
+                </div>
+                <div class="field">
+                    <label>계약 종료일</label>
+                    <input v-model="form.endDate" type="date" />
                 </div>
             </div>
 
             <div class="field">
-                <label>주소</label>
-                <input v-model="form.address" placeholder="건물 주소" maxlength="255" />
-            </div>
-
-            <div class="row">
-                <div class="field">
-                    <label>담당자명</label>
-                    <input v-model="form.managerName" placeholder="담당자 이름" maxlength="50" />
-                </div>
-                <div class="field">
-                    <label>연락처</label>
-                    <input v-model="form.managerPhone" placeholder="010-0000-0000" maxlength="30" />
-                </div>
+                <label>상태</label>
+                <select v-model="form.status">
+                    <option v-for="s in CONTRACT_STATUSES" :key="s.value" :value="s.value">{{ s.label }}</option>
+                </select>
             </div>
 
             <div class="field">
