@@ -1,22 +1,26 @@
 package com.boot.cleanhub.auth.controller;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+
+import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.boot.cleanhub.common.api.ApiResponse;
-import com.boot.cleanhub.auth.dto.AuthenticationResponse;
+import com.boot.cleanhub.auth.dto.AuthResult;
 import com.boot.cleanhub.auth.domain.RefreshToken;
+import com.boot.cleanhub.auth.dto.AuthenticationResponse;
 import com.boot.cleanhub.auth.repository.RefreshTokenRepository;
 import com.boot.cleanhub.auth.service.TokenService;
+import com.boot.cleanhub.auth.support.RefreshTokenCookie;
 import com.boot.cleanhub.util.jwt.JwtUtil;
 
 import io.jsonwebtoken.Claims;
@@ -64,26 +68,38 @@ public class TokenRefreshController {
     private final JwtUtil jwtUtil;
     private final RefreshTokenRepository refreshTokenRepository;
     private final TokenService tokenService;
+    private final RefreshTokenCookie refreshTokenCookie;
 
     /** refresh 갱신 정책(true=회전/false=고정) — 클래스 상단 주석 참고 */
     @Value("${jwt.refresh-token-rotation:false}")
     private boolean refreshRotation;
 
     /**
-     * Access Token 갱신.
-     * body: { "refreshToken": "..." }
-     * 응답: 회전(true)이면 새 access + "새" refresh / 고정(false)이면 새 access + 기존 refresh.
+     * Access Token 갱신(= 자동로그인 복원).
+     * refresh 토큰은 HttpOnly 쿠키에서 읽는다(body 아님). 앱 시작·새로고침·재시작 시 프론트가
+     * 이 엔드포인트를 호출해 access 를 재발급받고 로그인 상태를 복원한다.
+     *
+     * @param refreshTokenValue HttpOnly 쿠키의 refresh 토큰(없으면 미로그인 → 401)
+     * @param rememberMe        회전 시 새 쿠키의 영속 여부를 유지하기 위한 힌트(기본 true=유지)
+     * @return access(body) + username + roles. 회전이면 새 refresh 를 쿠키로 재발급.
      */
     @PostMapping("/refresh")
-    public ResponseEntity<ApiResponse<AuthenticationResponse>> refreshAccessToken(
-            @RequestBody Map<String, String> request) {
-        String refreshTokenValue = request.get("refreshToken");
+    public ResponseEntity<ApiResponse<AuthResult>> refreshAccessToken(
+            @CookieValue(name = RefreshTokenCookie.NAME, required = false) String refreshTokenValue,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "true") boolean rememberMe,
+            HttpServletResponse response) {
+        // 0) 쿠키 자체가 없음 = 로그인 이력 없음(또는 로그인 유지 안 함) → 401
+        if (!StringUtils.hasText(refreshTokenValue)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("REFRESH_MISSING", "로그인이 필요합니다."));
+        }
 
         // 1) DB 대조 — 로그아웃/재로그인/회전으로 삭제·교체된 토큰이면 여기서 걸러진다
         Optional<RefreshToken> stored = refreshTokenRepository.findByToken(refreshTokenValue);
         if (!stored.isPresent()) {
+            refreshTokenCookie.clear(response); // 무효 쿠키 정리
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("REFRESH_INVALID", "유효하지 않은 refresh 토큰입니다. 다시 로그인해 주세요."));
+                    .body(ApiResponse.error("REFRESH_INVALID", "유효하지 않은 인증입니다. 다시 로그인해 주세요."));
         }
 
         try {
@@ -91,48 +107,52 @@ public class TokenRefreshController {
             Claims claims = jwtUtil.parseClaims(refreshTokenValue);
 
             // 2-1) refresh 타입만 인정 — access 토큰으로 갱신을 시도하는 오용 차단
-            //      (DB 대조로도 걸러지지만 명시 검사로 의도를 분명히 — 필터의 access 검사와 대칭)
             if (!JwtUtil.TOKEN_TYPE_REFRESH.equals(jwtUtil.getTokenType(claims))) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(ApiResponse.error("REFRESH_INVALID", "refresh 토큰이 아닙니다."));
+                        .body(ApiResponse.error("REFRESH_INVALID", "유효하지 않은 인증입니다."));
             }
 
             String username = claims.getSubject();
-            // 권한은 제시된 refresh 토큰의 클레임에서 승계(새 access 에 물려줌)
             List<String> roles = jwtUtil.getRoles(claims);
 
             // 3) 정책에 따라 발급
+            String newAccessToken;
             if (refreshRotation) {
-                // [회전] access+refresh 모두 새로 발급. TokenService.issue 가 사용자당 1개
-                // upsert 로 DB 를 교체하므로, 방금 사용된 구 refresh 는 이 시점에 무효가 된다(1회용).
-                return ResponseEntity.ok(ApiResponse.ok(tokenService.issue(username, roles)));
+                // [회전] access+refresh 모두 새로 발급 → 새 refresh 를 쿠키로 교체(구 토큰은 DB upsert 로 무효)
+                AuthenticationResponse issued = tokenService.issue(username, roles);
+                newAccessToken = issued.getAccessToken();
+                refreshTokenCookie.write(response, issued.getRefreshToken(), rememberMe);
+            } else {
+                // [고정] 새 access 만 발급, refresh 쿠키는 그대로 둔다
+                newAccessToken = jwtUtil.generateAccessToken(username, roles);
             }
-            // [고정] 새 access 만 발급, refresh 는 만료 전까지 재사용
-            String newAccessToken = jwtUtil.generateAccessToken(username, roles);
-            return ResponseEntity.ok(
-                    ApiResponse.ok(new AuthenticationResponse(newAccessToken, refreshTokenValue, "success")));
+            return ResponseEntity.ok(ApiResponse.ok(new AuthResult(newAccessToken, username, roles)));
         } catch (ExpiredJwtException e) {
-            // 만료된 refresh 는 더 못 쓰므로 DB 에서도 정리 → 클라이언트는 재로그인
+            // 만료된 refresh 는 더 못 쓰므로 DB·쿠키 정리 → 클라이언트는 재로그인
             refreshTokenRepository.delete(stored.get());
+            refreshTokenCookie.clear(response);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("REFRESH_EXPIRED", "refresh 토큰이 만료되었습니다. 다시 로그인해 주세요."));
+                    .body(ApiResponse.error("REFRESH_EXPIRED", "로그인이 만료되었습니다. 다시 로그인해 주세요."));
         } catch (JwtException | IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("REFRESH_INVALID", "유효하지 않은 refresh 토큰입니다. 다시 로그인해 주세요."));
+                    .body(ApiResponse.error("REFRESH_INVALID", "유효하지 않은 인증입니다. 다시 로그인해 주세요."));
         }
     }
 
     /**
-     * JWT 로그아웃 = refresh 토큰 폐기(DB 삭제).
-     * 이후 그 refresh 로는 갱신 불가. access 는 무상태라 서버가 즉시 무효화할 수 없고
-     * 남은 수명(짧게 설정) 동안만 유효하다 — 이것이 "짧은 access + 긴 refresh" 구조의 이유.
+     * JWT 로그아웃 = refresh 토큰 폐기(DB 삭제 + 쿠키 삭제).
+     * 이후 그 refresh 로는 갱신 불가. access 는 무상태라 남은 수명 동안만 유효하다.
      * (세션 로그아웃은 별도: POST /auth/logout — SessionSecurityConfig)
      */
     @PostMapping("/logout")
-    public ApiResponse<Void> logout(@RequestBody Map<String, String> request) {
-        String refreshTokenValue = request.get("refreshToken");
-        refreshTokenRepository.findByToken(refreshTokenValue)
-                .ifPresent(refreshTokenRepository::delete);
+    public ApiResponse<Void> logout(
+            @CookieValue(name = RefreshTokenCookie.NAME, required = false) String refreshTokenValue,
+            HttpServletResponse response) {
+        if (StringUtils.hasText(refreshTokenValue)) {
+            refreshTokenRepository.findByToken(refreshTokenValue)
+                    .ifPresent(refreshTokenRepository::delete);
+        }
+        refreshTokenCookie.clear(response);
         // 존재하지 않는 토큰이어도 성공 응답(이미 폐기된 상태와 동일한 결과이므로)
         return ApiResponse.ok(null, "로그아웃(토큰 폐기) 되었습니다.");
     }

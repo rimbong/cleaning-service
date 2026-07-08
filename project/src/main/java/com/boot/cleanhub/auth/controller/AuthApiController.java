@@ -5,41 +5,47 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import javax.servlet.http.HttpServletResponse;
+
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.boot.cleanhub.common.api.ApiResponse;
+import com.boot.cleanhub.auth.dto.AuthResult;
 import com.boot.cleanhub.auth.dto.AuthenticationResponse;
 import com.boot.cleanhub.auth.service.TokenService;
+import com.boot.cleanhub.auth.support.RefreshTokenCookie;
 
 import lombok.RequiredArgsConstructor;
 
 /**
  * <pre>
- *   [연습 시나리오] 세션 로그인 → JWT 발급 → API 존 호출
+ *   [로그인 이후] 세션 인증 → JWT 발급 창구.
  *
  *   이 컨트롤러는 "세션 존"에 있다(경로가 /api/** 가 아니므로 SessionSecurityConfig 담당).
- *   /auth/api/** 는 세션 인증 필수로 설정돼 있어, 폼 로그인(POST /auth/login)으로
- *   세션(JSESSIONID)을 얻은 사용자만 호출할 수 있다.
+ *   /auth/api/** 는 세션 인증 필수 → 폼 로그인(POST /auth/login)으로 세션을 얻은 사용자만 호출 가능.
  *
- *   전체 흐름:
- *     1) POST /auth/login  (form: username=user1&password=1234)  → 세션 쿠키 획득
- *     2) POST /auth/api/token  (세션 쿠키로 인증)               → JWT(access/refresh) 발급 ★여기
- *     3) GET  /api/hello  (Authorization: Bearer {accessToken})       → JWT 존 API 호출
- *     4) 만료 시 POST /api/auth/refresh  → access 재발급
- *     5) POST /api/auth/logout(refresh 폐기) + POST /auth/logout(세션 종료)
+ *   ■ 인증 구조(세션 앵커 + JWT API + refresh 쿠키)
+ *     - 세션(HttpOnly): 브라우저가 열려 있는 동안의 로그인 상태·사용자정보의 진실.
+ *     - JWT access(메모리): /api/** 호출용 Bearer. 짧은 수명.
+ *     - refresh(HttpOnly 쿠키 + DB): "로그인 유지(자동로그인)"의 장기 신분증.
+ *       → 브라우저를 껐다 켜(세션 소멸) 도, 이 쿠키로 /api/auth/refresh 하면 access 재발급 = 자동로그인.
  *
- *   실무 대응: 사내 포털(세션 로그인) 사용자가 별도 API 존/게이트웨이용
- *   출입증(JWT)을 발급받아 호출하는 하이브리드 구성.
+ *   ■ 발급 흐름
+ *     1) POST /auth/login (form)           → 세션 획득
+ *     2) POST /auth/api/token?rememberMe=  → access(body) + refresh(HttpOnly 쿠키) ★여기
+ *     3) GET  /api/**  (Bearer access)     → JWT 존 호출
+ *     4) access 만료/새로고침/재시작        → POST /api/auth/refresh (쿠키로) → 새 access
  * </pre>
  *
  * @author In-seong Hwang
  * @since 2026.07.03
- * @version 1.0
+ * @version 2.0 (2026.07.08 — refresh 를 HttpOnly 쿠키로 발급, rememberMe 자동로그인 도입)
  */
 @RestController
 @RequestMapping("/auth/api")
@@ -47,6 +53,7 @@ import lombok.RequiredArgsConstructor;
 public class AuthApiController {
 
     private final TokenService tokenService;
+    private final RefreshTokenCookie refreshTokenCookie;
 
     /**
      * 현재 세션 로그인 상태 확인.
@@ -64,18 +71,26 @@ public class AuthApiController {
     }
 
     /**
-     * 세션 인증 사용자에게 API 존(JWT) 토큰 발급.
-     * 여기서는 아이디/비밀번호를 다시 받지 않는다 — "세션이 곧 인증 증명"이기 때문.
-     * 세션 사용자의 권한(예: ROLE_USER)을 토큰 클레임에 실어, JWT 존에서도 인가가 되게 한다.
-     * 발급(access+refresh 생성, refresh DB 저장)은 TokenService 가 담당.
+     * 세션 인증 사용자에게 JWT 발급.
+     * 아이디/비밀번호를 다시 받지 않는다 — "세션이 곧 인증 증명"이기 때문.
+     * access 는 body 로, refresh 는 HttpOnly 쿠키로 내려간다(refresh 는 JS 노출 금지).
+     *
+     * @param rememberMe true=자동로그인(영속 쿠키) / false=세션 쿠키
      */
     @PostMapping("/token")
-    public ApiResponse<AuthenticationResponse> issueToken(Authentication authentication) {
+    public ApiResponse<AuthResult> issueToken(Authentication authentication,
+            @RequestParam(defaultValue = "false") boolean rememberMe,
+            HttpServletResponse response) {
         List<String> roles = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toList());
-        return ApiResponse.ok(
-                tokenService.issue(authentication.getName(), roles),
-                "API 존(JWT) 토큰이 발급되었습니다.");
+        String username = authentication.getName();
+
+        AuthenticationResponse issued = tokenService.issue(username, roles);
+        // refresh 는 쿠키로만 전달(body 에 넣지 않음)
+        refreshTokenCookie.write(response, issued.getRefreshToken(), rememberMe);
+
+        return ApiResponse.ok(new AuthResult(issued.getAccessToken(), username, roles),
+                "JWT 가 발급되었습니다.");
     }
 }

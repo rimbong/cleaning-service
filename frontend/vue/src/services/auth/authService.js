@@ -24,24 +24,32 @@ export const authService = {
         return post('/auth/logout')
     },
 
-    /** 현재 세션 사용자 확인 → data: { username, authorities } */
+    /** 현재 세션 사용자 확인 → data: { username, roles } */
     me() {
         return get('/auth/api/me')
     },
 
-    /** 세션 인증으로 JWT 발급 → data: { accessToken, refreshToken } */
-    issueTokens() {
-        return post('/auth/api/token')
+    /**
+     * 세션 인증으로 JWT 발급.
+     * access 는 응답 body(data: { accessToken, username, roles }), refresh 는 HttpOnly 쿠키로 내려온다.
+     * @param {boolean} rememberMe true=자동로그인(영속 쿠키)/false=세션 쿠키
+     */
+    issueTokens(rememberMe = false) {
+        return post(`/auth/api/token?rememberMe=${rememberMe}`)
     },
 
-    /** access 토큰 갱신 → data: { accessToken, refreshToken } */
-    refresh(refreshToken) {
-        return post('/api/auth/refresh', { refreshToken })
+    /**
+     * access 토큰 갱신(= 자동로그인 복원). refresh 는 HttpOnly 쿠키에서 서버가 읽으므로 body 가 없다.
+     * @param {boolean} rememberMe 회전 시 재발급될 쿠키의 영속 여부 유지
+     * @returns data: { accessToken, username, roles }
+     */
+    refresh(rememberMe = true) {
+        return post(`/api/auth/refresh?rememberMe=${rememberMe}`)
     },
 
-    /** JWT 로그아웃 = refresh 토큰 폐기(DB 삭제) */
-    revokeTokens(refreshToken) {
-        return post('/api/auth/logout', { refreshToken })
+    /** JWT 로그아웃 = refresh 토큰 폐기(DB 삭제 + 쿠키 삭제). 쿠키는 서버가 읽어 처리 */
+    revokeTokens() {
+        return post('/api/auth/logout')
     },
 
     /** JWT 존 보호 API 데모(인증만 되면 OK, 응답은 평문 텍스트) */

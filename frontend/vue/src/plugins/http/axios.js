@@ -12,6 +12,9 @@ const instance = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    // 세션(JSESSIONID)·refresh(HttpOnly) 쿠키를 요청에 함께 실어 보낸다.
+    // 자동로그인·세션 인증이 쿠키 기반이므로 필수(생략 시 쿠키 미전송).
+    withCredentials: true,
 })
 
 /* ============================================================

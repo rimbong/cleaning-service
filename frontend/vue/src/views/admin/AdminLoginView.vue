@@ -15,6 +15,7 @@ const router = useRouter()
 const form = reactive({
     username: 'admin',
     password: 'admin1234',
+    remember: true,
 })
 const loading = ref(false)
 
@@ -28,7 +29,7 @@ async function onSubmit() {
             notify.bar('관리자 권한이 없는 계정입니다.', { color: 'red' })
             return
         }
-        await auth.issueTokens() // 이후 /api/admin/** 호출용 Bearer 확보
+        await auth.issueTokens(form.remember) // 이후 /api/admin/** 호출용 Bearer 확보 + 자동로그인 쿠키
         notify.toast('로그인되었습니다.', { type: 'success' })
         // 원래 가려던 곳(redirect 쿼리)이 있으면 그리로, 없으면 관리자 홈
         const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/admin'
@@ -59,6 +60,10 @@ async function onSubmit() {
                 <label class="login-field">
                     <span>비밀번호</span>
                     <input v-model="form.password" type="password" autocomplete="current-password" placeholder="비밀번호" />
+                </label>
+                <label class="login-remember">
+                    <input v-model="form.remember" type="checkbox" />
+                    <span>로그인 유지</span>
                 </label>
                 <button class="login-btn" type="submit" :disabled="loading">
                     {{ loading ? '로그인 중…' : '로그인' }}
@@ -143,6 +148,19 @@ async function onSubmit() {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.login-remember {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.login-remember input {
+    cursor: pointer;
 }
 
 .login-btn {
