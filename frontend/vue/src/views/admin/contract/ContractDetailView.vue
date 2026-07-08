@@ -1,6 +1,6 @@
 <script setup>
-// 계약 상세 — 정보 표시 + 수정/삭제/목록 진입.
-import { computed } from 'vue'
+// 계약 상세 — 정보 표시 + 수정/삭제/목록 진입 + 계약서 첨부 파일 관리.
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 
@@ -58,6 +58,86 @@ function fmtDateTime(v) {
 function fmtMoney(v) {
     return v != null ? Number(v).toLocaleString('ko-KR') + '원' : '-'
 }
+
+function fmtSize(bytes) {
+    if (bytes == null) {
+        return '-'
+    }
+    if (bytes < 1024) {
+        return bytes + ' B'
+    }
+    if (bytes < 1024 * 1024) {
+        return (bytes / 1024).toFixed(1) + ' KB'
+    }
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
+// ===== 계약서 첨부 파일 =====
+const fileInput = ref(null)
+const uploading = ref(false)
+const attachmentsKey = computed(() => ['contract-attachments', String(props.id)])
+
+const { data: attachmentData } = useQuery({
+    queryKey: attachmentsKey,
+    queryFn: () => contractService.listAttachments(props.id).then((res) => res.data.data),
+    staleTime: 30_000,
+})
+const attachments = computed(() => attachmentData.value ?? [])
+
+const uploadMutation = useMutation({
+    mutationFn: (file) => contractService.uploadAttachment(props.id, file),
+    onSuccess: () => {
+        notify.toast('파일이 첨부되었습니다.', { type: 'success' })
+        queryClient.invalidateQueries({ queryKey: ['contract-attachments', String(props.id)] })
+    },
+    onError: (e) => {
+        notify.bar(e.response?.data?.message ?? '첨부에 실패했습니다.', { color: 'red' })
+    },
+})
+
+const removeAttachmentMutation = useMutation({
+    mutationFn: (attachmentId) => contractService.removeAttachment(props.id, attachmentId),
+    onSuccess: () => {
+        notify.toast('첨부가 삭제되었습니다.', { type: 'info' })
+        queryClient.invalidateQueries({ queryKey: ['contract-attachments', String(props.id)] })
+    },
+    onError: (e) => {
+        notify.bar(e.response?.data?.message ?? '삭제에 실패했습니다.', { color: 'red' })
+    },
+})
+
+function onPickFile() {
+    fileInput.value?.click()
+}
+
+async function onFileChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) {
+        return
+    }
+    uploading.value = true
+    try {
+        await uploadMutation.mutateAsync(file)
+    } finally {
+        uploading.value = false
+        e.target.value = '' // 같은 파일 재선택 가능하도록 초기화
+    }
+}
+
+async function onDownload(a) {
+    try {
+        await contractService.downloadAttachment(props.id, a.id, a.originalFilename)
+    } catch (err) {
+        notify.bar('다운로드에 실패했습니다.', { color: 'red' })
+    }
+}
+
+async function onRemoveAttachment(a) {
+    if (!(await notify.confirm(`'${a.originalFilename}' 첨부를 삭제하시겠습니까?`))) {
+        return
+    }
+    removeAttachmentMutation.mutate(a.id)
+}
 </script>
 
 <template>
@@ -114,6 +194,10 @@ function fmtMoney(v) {
                         <dd>{{ contract.endDate ? fmtDate(contract.endDate) : '무기한' }}</dd>
                     </div>
                     <div class="info-row">
+                        <dt>계약서 보관 위치</dt>
+                        <dd>{{ fmt(contract.documentLocation) }}</dd>
+                    </div>
+                    <div class="info-row">
                         <dt>메모</dt>
                         <dd class="info-multi">{{ fmt(contract.memo) }}</dd>
                     </div>
@@ -126,6 +210,35 @@ function fmtMoney(v) {
                         <dd>{{ fmtDateTime(contract.updatedAt) }}</dd>
                     </div>
                 </dl>
+            </div>
+
+            <!-- 계약서 첨부 파일 -->
+            <div class="card attach-card">
+                <div class="attach-head">
+                    <h3 class="attach-title">계약서 파일 <span class="count">{{ attachments.length }}</span></h3>
+                    <button class="btn btn--primary btn--sm" type="button" :disabled="uploading" @click="onPickFile">
+                        {{ uploading ? '업로드 중…' : '+ 파일 첨부' }}
+                    </button>
+                    <input
+                        ref="fileInput"
+                        type="file"
+                        class="file-hidden"
+                        accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.hwp,.hwpx,.doc,.docx,.xls,.xlsx"
+                        @change="onFileChange"
+                    />
+                </div>
+
+                <ul v-if="attachments.length" class="attach-list">
+                    <li v-for="a in attachments" :key="a.id" class="attach-item">
+                        <button class="attach-item__name" type="button" @click="onDownload(a)" :title="'다운로드: ' + a.originalFilename">
+                            <span class="attach-item__icon">📄</span>
+                            <span class="attach-item__filename">{{ a.originalFilename }}</span>
+                        </button>
+                        <span class="attach-item__size">{{ fmtSize(a.fileSize) }}</span>
+                        <button class="btn btn--sm btn--danger" type="button" @click="onRemoveAttachment(a)">삭제</button>
+                    </li>
+                </ul>
+                <p v-else class="attach-empty">첨부된 계약서 파일이 없습니다. (PDF·이미지·문서, 최대 20MB)</p>
             </div>
         </template>
     </section>
@@ -267,6 +380,114 @@ function fmtMoney(v) {
 .tag--suspended {
     background: #fef3c7;
     color: #92400e;
+}
+
+/* 계약서 첨부 파일 섹션 */
+.attach-card {
+    margin-top: 1.25rem;
+}
+
+.attach-head {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.attach-title {
+    margin: 0;
+    font-size: 1.05rem;
+    flex: 1;
+}
+
+.attach-title .count {
+    color: var(--primary);
+    font-weight: 700;
+    margin-left: 0.25rem;
+}
+
+.btn--primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-fg);
+}
+
+.btn--primary:hover:not(:disabled) {
+    background: var(--primary-hover);
+    color: var(--primary-fg);
+}
+
+.btn--primary:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.btn--sm {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.82rem;
+}
+
+.file-hidden {
+    display: none;
+}
+
+.attach-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.attach-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.25rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.attach-item:last-child {
+    border-bottom: none;
+}
+
+.attach-item__name {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: var(--primary);
+    font: inherit;
+    text-align: left;
+}
+
+.attach-item__name:hover .attach-item__filename {
+    text-decoration: underline;
+}
+
+.attach-item__filename {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.attach-item__size {
+    color: var(--text);
+    font-size: 0.82rem;
+    white-space: nowrap;
+}
+
+.attach-empty {
+    color: var(--text);
+    text-align: center;
+    padding: 1.5rem 0;
+    margin: 0;
 }
 
 .state {

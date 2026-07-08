@@ -38,4 +38,7 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     /** 단건 조회(거래처 포함) */
     @Query("select c from Contract c join fetch c.client where c.id = :id")
     Optional<Contract> findByIdWithClient(@Param("id") Long id);
+
+    /** 특정 거래처에 걸린 계약 수(거래처 삭제 가능 여부 판단용) */
+    long countByClientId(Long clientId);
 }

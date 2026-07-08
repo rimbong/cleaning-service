@@ -9,9 +9,12 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -22,7 +25,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.codec.binary.Base64;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.util.UriUtils;
 
 import com.boot.cleanhub.common.dto.PBox;
 import com.boot.cleanhub.util.common.UtilMo;
@@ -35,13 +42,78 @@ import com.google.zxing.qrcode.QRCodeWriter;
 
 public class FileUtillMo {
 
+    // =====================================================================
+    //  blob(byte[]) ↔ 파일 브리지 (2026.07 추가)
+    //  ※ 기존 레거시 메서드는 예외를 삼키는(printStackTrace/빈 catch) 것들이 있으나,
+    //    아래 신규 메서드는 실패 시 IOException 을 던져 호출부가 처리하도록 한다(프로젝트 규칙).
+    // =====================================================================
+
+    /**
+     * <pre>
+     *   바이트 배열을 파일로 저장한다(blob → 파일). 상위 디렉터리는 없으면 생성한다.
+     *   DB 등에 담긴 바이너리(blob)를 파일시스템으로 내보낼 때 사용.
+     * </pre>
+     *
+     * @param data     저장할 바이트
+     * @param fullPath 저장할 파일의 전체 경로
+     * @throws IOException 디렉터리 생성/파일 쓰기 실패
+     */
+    public static void writeBytes(byte[] data, String fullPath) throws IOException {
+        File file = new File(fullPath);
+        File dir = file.getParentFile();
+        if (dir != null && !dir.exists()) {
+            dir.mkdirs();
+        }
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            fos.write(data);
+        }
+    }
+
+    /**
+     * <pre>
+     *   파일을 바이트 배열로 읽는다(파일 → blob). 다운로드 응답 바디 등에 사용.
+     * </pre>
+     *
+     * @param fullPath 읽을 파일의 전체 경로
+     * @return 파일 전체 바이트
+     * @throws IOException 파일이 없거나 읽기 실패
+     */
+    public static byte[] readBytes(String fullPath) throws IOException {
+        return Files.readAllBytes(new File(fullPath).toPath());
+    }
+
+    /**
+     * <pre>
+     *   파일 다운로드 응답을 표준 형태로 만들어 반환한다(REST 컨트롤러용).
+     *   레거시 downloadFile(HttpServletResponse 직접 스트리밍)과 달리 ResponseEntity 를 반환해
+     *   스프링이 응답을 처리하게 한다. 콘텐트타입은 저장된 값을 그대로 쓰고(없으면 octet-stream),
+     *   파일명은 브라우저 판별 없이 UTF-8 퍼센트 인코딩으로 통일한다(프론트가 decodeURIComponent 로 복원).
+     * </pre>
+     *
+     * @param data             파일 바이트(예: readBytes 로 읽은 값)
+     * @param originalFilename 다운로드 시 보일 원본 파일명
+     * @param contentType      MIME 타입(비면 application/octet-stream)
+     * @return 다운로드용 ResponseEntity(attachment)
+     */
+    public static ResponseEntity<byte[]> downloadResponse(byte[] data, String originalFilename, String contentType) {
+        MediaType mediaType = (contentType != null && !contentType.isEmpty())
+                ? MediaType.parseMediaType(contentType)
+                : MediaType.APPLICATION_OCTET_STREAM;
+        String name = (originalFilename != null && !originalFilename.isEmpty()) ? originalFilename : "download";
+        String encodedName = UriUtils.encode(name, StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + encodedName + "\"")
+                .body(data);
+    }
+
     /*
 	 * <pre>
 	 * 파일 읽기 메소드
 	 * </pre>
-	 * 
+	 *
 	 * @param file : 파일
-	 *            
+	 *
 	 * @return
 	 */
 	public static String readFile(File file) throws Exception {
@@ -125,10 +197,11 @@ public class FileUtillMo {
             byte[] outputByte = new byte[1024];
             fis = new FileInputStream(file);
             bos = new BufferedOutputStream(response.getOutputStream(), 1024);
-            while ( fis.read(outputByte, 0, 1024) != -1) {
-                if (outputByte != null) {
-                    bos.write(outputByte, 0, 1024);
-                }
+            int readCount;
+            while ((readCount = fis.read(outputByte)) != -1) {
+                // 실제 읽은 바이트 수(readCount)만큼만 쓴다.
+                // (과거: 항상 1024 를 써서 파일 크기가 1024 배수가 아니면 꼬리에 쓰레기가 붙어 손상되던 버그)
+                bos.write(outputByte, 0, readCount);
             }
             bos.flush();
         } catch (Exception e) {
@@ -197,10 +270,11 @@ public class FileUtillMo {
             byte[] outputByte = new byte[1024];
             fis = new FileInputStream(file);
             bos = new BufferedOutputStream(response.getOutputStream(), 1024);
-            while ( fis.read(outputByte, 0, 1024) != -1) {
-                if (outputByte != null) {
-                    bos.write(outputByte, 0, 1024);
-                }
+            int readCount;
+            while ((readCount = fis.read(outputByte)) != -1) {
+                // 실제 읽은 바이트 수(readCount)만큼만 쓴다.
+                // (과거: 항상 1024 를 써서 파일 크기가 1024 배수가 아니면 꼬리에 쓰레기가 붙어 손상되던 버그)
+                bos.write(outputByte, 0, readCount);
             }
             bos.flush();
         } catch (Exception e) {
@@ -311,85 +385,45 @@ public class FileUtillMo {
 
     /**
      * <pre>
-     * 단일 파일 업로드 메서드
+     *   단일 파일 업로드 — 고유 파일명(자동 생성)으로 저장하고 저장 상대경로를 반환한다.
+     *   저장 상대경로(target + '/' + 저장파일명)만 DB 에 보관하면 된다.
      * </pre>
-     * 
-     * @param mlt       : multipartFile
-     * @param file_path : 파일 경로
-     * @param target    : 목적 파일 디렉토리 경로
-     * @param box       : 원본파일명 및 저장경로를 저장할 박스
-     * 
-     * @return 성공여부 (true : 성공, false : 실패)
-     *         box에 속성 추가 originFileName(원본파일명), saveFilePath(파일저장경로)
+     *
+     * @param mlt     : 업로드 파일
+     * @param baseDir : 저장 루트 디렉터리(설정값 file.upload-dir)
+     * @param target  : 루트 아래 하위 경로(예: contract/10)
+     * @return 저장된 상대경로(구분자 '/')
+     * @throws IOException 디렉터리 생성/파일 저장 실패
      */
-    public static boolean uploadSingleFile(MultipartFile mlt, String file_path, String target, PBox box) {
-        boolean result = true; // 반환값
-        try {
-            // 저장 디렉토리 생성
-            File save_file_dir = new File(file_path + target);
-            if (!save_file_dir.exists()) {
-                save_file_dir.mkdirs();
-            }
-
-            // 파라미터 설정 [원본파일명, 저장경로]
-            String origin_file_name = mlt.getOriginalFilename();
-            box.set("originFileName", origin_file_name); // 원본파일명
-
-            String save_file_name = generateAlphaNumericName(origin_file_name);
-            String save_file_path = target + save_file_name;
-            box.set("saveFilePath", save_file_path); // 파일저장경로
-
-            // 파일 저장
-            File save_file = new File(file_path + save_file_path); // 저장할 파일 경로
-            mlt.transferTo(save_file); // 파일 저장
-            if (!save_file.exists()) {
-                // 정상적으로 업로드되지 않은 경우 에러 발생
-                return false;
-            }
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-
-        return result;
+    public static String uploadSingleFile(MultipartFile mlt, String baseDir, String target) throws IOException {
+        return uploadSingleFile(mlt, baseDir, target, generateAlphaNumericName(mlt.getOriginalFilename()));
     }
 
     /**
      * <pre>
-     * 단일 파일 업로드 메서드
+     *   단일 파일 업로드 — 저장 파일명을 지정한다(실제 저장 로직의 단일 진입점).
+     *   과거에는 실패해도 예외를 삼키고 true 를 반환했으나, 이제 실패 시 IOException 을 던진다.
      * </pre>
-     * 
-     * @param mlt            : multipartFile
-     * @param file_path      : 파일 경로 (서버상 고정된 경로 (properties 파일을 읽어온 값))
-     * @param target         : 목적 파일 디렉토리 경로
-     * @param save_file_name : 저장 파일명
-     * 
-     * @return 성공여부 (true : 성공, false : 실패)
+     *
+     * @param mlt          : 업로드 파일
+     * @param baseDir      : 저장 루트 디렉터리
+     * @param target       : 루트 아래 하위 경로
+     * @param saveFileName : 저장할 파일명
+     * @return 저장된 상대경로(구분자 '/')
+     * @throws IOException 디렉터리 생성/파일 저장 실패
      */
-    public static boolean uploadSingleFile(MultipartFile mlt, String file_path, String target, String save_file_name) {
-        boolean result = true; // 반환값
-        try {
-            // 저장 디렉토리 생성
-            File save_file_dir = new File(file_path + target);
-            if (!save_file_dir.exists()) {
-                save_file_dir.mkdirs();
-            }
-
-            // 파일 저장
-            String save_file_path = target + save_file_name;
-
-            File save_file = new File(file_path + save_file_path); // 저장할 파일 경로
-            mlt.transferTo(save_file); // 파일 저장
-            if (!save_file.exists()) {
-                // 정상적으로 업로드되지 않은 경우 에러 발생
-                return false;
-            }
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
+    public static String uploadSingleFile(MultipartFile mlt, String baseDir, String target, String saveFileName)
+            throws IOException {
+        File dir = new File(baseDir, target).getAbsoluteFile();
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw new IOException("업로드 디렉터리 생성 실패: " + dir.getPath());
         }
-
-        return result;
+        File dest = new File(dir, saveFileName);
+        try (InputStream in = mlt.getInputStream()) {
+            Files.copy(in, dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
+        String rel = target.endsWith("/") ? target + saveFileName : target + "/" + saveFileName;
+        return rel.replace("\\", "/");
     }
     
     /**

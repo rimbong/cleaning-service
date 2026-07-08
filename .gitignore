@@ -5,6 +5,8 @@ Servers/
 project/bin/
 project/.settings/
 logs/
+# 업로드 파일 저장소(파일시스템 저장 — 계약서 첨부 등). 런타임 생성물이라 커밋하지 않는다.
+uploads/
 .gemini/question.txt
 .gemini/result.md
 

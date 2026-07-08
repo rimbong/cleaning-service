@@ -1,4 +1,4 @@
-import { get, post, put, del } from '@/plugins/http/axios'
+import { get, post, put, del, downloadGet } from '@/plugins/http/axios'
 
 /**
  * 계약 관리 API — 관리자 전용(/api/admin/contracts).
@@ -42,6 +42,32 @@ export const contractService = {
     /** 삭제 */
     remove(id) {
         return del(`/api/admin/contracts/${id}`)
+    },
+
+    // ===== 계약서 첨부 파일 =====
+
+    /** 첨부 목록(메타데이터) → data: ContractAttachmentResponse[] */
+    listAttachments(contractId) {
+        return get(`/api/admin/contracts/${contractId}/attachments`)
+    },
+
+    /** 첨부 업로드(multipart) → data: 저장된 첨부 메타 */
+    uploadAttachment(contractId, file) {
+        const form = new FormData()
+        form.append('file', file)
+        return post(`/api/admin/contracts/${contractId}/attachments`, form, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        })
+    },
+
+    /** 첨부 다운로드(Bearer 자동 첨부 + blob 저장). 원본 파일명은 서버 헤더로 복원 */
+    downloadAttachment(contractId, attachmentId, fallbackName) {
+        return downloadGet(`/api/admin/contracts/${contractId}/attachments/${attachmentId}/download`, { fallbackName })
+    },
+
+    /** 첨부 삭제 */
+    removeAttachment(contractId, attachmentId) {
+        return del(`/api/admin/contracts/${contractId}/attachments/${attachmentId}`)
     },
 }
 

@@ -37,6 +37,7 @@ public class ContractService {
 
     private final ContractRepository contractRepository;
     private final ClientRepository clientRepository;
+    private final ContractAttachmentService attachmentService;
 
     /**
      * 계약 목록 조회.
@@ -102,6 +103,7 @@ public class ContractService {
 
     /**
      * 계약 삭제.
+     * 첨부 파일은 파일시스템에 있어 DB FK cascade 로 지워지지 않으므로, 물리 파일과 첨부 행을 먼저 정리한다.
      *
      * @param id 계약 ID
      * @throws BizException 존재하지 않으면 CONTRACT_NOT_FOUND
@@ -109,6 +111,7 @@ public class ContractService {
     @Transactional
     public void delete(Long id) {
         Contract contract = findOrThrow(id);
+        attachmentService.deleteAllByContract(id); // 첨부 파일(디스크) + 행 정리
         contractRepository.delete(contract);
     }
 
@@ -124,6 +127,7 @@ public class ContractService {
         contract.setEndDate(request.getEndDate());
         contract.setStatus(request.getStatus() != null ? request.getStatus() : ContractStatus.ACTIVE);
         contract.setMemo(request.getMemo());
+        contract.setDocumentLocation(request.getDocumentLocation());
     }
 
     /** ID 로 조회하되(거래처 포함) 없으면 예외 */

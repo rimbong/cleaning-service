@@ -49,15 +49,18 @@ public enum ErrorCode {
     // ===== 유저 / 알람 (00-03) =====
     NOTIFICATION_SEND_FAILED ("000301", HttpStatus.INTERNAL_SERVER_ERROR),
 
-    // ===== 상품 / 등록 (01-00) =====
+    // ===== 파일 (01-00) =====
     INVALID_FILE_FORMAT      ("010001", HttpStatus.BAD_REQUEST),
     FILE_UPLOAD_FAILED       ("010002", HttpStatus.INTERNAL_SERVER_ERROR),
+    FILE_TOO_LARGE           ("010003", HttpStatus.PAYLOAD_TOO_LARGE),
 
     // ===== 거래처 (10-00) =====
     CLIENT_NOT_FOUND         ("100001", HttpStatus.NOT_FOUND),
+    CLIENT_HAS_CONTRACTS     ("100002", HttpStatus.CONFLICT),
 
     // ===== 계약 (10-01) =====
     CONTRACT_NOT_FOUND       ("100101", HttpStatus.NOT_FOUND),
+    CONTRACT_ATTACHMENT_NOT_FOUND("100102", HttpStatus.NOT_FOUND),
 
     // ===== 공통 / 프레임워크 (99) =====
     VALIDATION_ERROR         ("999001", HttpStatus.BAD_REQUEST),

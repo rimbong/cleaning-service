@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 
 import { clientService } from '@/services/client/clientService'
+import { contractService } from '@/services/contract/contractService'
 import { useNotifyStore } from '@/stores/notify/notify'
 
 const props = defineProps({
@@ -23,6 +24,27 @@ const { data, isLoading, isError } = useQuery({
 })
 
 const client = computed(() => data.value)
+
+// 이 거래처에 걸린 계약 목록 — queryKey 가 'contracts' 로 시작하므로
+// 계약 등록/수정/삭제 시 invalidateQueries(['contracts'])로 함께 갱신된다.
+const { data: contractData } = useQuery({
+    queryKey: ['contracts', 'byClient', computed(() => String(props.id))],
+    queryFn: () => contractService.list({ clientId: props.id }).then((res) => res.data.data),
+    staleTime: 30_000,
+})
+const contracts = computed(() => contractData.value ?? [])
+
+function goAddContract() {
+    router.push({ name: 'admin-contract-new', query: { clientId: props.id } })
+}
+
+function goContract(id) {
+    router.push({ name: 'admin-contract-detail', params: { id } })
+}
+
+function fmtMoney(v) {
+    return v != null ? Number(v).toLocaleString('ko-KR') + '원' : '-'
+}
 
 const removeMutation = useMutation({
     mutationFn: () => clientService.remove(props.id),
@@ -104,6 +126,27 @@ const rows = computed(() => {
                         </dd>
                     </div>
                 </dl>
+            </div>
+
+            <!-- 이 거래처의 계약 -->
+            <div class="card contracts-card">
+                <div class="contracts-head">
+                    <h3 class="contracts-title">계약 <span class="count">{{ contracts.length }}</span></h3>
+                    <button class="btn btn--primary btn--sm" type="button" @click="goAddContract">+ 계약 추가</button>
+                </div>
+
+                <ul v-if="contracts.length" class="contract-list">
+                    <li v-for="ct in contracts" :key="ct.id" class="contract-item" @click="goContract(ct.id)">
+                        <div class="contract-item__main">
+                            <span class="contract-item__title">{{ ct.title }}</span>
+                            <span v-if="ct.status" class="tag tag--sm" :class="'tag--' + ct.status.toLowerCase()">
+                                {{ ct.statusLabel }}
+                            </span>
+                        </div>
+                        <span class="contract-item__fee">{{ fmtMoney(ct.monthlyFee) }}/월</span>
+                    </li>
+                </ul>
+                <p v-else class="contracts-empty">등록된 계약이 없습니다.</p>
             </div>
         </template>
     </section>
@@ -223,6 +266,120 @@ const rows = computed(() => {
 .tag--special {
     background: #fef3c7;
     color: #92400e;
+}
+
+/* 계약 상태 tag */
+.tag--active {
+    background: var(--primary-soft);
+    color: var(--primary-hover);
+}
+
+.tag--ended {
+    background: #e5e7eb;
+    color: #4b5563;
+}
+
+.tag--suspended {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.tag--sm {
+    padding: 0.1rem 0.45rem;
+    font-size: 0.72rem;
+}
+
+/* 이 거래처의 계약 섹션 */
+.contracts-card {
+    margin-top: 1.25rem;
+}
+
+.contracts-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.contracts-title {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.contracts-title .count {
+    color: var(--primary);
+    font-weight: 700;
+    margin-left: 0.25rem;
+}
+
+.btn--primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-fg);
+}
+
+.btn--primary:hover {
+    background: var(--primary-hover);
+    color: var(--primary-fg);
+}
+
+.btn--sm {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.82rem;
+}
+
+.contract-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.contract-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 0.25rem;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+}
+
+.contract-item:last-child {
+    border-bottom: none;
+}
+
+.contract-item:hover {
+    background: var(--muted);
+}
+
+.contract-item__main {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.contract-item__title {
+    font-weight: 600;
+    color: var(--text-h);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.contract-item__fee {
+    color: var(--text);
+    font-size: 0.88rem;
+    white-space: nowrap;
+}
+
+.contracts-empty {
+    color: var(--text);
+    text-align: center;
+    padding: 1.5rem 0;
+    margin: 0;
 }
 
 .state {

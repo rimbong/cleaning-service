@@ -78,6 +78,10 @@ public class Contract {
     @Column(columnDefinition = "TEXT")
     private String memo;
 
+    /** 계약서 원본(종이 등) 보관 위치/비고 — 예: "캐비닛 A-3", "구글드라이브 링크" */
+    @Column(name = "document_location", length = 255)
+    private String documentLocation;
+
     /** 등록 시각 */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

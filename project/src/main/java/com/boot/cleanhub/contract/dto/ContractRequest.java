@@ -60,4 +60,8 @@ public class ContractRequest {
 
     /** 메모 */
     private String memo;
+
+    /** 계약서 원본 보관 위치/비고 */
+    @Size(max = 255, message = "보관 위치는 255자 이하로 입력하세요.")
+    private String documentLocation;
 }

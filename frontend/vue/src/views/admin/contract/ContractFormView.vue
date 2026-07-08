@@ -31,6 +31,7 @@ const form = reactive({
     startDate: '',
     endDate: '',
     status: 'ACTIVE',
+    documentLocation: '',
     memo: '',
 })
 
@@ -65,6 +66,7 @@ watchEffect(async () => {
         form.startDate = c.startDate ?? ''
         form.endDate = c.endDate ?? ''
         form.status = c.status ?? 'ACTIVE'
+        form.documentLocation = c.documentLocation ?? ''
         form.memo = c.memo ?? ''
     } catch (e) {
         notify.bar('계약 정보를 불러오지 못했습니다.', { color: 'red' })
@@ -83,6 +85,7 @@ function buildPayload() {
         startDate: form.startDate || null,
         endDate: form.endDate || null,
         status: form.status || 'ACTIVE',
+        documentLocation: form.documentLocation.trim() || null,
         memo: form.memo.trim() || null,
     }
 }
@@ -179,6 +182,12 @@ function onCancel() {
             </div>
 
             <div class="field">
+                <label>계약서 보관 위치</label>
+                <input v-model="form.documentLocation" placeholder="예: 캐비닛 A-3, 공유드라이브 링크" maxlength="255" />
+                <small class="hint">종이 원본 등 실물 보관 위치. 스캔 파일은 등록 후 상세에서 첨부하세요.</small>
+            </div>
+
+            <div class="field">
                 <label>메모</label>
                 <textarea v-model="form.memo" rows="4" placeholder="특이사항, 요청 내용 등"></textarea>
             </div>
@@ -259,6 +268,12 @@ function onCancel() {
 
 .field textarea {
     resize: vertical;
+}
+
+.hint {
+    color: var(--text);
+    font-size: 0.78rem;
+    font-weight: 400;
 }
 
 .actions {

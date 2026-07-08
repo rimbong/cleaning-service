@@ -11,6 +11,7 @@ import com.boot.cleanhub.client.domain.Client;
 import com.boot.cleanhub.client.dto.ClientRequest;
 import com.boot.cleanhub.client.dto.ClientResponse;
 import com.boot.cleanhub.client.repository.ClientRepository;
+import com.boot.cleanhub.contract.repository.ContractRepository;
 import com.boot.cleanhub.error.BizException;
 import com.boot.cleanhub.error.ErrorCode;
 
@@ -32,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 public class ClientService {
 
     private final ClientRepository clientRepository;
+    private final ContractRepository contractRepository;
 
     /**
      * 거래처 목록 조회(건물명 검색 지원).
@@ -92,13 +94,17 @@ public class ClientService {
 
     /**
      * 거래처 삭제.
+     * 계약이 1건이라도 걸려 있으면 삭제를 막는다(정산 이력 보존 — 삭제 금지 정책).
      *
      * @param id 거래처 ID
-     * @throws BizException 존재하지 않으면 CLIENT_NOT_FOUND
+     * @throws BizException 존재하지 않으면 CLIENT_NOT_FOUND, 계약이 있으면 CLIENT_HAS_CONTRACTS
      */
     @Transactional
     public void delete(Long id) {
         Client client = findOrThrow(id);
+        if (contractRepository.countByClientId(id) > 0) {
+            throw new BizException(ErrorCode.CLIENT_HAS_CONTRACTS);
+        }
         clientRepository.delete(client);
     }
 

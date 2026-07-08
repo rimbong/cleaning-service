@@ -12,6 +12,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import com.boot.cleanhub.common.api.ApiResponse;
 
@@ -59,6 +60,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleConstraint(ConstraintViolationException e) {
         ErrorCode ec = ErrorCode.VALIDATION_ERROR;
         return ResponseEntity.status(ec.getStatus()).body(ApiResponse.error(ec.getCode(), e.getMessage()));
+    }
+
+    /** 업로드 파일이 multipart 상한(application.yml)을 초과 → 413. */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSize(MaxUploadSizeExceededException e) {
+        ErrorCode ec = ErrorCode.FILE_TOO_LARGE;
+        return ResponseEntity.status(ec.getStatus()).body(ApiResponse.error(ec.getCode(), resolve(ec, null)));
     }
 
     // 그 외 일반 예외(및 404/500 서블릿 에러)는 CustomErrorController 가 처리한다.
