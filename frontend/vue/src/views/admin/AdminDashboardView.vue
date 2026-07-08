@@ -10,6 +10,7 @@ const auth = useAuthStore()
 const shortcuts = [
     { to: '/admin/clients', icon: '🏢', title: '거래처 관리', desc: '건물·거래처 등록 및 조회' },
     { to: '/admin/contracts', icon: '📄', title: '계약 관리', desc: '정기 청소 월정액 계약 관리' },
+    { to: '/admin/quotes', icon: '🧾', title: '견적 관리', desc: '일회성 특수청소 견적 관리' },
 ]
 </script>
 
@@ -30,7 +31,7 @@ const shortcuts = [
             </RouterLink>
         </div>
 
-        <p class="dash-note">※ 견적·정산·대시보드 통계는 다음 단계에서 추가됩니다.</p>
+        <p class="dash-note">※ 정산·대시보드 통계는 다음 단계에서 추가됩니다.</p>
     </section>
 </template>
 
