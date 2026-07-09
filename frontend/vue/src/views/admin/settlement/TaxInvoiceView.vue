@@ -4,7 +4,7 @@ import { computed, ref } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 
 import { taxInvoiceService, TAX_BASIS } from '@/services/settlement/taxInvoiceService'
-import { useNotifyStore } from '@/stores/notify/notify'
+import { useNotifyStore } from '@/common/stores/notify/notify'
 
 const notify = useNotifyStore()
 const queryClient = useQueryClient()

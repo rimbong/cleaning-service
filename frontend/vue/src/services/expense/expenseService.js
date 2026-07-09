@@ -1,4 +1,4 @@
-import { get, post, put, del } from '@/plugins/http/axios'
+import { get, post, put, del } from '@/common/plugins/http/axios'
 
 /**
  * 지출 관리 API — 관리자 전용(/api/admin/expenses). 주유 등 경비(정산과 독립).

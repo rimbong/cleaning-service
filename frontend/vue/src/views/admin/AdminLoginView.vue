@@ -3,8 +3,8 @@
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { useAuthStore } from '@/stores/auth/auth'
-import { useNotifyStore } from '@/stores/notify/notify'
+import { useAuthStore } from '@/common/stores/auth/auth'
+import { useNotifyStore } from '@/common/stores/notify/notify'
 
 const auth = useAuthStore()
 const notify = useNotifyStore()

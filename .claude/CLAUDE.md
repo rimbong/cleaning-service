@@ -61,10 +61,13 @@ config/        # @Configuration — Security 2체인, Cors, Web, DataBase, Prope
 filter/        # JwtRequestFilter (Bearer 검증)
 interceptor/   # EventCheckInterceptor — 모든 요청 전처리
 error/         # 전역 예외 처리 (BizException, GlobalExceptionHandler, ErrorCode)
-util/          # 정적 유틸 (date, excel(POI), http, json, jwt, security(RSA/TEA), xml, file, image)
+util/          # 정적 유틸 (date, excel(POI/PoiMo·ExcelObject), http, json, jwt, security(RSA/TEA), xml, file, image)
+biz/           # 본격 비즈니스 도메인 루트 (규칙: biz/package-info.java)
+  client/ company/ contract/ quote/ settlement/ expense/   # 도메인별 controller/service/repository/domain/dto
 ```
-※ **도메인 코드(견적·거래처·계약·정산·후기 등)는 아직 없음** — 여기에 새로 추가한다.
-   패키지는 `com.boot.cleanhub.<도메인>` (예: `quote`, `client`, `contract`, `settlement`, `review`).
+※ **도메인 코드는 전부 `biz/` 하위**에 둔다(head 구조 정합). 패키지 `com.boot.cleanhub.biz.<도메인>`
+   (예: `biz.client`, `biz.contract`, `biz.quote`, `biz.settlement`, `biz.company`, `biz.expense`).
+   공용 인프라(auth·common·config·filter·interceptor·error·util)와 분리한다.
 
 리소스: `project/src/main/resources/`
 - `application.yml`(공통) + `application-dev.yml`/`application-prod.yml`(프로파일별)
@@ -80,9 +83,10 @@ util/          # 정적 유틸 (date, excel(POI), http, json, jwt, security(RSA/
 - 백엔드 **루트(/)로 서빙**(`base:'/'`, 빌드 산출물 → `project/.../static/`(index.html·assets·favicon)).
   대민 `/`, 관리자 `/admin`. `WebConfig`가 SPA 딥링크 폴백(백엔드 경로 `/api`·`/actuator`·`/ws-chat`·`/error`는 제외).
   dev 서버(:5173)는 `/api`·`/auth` 를 백엔드(:70)로 프록시.
-- 공용 인프라(유지): `stores/auth`·`stores/notify`, `services/auth`, `composables/http/useRequest`,
-  `plugins/http/axios`(Bearer 자동첨부 + 401 자동갱신 인터셉터), `components/notify/NotifyHost`, i18n.
-- 도메인 화면은 `views/<도메인>/`, 서비스는 `services/<도메인>/`, 스토어는 `stores/<도메인>/`.
+- 공용 인프라는 **`common/` 하위**에 둔다(head 정합): `common/stores`(auth·notify), `common/services/auth`,
+  `common/composables`, `common/plugins/http/axios`(Bearer 자동첨부 + 401 자동갱신), `common/components`(notify·common/Pager·Modal),
+  `common/layouts`(AdminLayout·PublicLayout), `common/i18n`.
+- 화면은 대민 `views/public/`, 관리자 `views/admin/<도메인>/`. 도메인 서비스는 top-level `services/<도메인>/`(공용 아님).
 
 ## 핵심 아키텍처 패턴
 
@@ -110,8 +114,8 @@ util/          # 정적 유틸 (date, excel(POI), http, json, jwt, security(RSA/
 
 ## 작업 시 주의사항
 
-- **새 도메인 추가**: `com.boot.cleanhub.<도메인>/`(controller/service/repository/domain/dto),
-  스키마는 **Flyway 마이그레이션(V*.sql)** 으로 추가(엔티티와 일치 필수), 프론트는 `views/<도메인>/`.
+- **새 도메인 추가**: `com.boot.cleanhub.biz.<도메인>/`(controller/service/repository/domain/dto),
+  스키마는 **Flyway 마이그레이션(V*.sql)** 으로 추가(엔티티와 일치 필수), 프론트는 `views/admin/<도메인>/`·`services/<도메인>/`.
 - 설정값은 `application.yml`(공통)/프로파일 yml, 상세는 `config/`의 `@Configuration`.
 - `util/`에 직접 구현 정적 유틸 다수(POI·RSA/TEA·HTTP 등) — 새 유틸 전 중복 확인.
 - 로그: `logback-spring.xml`(파일 구성) + yml `logging.level.*`(레벨). 경로는 프로파일별.

@@ -5,7 +5,7 @@ import { useRouter } from 'vue-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 
 import { contractService } from '@/services/contract/contractService'
-import { useNotifyStore } from '@/stores/notify/notify'
+import { useNotifyStore } from '@/common/stores/notify/notify'
 
 const props = defineProps({
     id: { type: [String, Number], required: true },

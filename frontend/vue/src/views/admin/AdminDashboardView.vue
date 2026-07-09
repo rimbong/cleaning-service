@@ -2,7 +2,7 @@
 // 관리자 대시보드 — 현재는 진입점 안내. (통계/집계는 이후 단계에서 추가)
 import { RouterLink } from 'vue-router'
 
-import { useAuthStore } from '@/stores/auth/auth'
+import { useAuthStore } from '@/common/stores/auth/auth'
 
 const auth = useAuthStore()
 

@@ -3,7 +3,7 @@
 import { reactive, ref, onMounted } from 'vue'
 
 import { companyService } from '@/services/company/companyService'
-import { useNotifyStore } from '@/stores/notify/notify'
+import { useNotifyStore } from '@/common/stores/notify/notify'
 
 const notify = useNotifyStore()
 const loading = ref(true)

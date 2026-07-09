@@ -3,7 +3,7 @@
 //  - /admin/**    : AdminLayout 아래, meta.requiresAdmin 으로 ROLE_ADMIN 요구(가드는 router/index.js).
 //  - 도메인별 children 은 modules(clientRoutes/contractRoutes/quoteRoutes)로 분리해 조합한다.
 //    새 도메인 추가 = 모듈 파일 하나 만들고 아래 children 에 `...xxxRoutes` 한 줄 추가.
-import AdminLayout from '@/layouts/AdminLayout.vue'
+import AdminLayout from '@/common/layouts/AdminLayout.vue'
 
 import clientRoutes from './clientRoutes'
 import contractRoutes from './contractRoutes'

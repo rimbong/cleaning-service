@@ -1,4 +1,4 @@
-import { get, post, put, del, downloadGet } from '@/plugins/http/axios'
+import { get, post, put, del, downloadGet } from '@/common/plugins/http/axios'
 
 /**
  * 계약 관리 API — 관리자 전용(/api/admin/contracts).

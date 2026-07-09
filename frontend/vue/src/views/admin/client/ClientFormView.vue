@@ -6,7 +6,7 @@ import { useRouter } from 'vue-router'
 import { useQueryClient } from '@tanstack/vue-query'
 
 import { clientService, CLEANING_TYPES, TAX_INVOICE_TYPES } from '@/services/client/clientService'
-import { useNotifyStore } from '@/stores/notify/notify'
+import { useNotifyStore } from '@/common/stores/notify/notify'
 
 const props = defineProps({
     id: { type: [String, Number], default: null },

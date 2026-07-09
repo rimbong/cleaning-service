@@ -1,4 +1,4 @@
-import { get, post, del, downloadGet } from '@/plugins/http/axios'
+import { get, post, del, downloadGet } from '@/common/plugins/http/axios'
 
 /**
  * 세금계산서 API — 관리자 전용(/api/admin/tax-invoices).

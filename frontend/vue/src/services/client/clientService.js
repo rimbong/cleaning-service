@@ -1,4 +1,4 @@
-import { get, post, put, del } from '@/plugins/http/axios'
+import { get, post, put, del } from '@/common/plugins/http/axios'
 
 /**
  * 거래처(건물) 관리 API — 관리자 전용(/api/admin/clients).

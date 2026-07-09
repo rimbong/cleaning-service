@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { contractService, CONTRACT_STATUSES } from '@/services/contract/contractService'
 import { clientService } from '@/services/client/clientService'
-import { useNotifyStore } from '@/stores/notify/notify'
+import { useNotifyStore } from '@/common/stores/notify/notify'
 
 const props = defineProps({
     id: { type: [String, Number], default: null },

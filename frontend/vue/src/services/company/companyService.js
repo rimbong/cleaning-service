@@ -1,4 +1,4 @@
-import { get, put } from '@/plugins/http/axios'
+import { get, put } from '@/common/plugins/http/axios'
 
 /**
  * 회사(공급자) 프로필 API — 관리자 전용(/api/admin/company). 단일 설정이라 조회/수정만.

@@ -1,7 +1,7 @@
 <script setup>
 import { RouterView } from 'vue-router'
 
-import NotifyHost from '@/components/notify/NotifyHost.vue'
+import NotifyHost from '@/common/components/notify/NotifyHost.vue'
 </script>
 
 <template>
