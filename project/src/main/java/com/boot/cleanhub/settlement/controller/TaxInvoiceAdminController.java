@@ -58,7 +58,8 @@ public class TaxInvoiceAdminController {
             @RequestParam int toMonth,
             @RequestParam(required = false, defaultValue = "BILLED") String basis) {
         byte[] bytes = taxInvoiceService.buildSummaryExcel(year, fromMonth, toMonth, basis);
-        String filename = "세금계산서집계_" + year + "_" + fromMonth + "-" + toMonth + ".xlsx";
+        String basisLabel = "PAID".equalsIgnoreCase(basis) ? "수금" : "청구";
+        String filename = "세금계산서집계_" + basisLabel + "_" + year + "_" + fromMonth + "-" + toMonth + ".xlsx";
         return FileUtillMo.downloadResponse(bytes, filename,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     }

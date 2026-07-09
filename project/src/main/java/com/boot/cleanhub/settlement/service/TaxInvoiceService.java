@@ -10,13 +10,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.Font;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +27,7 @@ import com.boot.cleanhub.settlement.dto.TaxInvoiceResponse;
 import com.boot.cleanhub.settlement.repository.BillingRepository;
 import com.boot.cleanhub.settlement.repository.PaymentRepository;
 import com.boot.cleanhub.settlement.repository.TaxInvoiceRepository;
+import com.boot.cleanhub.util.excel.PoiMo;
 
 import lombok.RequiredArgsConstructor;
 
@@ -134,48 +129,70 @@ public class TaxInvoiceService {
         taxInvoiceRepository.delete(t);
     }
 
-    /** 집계표 엑셀(xlsx) 바이트 — 세금계산서 발행/신고용 거래처별 공급가액·세액 목록. */
+    /**
+     * 집계표 엑셀(xlsx) 바이트 — 세금계산서 발행/신고용 거래처별 공급가액·세액 목록.
+     * 공용 유틸 {@link PoiMo} 로 생성한다(setData 가 한글 폭을 반영해 열 너비를 자동 조정).
+     * 데이터 정렬은 값 뒤 "$c"(가운데)/"$r"(오른쪽) 수식어로 지정한다.
+     * 제목은 setMergedData 로 병합해 넣어(열 너비 영향 없음) 순번 열이 넓어지지 않게 한다.
+     * 구성: 0행 제목(병합) / 1행 공백 / 2행 헤더 / 3행~ 데이터 / 마지막 합계.
+     */
     public byte[] buildSummaryExcel(int year, int fromMonth, int toMonth, String basis) {
         TaxInvoiceAggResponse agg = aggregate(year, fromMonth, toMonth, basis);
-        try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            Sheet sheet = wb.createSheet("세금계산서 집계");
-            CellStyle header = headerStyle(wb);
-            CellStyle numeric = numericStyle(wb);
+        String basisLabel = BASIS_PAID.equals(agg.getBasis()) ? "수금 기준" : "청구 기준";
+        String titleText = year + "년 " + fromMonth + "~" + toMonth + "월 세금계산서 집계 (" + basisLabel + ")";
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            PoiMo poi = PoiMo.create("세금계산서집계.xlsx");
+            try {
+                // 스타일: 제목(굵게 큰 글씨), 헤더(굵게+연노랑+테두리), 본문(테두리), 합계(굵게+테두리)
+                CellStyle titleStyle = poi.createNewStyle();
+                poi.setFontStyle(titleStyle, "맑은 고딕", (short) 14, "bold", false, false);
 
-            String basisLabel = BASIS_PAID.equals(agg.getBasis()) ? "수금 기준" : "청구 기준";
-            Row title = sheet.createRow(0);
-            title.createCell(0).setCellValue(year + "년 " + fromMonth + "~" + toMonth + "월 세금계산서 집계 (" + basisLabel + ")");
+                CellStyle head = poi.createNewStyle();
+                poi.setFontStyle(head, "맑은 고딕", (short) 11, "bold", false, false);
+                poi.setBackgroundColor(head, "light-yellow");
+                poi.setLineBorder(head, "thin");
 
-            String[] cols = { "순번", "사업자번호", "상호", "공급가액", "세액", "건수" };
-            Row head = sheet.createRow(2);
-            for (int i = 0; i < cols.length; i++) {
-                Cell c = head.createCell(i);
-                c.setCellValue(cols[i]);
-                c.setCellStyle(header);
+                CellStyle body = poi.createNewStyle();
+                poi.setLineBorder(body, "thin");
+
+                CellStyle total = poi.createNewStyle();
+                poi.setFontStyle(total, "맑은 고딕", (short) 11, "bold", false, false);
+                poi.setLineBorder(total, "thin");
+
+                // 제목(0행) — 0~5열 병합, 가운데 정렬(열 너비에 영향 주지 않음)
+                poi.setMergedData(titleStyle, 0, 0, 5, titleText + "$c");
+
+                // 헤더(2행) — "$c" 로 가운데 정렬 (1행은 공백)
+                String[] cols = { "순번", "사업자번호", "상호", "공급가액", "세액", "건수" };
+                for (int i = 0; i < cols.length; i++) {
+                    poi.setData(head, 2, i, cols[i] + "$c");
+                }
+
+                // 데이터(3행~)
+                int r = 3;
+                int no = 1;
+                for (TaxInvoiceAggRow row : agg.getRows()) {
+                    poi.setData(body, r, 0, no++ + "$c");
+                    poi.setData(body, r, 1, row.getBusinessNumber() != null ? row.getBusinessNumber() : "");
+                    poi.setData(body, r, 2, row.getClientName() != null ? row.getClientName() : "");
+                    poi.setData(body, r, 3, String.format("%,d", row.getSupplyAmount()) + "$r");
+                    poi.setData(body, r, 4, String.format("%,d", row.getTaxAmount()) + "$r");
+                    poi.setData(body, r, 5, row.getCount() + "$c");
+                    r++;
+                }
+
+                // 합계 행
+                poi.setData(total, r, 0, "");
+                poi.setData(total, r, 1, "");
+                poi.setData(total, r, 2, "합계$c");
+                poi.setData(total, r, 3, String.format("%,d", agg.getTotalSupply()) + "$r");
+                poi.setData(total, r, 4, String.format("%,d", agg.getTotalTax()) + "$r");
+                poi.setData(total, r, 5, "");
+
+                poi.write(out);
+            } finally {
+                poi.close();
             }
-
-            int r = 3;
-            int no = 1;
-            for (TaxInvoiceAggRow row : agg.getRows()) {
-                Row dr = sheet.createRow(r++);
-                dr.createCell(0).setCellValue(no++);
-                dr.createCell(1).setCellValue(row.getBusinessNumber() != null ? row.getBusinessNumber() : "");
-                dr.createCell(2).setCellValue(row.getClientName() != null ? row.getClientName() : "");
-                setNum(dr.createCell(3), row.getSupplyAmount(), numeric);
-                setNum(dr.createCell(4), row.getTaxAmount(), numeric);
-                dr.createCell(5).setCellValue(row.getCount());
-            }
-            Row total = sheet.createRow(r);
-            Cell tl = total.createCell(2);
-            tl.setCellValue("합계");
-            tl.setCellStyle(header);
-            setNum(total.createCell(3), agg.getTotalSupply(), header);
-            setNum(total.createCell(4), agg.getTotalTax(), header);
-
-            for (int i = 0; i < cols.length; i++) {
-                sheet.autoSizeColumn(i);
-            }
-            wb.write(out);
             return out.toByteArray();
         } catch (IOException e) {
             throw new BizException(ErrorCode.FILE_UPLOAD_FAILED);
@@ -192,25 +209,6 @@ public class TaxInvoiceService {
             return b.getQuote().getClient();
         }
         return null;
-    }
-
-    private static void setNum(Cell cell, long value, CellStyle style) {
-        cell.setCellValue(value);
-        cell.setCellStyle(style);
-    }
-
-    private static CellStyle headerStyle(Workbook wb) {
-        CellStyle s = wb.createCellStyle();
-        Font f = wb.createFont();
-        f.setBold(true);
-        s.setFont(f);
-        return s;
-    }
-
-    private static CellStyle numericStyle(Workbook wb) {
-        CellStyle s = wb.createCellStyle();
-        s.setDataFormat(wb.createDataFormat().getFormat("#,##0"));
-        return s;
     }
 
     /** 거래처별 누적기(집계용) */

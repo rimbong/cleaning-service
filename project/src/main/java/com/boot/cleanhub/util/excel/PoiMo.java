@@ -22,6 +22,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.VerticalAlignment;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 /**
@@ -155,6 +156,64 @@ public class PoiMo {
         cell.setCellStyle(finalStyle);
 
         autoAdjustColumnWidth(col, richText != null ? richText.toString() : "");
+    }
+
+    /**
+     * (편의) 한 행 안에서 여러 열을 가로 병합해 값을 쓴다(제목 행 등).
+     * 내부적으로 {@link #setMergedData(CellStyle, int, int, int, int, String)} 에 위임한다.
+     *
+     * @param baseStyle 기준 스타일(null 이면 기본 스타일)
+     * @param row       행 인덱스(0-based)
+     * @param startCol  시작 열(0-based)
+     * @param endCol    끝 열(포함, 0-based)
+     * @param data      값(뒤에 $c/$r/$l 로 정렬 지정 가능)
+     */
+    public void setMergedData(CellStyle baseStyle, int row, int startCol, int endCol, String data) {
+        setMergedData(baseStyle, row, row, startCol, endCol, data);
+    }
+
+    /**
+     * 사각 영역(여러 행 x 여러 열)을 병합하고 값을 쓴다.
+     * 제목처럼 가로로만 합칠 수도, 세로 표머리처럼 여러 행을 합칠 수도 있다.
+     * 값은 좌상단 셀에만 넣고, 영역 전체에 스타일을 입혀 테두리 등이 끊기지 않게 한다.
+     * 열 너비 자동조정은 하지 않는다 — 긴 병합 텍스트가 열 폭을 과도하게 넓히는 것을 막기 위함.
+     * 데이터 정렬 수식어($c/$r/$l)를 그대로 지원한다(세로 정렬은 항상 가운데).
+     *
+     * @param baseStyle 기준 스타일(null 이면 기본 스타일)
+     * @param startRow  시작 행(0-based)
+     * @param endRow    끝 행(포함, 0-based)
+     * @param startCol  시작 열(0-based)
+     * @param endCol    끝 열(포함, 0-based)
+     * @param data      값(뒤에 $c/$r/$l 로 정렬 지정 가능)
+     */
+    public void setMergedData(CellStyle baseStyle, int startRow, int endRow, int startCol, int endCol, String data) {
+        if (sheet == null) {
+            throw new IllegalStateException("Sheet is not initialized");
+        }
+        if (endRow < startRow || endCol < startCol) {
+            throw new IllegalArgumentException("endRow/endCol must be >= startRow/startCol");
+        }
+
+        HorizontalAlignment alignment = getAlignmentFromModifiers(data);
+        String cleanData = extractCleanData(data);
+        CellStyle finalStyle = getOrCreateStyledCellStyle(baseStyle, alignment);
+
+        // 병합 영역의 모든 셀에 스타일을 입히고(테두리 등 유지), 좌상단 셀에만 값을 넣는다.
+        for (int r = startRow; r <= endRow; r++) {
+            Row rowObj = sheet.getRow(r) != null ? sheet.getRow(r) : sheet.createRow(r);
+            for (int col = startCol; col <= endCol; col++) {
+                Cell cell = rowObj.getCell(col, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+                cell.setCellStyle(finalStyle);
+                if (r == startRow && col == startCol) {
+                    cell.setCellValue(cleanData);
+                }
+            }
+        }
+        // 실제로 2칸 이상일 때만 병합(1x1 이면 병합 불필요).
+        if (endRow > startRow || endCol > startCol) {
+            sheet.addMergedRegion(new CellRangeAddress(startRow, endRow, startCol, endCol));
+        }
+        // 열 너비 자동조정은 의도적으로 생략(병합 텍스트가 열 폭에 영향 주지 않게).
     }
 
     private void autoAdjustColumnWidth(int col, String text) {
