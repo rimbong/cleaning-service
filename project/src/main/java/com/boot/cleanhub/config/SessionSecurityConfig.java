@@ -7,6 +7,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -72,6 +73,14 @@ public class SessionSecurityConfig {
     /** JSON 응답(ApiResponse) 직렬화용 */
     @Autowired
     private ObjectMapper objectMapper;
+
+    /**
+     * 렌더모드 — spa(현재) / ssr. application.yml 의 app.mode.
+     * 현재 URL 규칙·예외처리(미인증 401 JSON 등)는 이미 spa 동작이라 그대로 둔다.
+     * ssr 도입 시 이 값으로 분기(미인증 → 로그인 페이지 리다이렉트 등)를 추가한다.
+     */
+    @Value("${app.mode:spa}")
+    private String appMode;
 
     /** 세션 로그인용 사용자 조회 서비스(auth 모듈의 auth_user 테이블) */
     @Autowired

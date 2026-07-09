@@ -52,6 +52,13 @@ spring:
     suffix: .html
     # cache 는 프로파일별(application-dev / application-prod)에서 설정
 
+# 렌더모드 스위치 — spa(Vue SPA, 기본) / ssr(Thymeleaf 페이지).
+# ★ 반드시 여기(application.yml)에 둔다. etc.properties(@PropertySource) 금지 —
+#   SSR 페이지 컨트롤러의 @ConditionalOnProperty 가 @PropertySource 값을 못 읽어(로드 순서),
+#   ssr 인데 페이지가 404 나는 함정이 있다(application.yml 은 아주 일찍 로드되어 안전).
+app:
+  mode: ${APP_MODE:spa}
+
 mybatis:
   config-location: classpath:mybatis/context/sql-config.xml
   mapper-locations: classpath:mybatis/mapper/**/*.xml

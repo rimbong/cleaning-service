@@ -6,6 +6,7 @@ import java.util.Locale;
 import javax.servlet.http.HttpServletRequest;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
@@ -35,6 +36,10 @@ public class WebConfig implements WebMvcConfigurer {
     @Autowired
     private EventCheckInterceptor eventCheckInterceptor;
 
+    /** 렌더모드 — spa(SPA 폴백 등록) / ssr(폴백 미등록, 화면은 Thymeleaf). application.yml 의 app.mode */
+    @Value("${app.mode:spa}")
+    private String appMode;
+
     /**
      * <pre>
      *   정적 리소스 핸들러 — SPA(정적 프론트)를 루트(/)로 서빙한다(대민 /, 관리자 /admin).
@@ -48,6 +53,10 @@ public class WebConfig implements WebMvcConfigurer {
      */
     @Override
     public void addResourceHandlers(@NonNull ResourceHandlerRegistry registry) {
+        // ssr 이면 SPA 폴백을 등록하지 않는다(화면은 Thymeleaf, 정적은 부트 기본 핸들링).
+        if (!"spa".equals(appMode)) {
+            return;
+        }
         registry.addResourceHandler("/**")
                 .addResourceLocations("classpath:/static/")
                 .resourceChain(false)
@@ -76,6 +85,7 @@ public class WebConfig implements WebMvcConfigurer {
      */
     private static boolean isBackendPath(String path) {
         return path.startsWith("api/")
+                || path.startsWith("auth/") || path.equals("auth")   // 세션 인증 엔드포인트(백엔드 성격)
                 || path.startsWith("actuator/") || path.equals("actuator")
                 || path.startsWith("ws-chat")
                 || path.equals("error");
