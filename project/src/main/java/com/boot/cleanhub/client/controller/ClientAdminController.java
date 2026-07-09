@@ -1,7 +1,5 @@
 package com.boot.cleanhub.client.controller;
 
-import java.util.List;
-
 import javax.validation.Valid;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -18,6 +16,8 @@ import com.boot.cleanhub.client.dto.ClientRequest;
 import com.boot.cleanhub.client.dto.ClientResponse;
 import com.boot.cleanhub.client.service.ClientService;
 import com.boot.cleanhub.common.api.ApiResponse;
+import com.boot.cleanhub.common.dto.PageRequestFactory;
+import com.boot.cleanhub.common.dto.PageResponse;
 
 import lombok.RequiredArgsConstructor;
 
@@ -40,10 +40,13 @@ public class ClientAdminController {
 
     private final ClientService clientService;
 
-    /** 거래처 목록(건물명 검색 지원) */
+    /** 거래처 목록(건물명 검색 지원, 페이징) */
     @GetMapping
-    public ApiResponse<List<ClientResponse>> list(@RequestParam(required = false) String keyword) {
-        return ApiResponse.ok(clientService.list(keyword));
+    public ApiResponse<PageResponse<ClientResponse>> list(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ApiResponse.ok(clientService.list(keyword, PageRequestFactory.of(page, size)));
     }
 
     /** 거래처 단건 조회 */

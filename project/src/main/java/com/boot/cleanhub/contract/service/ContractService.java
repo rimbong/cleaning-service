@@ -1,14 +1,14 @@
 package com.boot.cleanhub.contract.service;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.boot.cleanhub.client.domain.Client;
 import com.boot.cleanhub.client.repository.ClientRepository;
+import com.boot.cleanhub.common.dto.PageResponse;
 import com.boot.cleanhub.contract.domain.Contract;
 import com.boot.cleanhub.contract.domain.ContractStatus;
 import com.boot.cleanhub.contract.dto.ContractRequest;
@@ -40,25 +40,24 @@ public class ContractService {
     private final ContractAttachmentService attachmentService;
 
     /**
-     * 계약 목록 조회.
+     * 계약 목록 조회(페이징).
      * clientId 가 있으면 해당 거래처의 계약만, keyword 가 있으면 계약명 검색, 둘 다 없으면 전체.
      *
      * @param keyword  계약명 검색어(선택)
      * @param clientId 거래처 필터(선택)
-     * @return 최신 등록순 계약 목록
+     * @param pageable 페이지 요청
+     * @return 최신 등록순 계약 페이지
      */
-    public List<ContractResponse> list(String keyword, Long clientId) {
-        List<Contract> contracts;
+    public PageResponse<ContractResponse> list(String keyword, Long clientId, Pageable pageable) {
+        Page<Contract> contracts;
         if (clientId != null) {
-            contracts = contractRepository.findByClientId(clientId);
+            contracts = contractRepository.findByClientId(clientId, pageable);
         } else if (StringUtils.hasText(keyword)) {
-            contracts = contractRepository.searchByTitle(keyword.trim());
+            contracts = contractRepository.searchByTitle(keyword.trim(), pageable);
         } else {
-            contracts = contractRepository.findAllWithClient();
+            contracts = contractRepository.findAllWithClient(pageable);
         }
-        return contracts.stream()
-                .map(ContractResponse::from)
-                .collect(Collectors.toList());
+        return PageResponse.from(contracts.map(ContractResponse::from));
     }
 
     /**

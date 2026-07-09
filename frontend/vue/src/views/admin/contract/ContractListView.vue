@@ -1,10 +1,11 @@
 <script setup>
-// 계약 목록 — vue-query 로 캐싱, 계약명 검색, 등록/상세/수정/삭제 진입.
-import { computed, ref } from 'vue'
+// 계약 목록 — vue-query 로 캐싱, 계약명 검색, 페이징, 등록/상세/수정/삭제 진입.
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/vue-query'
 
 import { contractService } from '@/services/contract/contractService'
+import Pager from '@/components/common/Pager.vue'
 import { useNotifyStore } from '@/stores/notify/notify'
 
 const router = useRouter()
@@ -15,15 +16,26 @@ const queryClient = useQueryClient()
 // 타이핑마다 요청하지 않고 "검색" 실행 시점에만 반영한다.
 const searchInput = ref('')
 const appliedKeyword = ref('')
+const page = ref(1)
 
-// queryKey 에 검색어를 넣어, 검색어별로 캐시가 분리·재사용된다.
-const { data, isLoading, isError, isFetching } = useQuery({
-    queryKey: ['contracts', appliedKeyword],
-    queryFn: () => contractService.list({ keyword: appliedKeyword.value }).then((res) => res.data.data),
-    staleTime: 30_000, // 30초 이내 재방문은 캐시 사용
+// 검색어가 바뀌면 1페이지로 되돌린다.
+watch(appliedKeyword, () => {
+    page.value = 1
 })
 
-const contracts = computed(() => data.value ?? [])
+// queryKey 에 검색어·페이지를 넣어, 조건별로 캐시가 분리·재사용된다.
+const { data, isLoading, isError, isFetching } = useQuery({
+    queryKey: ['contracts', appliedKeyword, page],
+    queryFn: () => contractService
+        .list({ keyword: appliedKeyword.value, page: page.value })
+        .then((res) => res.data.data),
+    staleTime: 30_000, // 30초 이내 재방문은 캐시 사용
+    placeholderData: keepPreviousData,
+})
+
+const contracts = computed(() => data.value?.content ?? [])
+const totalElements = computed(() => data.value?.totalElements ?? 0)
+const totalPages = computed(() => data.value?.totalPages ?? 0)
 
 function doSearch() {
     appliedKeyword.value = searchInput.value.trim()
@@ -88,7 +100,7 @@ function goDetail(id) {
         <!-- 목록 -->
         <div v-else class="table-wrap">
             <div class="list-meta">
-                <span>총 <strong>{{ contracts.length }}</strong>건</span>
+                <span>총 <strong>{{ totalElements }}</strong>건</span>
                 <span v-if="isFetching" class="list-meta__sync">갱신 중…</span>
             </div>
 
@@ -133,6 +145,8 @@ function goDetail(id) {
                     첫 계약 등록하기
                 </button>
             </div>
+
+            <Pager v-model:page="page" :total-pages="totalPages" :total-elements="totalElements" />
         </div>
     </section>
 </template>

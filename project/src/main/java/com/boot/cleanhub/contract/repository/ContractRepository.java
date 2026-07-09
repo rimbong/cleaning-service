@@ -3,6 +3,8 @@ package com.boot.cleanhub.contract.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,18 +24,26 @@ import com.boot.cleanhub.contract.domain.Contract;
  */
 public interface ContractRepository extends JpaRepository<Contract, Long> {
 
-    /** 전체 목록(거래처 포함, 최신 등록순) */
-    @Query("select c from Contract c join fetch c.client order by c.id desc")
-    List<Contract> findAllWithClient();
+    /**
+     * 전체 목록(거래처 포함, 최신 등록순) 페이지.
+     * client 는 to-one 연관이라 fetch join + 페이징을 함께 써도 메모리 페이징 경고가 없다.
+     * count 쿼리는 fetch join 없이 별도로 지정한다.
+     */
+    @Query(value = "select c from Contract c join fetch c.client order by c.id desc",
+            countQuery = "select count(c) from Contract c")
+    Page<Contract> findAllWithClient(Pageable pageable);
 
-    /** 계약명 부분일치 검색(대소문자 무시, 거래처 포함, 최신 등록순) */
-    @Query("select c from Contract c join fetch c.client"
-            + " where lower(c.title) like lower(concat('%', :keyword, '%')) order by c.id desc")
-    List<Contract> searchByTitle(@Param("keyword") String keyword);
+    /** 계약명 부분일치 검색(대소문자 무시, 거래처 포함, 최신 등록순) 페이지 */
+    @Query(value = "select c from Contract c join fetch c.client"
+            + " where lower(c.title) like lower(concat('%', :keyword, '%')) order by c.id desc",
+            countQuery = "select count(c) from Contract c"
+                    + " where lower(c.title) like lower(concat('%', :keyword, '%'))")
+    Page<Contract> searchByTitle(@Param("keyword") String keyword, Pageable pageable);
 
-    /** 특정 거래처의 계약 목록(거래처 포함, 최신 등록순) */
-    @Query("select c from Contract c join fetch c.client where c.client.id = :clientId order by c.id desc")
-    List<Contract> findByClientId(@Param("clientId") Long clientId);
+    /** 특정 거래처의 계약 목록(거래처 포함, 최신 등록순) 페이지 */
+    @Query(value = "select c from Contract c join fetch c.client where c.client.id = :clientId order by c.id desc",
+            countQuery = "select count(c) from Contract c where c.client.id = :clientId")
+    Page<Contract> findByClientId(@Param("clientId") Long clientId, Pageable pageable);
 
     /** 단건 조회(거래처 포함) */
     @Query("select c from Contract c join fetch c.client where c.id = :id")

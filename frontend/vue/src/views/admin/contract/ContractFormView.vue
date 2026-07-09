@@ -37,13 +37,13 @@ const form = reactive({
     memo: '',
 })
 
-// 거래처 셀렉트 옵션 — 거래처 목록을 캐시로 불러온다.
+// 거래처 셀렉트 옵션 — 목록 API 는 페이징 응답이라, 큰 size 로 한 번에 받아 .content 를 쓴다.
 const { data: clientData } = useQuery({
-    queryKey: ['clients', ''],
-    queryFn: () => clientService.list('').then((res) => res.data.data),
+    queryKey: ['clients', 'options'],
+    queryFn: () => clientService.list({ size: 200 }).then((res) => res.data.data),
     staleTime: 30_000,
 })
-const clientOptions = computed(() => clientData.value ?? [])
+const clientOptions = computed(() => clientData.value?.content ?? [])
 
 // 등록 화면에 ?clientId=... 로 진입하면(거래처 상세의 "계약 추가") 해당 거래처를 미리 선택.
 watchEffect(() => {

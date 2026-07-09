@@ -9,17 +9,25 @@ import { get, post, put, del, downloadGet } from '@/plugins/http/axios'
  */
 export const contractService = {
     /**
-     * 목록 조회 → data: ContractResponse[]
+     * 목록 조회(페이징) → data: PageResponse<ContractResponse>
      * @param {Object} params 검색 조건
      * @param {string} [params.keyword]  계약명 검색어
      * @param {number} [params.clientId] 특정 거래처의 계약만 조회
+     * @param {number} [params.page]     페이지(1-based)
+     * @param {number} [params.size]     페이지 크기
      */
-    list({ keyword, clientId } = {}) {
+    list({ keyword, clientId, page, size } = {}) {
         const query = {}
         if (clientId != null) {
             query.clientId = clientId
         } else if (keyword) {
             query.keyword = keyword
+        }
+        if (page != null) {
+            query.page = page
+        }
+        if (size != null) {
+            query.size = size
         }
         return get('/api/admin/contracts', { params: query })
     },

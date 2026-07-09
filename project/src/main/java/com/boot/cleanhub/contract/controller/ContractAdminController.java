@@ -1,7 +1,5 @@
 package com.boot.cleanhub.contract.controller;
 
-import java.util.List;
-
 import javax.validation.Valid;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -15,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.boot.cleanhub.common.api.ApiResponse;
+import com.boot.cleanhub.common.dto.PageRequestFactory;
+import com.boot.cleanhub.common.dto.PageResponse;
 import com.boot.cleanhub.contract.dto.ContractRequest;
 import com.boot.cleanhub.contract.dto.ContractResponse;
 import com.boot.cleanhub.contract.service.ContractService;
@@ -40,12 +40,14 @@ public class ContractAdminController {
 
     private final ContractService contractService;
 
-    /** 계약 목록(계약명 검색 또는 거래처 필터 지원) */
+    /** 계약 목록(계약명 검색 또는 거래처 필터 지원, 페이징) */
     @GetMapping
-    public ApiResponse<List<ContractResponse>> list(
+    public ApiResponse<PageResponse<ContractResponse>> list(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Long clientId) {
-        return ApiResponse.ok(contractService.list(keyword, clientId));
+            @RequestParam(required = false) Long clientId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ApiResponse.ok(contractService.list(keyword, clientId, PageRequestFactory.of(page, size)));
     }
 
     /** 계약 단건 조회 */

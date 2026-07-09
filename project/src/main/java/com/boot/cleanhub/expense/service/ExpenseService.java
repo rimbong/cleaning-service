@@ -1,12 +1,12 @@
 package com.boot.cleanhub.expense.service;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.boot.cleanhub.common.dto.PageResponse;
 import com.boot.cleanhub.error.BizException;
 import com.boot.cleanhub.error.ErrorCode;
 import com.boot.cleanhub.expense.domain.Expense;
@@ -32,14 +32,15 @@ public class ExpenseService {
 
     private final ExpenseRepository expenseRepository;
 
-    public List<ExpenseResponse> list(String keyword) {
-        List<Expense> expenses;
+    public PageResponse<ExpenseResponse> list(String keyword, Pageable pageable) {
+        Page<Expense> expenses;
         if (StringUtils.hasText(keyword)) {
-            expenses = expenseRepository.findByVendorNameContainingIgnoreCaseOrderByExpenseDateDescIdDesc(keyword.trim());
+            expenses = expenseRepository
+                    .findByVendorNameContainingIgnoreCaseOrderByExpenseDateDescIdDesc(keyword.trim(), pageable);
         } else {
-            expenses = expenseRepository.findAllByOrderByExpenseDateDescIdDesc();
+            expenses = expenseRepository.findAllByOrderByExpenseDateDescIdDesc(pageable);
         }
-        return expenses.stream().map(ExpenseResponse::from).collect(Collectors.toList());
+        return PageResponse.from(expenses.map(ExpenseResponse::from));
     }
 
     public ExpenseResponse get(Long id) {

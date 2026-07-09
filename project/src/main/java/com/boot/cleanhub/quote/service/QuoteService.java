@@ -1,14 +1,14 @@
 package com.boot.cleanhub.quote.service;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.boot.cleanhub.client.domain.Client;
 import com.boot.cleanhub.client.repository.ClientRepository;
+import com.boot.cleanhub.common.dto.PageResponse;
 import com.boot.cleanhub.error.BizException;
 import com.boot.cleanhub.error.ErrorCode;
 import com.boot.cleanhub.quote.domain.Quote;
@@ -39,21 +39,20 @@ public class QuoteService {
     private final ClientRepository clientRepository;
 
     /**
-     * 견적 목록 조회(서비스 내용/고객명 검색 지원).
+     * 견적 목록 조회(서비스 내용/고객명 검색 지원, 페이징).
      *
-     * @param keyword 검색어(비어 있으면 전체)
-     * @return 최신 등록순 견적 목록
+     * @param keyword  검색어(비어 있으면 전체)
+     * @param pageable 페이지 요청
+     * @return 최신 등록순 견적 페이지
      */
-    public List<QuoteResponse> list(String keyword) {
-        List<Quote> quotes;
+    public PageResponse<QuoteResponse> list(String keyword, Pageable pageable) {
+        Page<Quote> quotes;
         if (StringUtils.hasText(keyword)) {
-            quotes = quoteRepository.search(keyword.trim());
+            quotes = quoteRepository.search(keyword.trim(), pageable);
         } else {
-            quotes = quoteRepository.findAllWithClient();
+            quotes = quoteRepository.findAllWithClient(pageable);
         }
-        return quotes.stream()
-                .map(QuoteResponse::from)
-                .collect(Collectors.toList());
+        return PageResponse.from(quotes.map(QuoteResponse::from));
     }
 
     /**

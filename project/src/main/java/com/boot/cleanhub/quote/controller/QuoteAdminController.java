@@ -1,7 +1,5 @@
 package com.boot.cleanhub.quote.controller;
 
-import java.util.List;
-
 import javax.validation.Valid;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -15,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.boot.cleanhub.common.api.ApiResponse;
+import com.boot.cleanhub.common.dto.PageRequestFactory;
+import com.boot.cleanhub.common.dto.PageResponse;
 import com.boot.cleanhub.quote.dto.QuoteRequest;
 import com.boot.cleanhub.quote.dto.QuoteResponse;
 import com.boot.cleanhub.quote.service.QuoteService;
@@ -40,10 +40,13 @@ public class QuoteAdminController {
 
     private final QuoteService quoteService;
 
-    /** 견적 목록(서비스 내용/고객명 검색 지원) */
+    /** 견적 목록(서비스 내용/고객명 검색 지원, 페이징) */
     @GetMapping
-    public ApiResponse<List<QuoteResponse>> list(@RequestParam(required = false) String keyword) {
-        return ApiResponse.ok(quoteService.list(keyword));
+    public ApiResponse<PageResponse<QuoteResponse>> list(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ApiResponse.ok(quoteService.list(keyword, PageRequestFactory.of(page, size)));
     }
 
     /** 견적 단건 조회 */

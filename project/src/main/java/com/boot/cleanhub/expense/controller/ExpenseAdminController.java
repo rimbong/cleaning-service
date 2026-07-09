@@ -1,7 +1,5 @@
 package com.boot.cleanhub.expense.controller;
 
-import java.util.List;
-
 import javax.validation.Valid;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -15,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.boot.cleanhub.common.api.ApiResponse;
+import com.boot.cleanhub.common.dto.PageRequestFactory;
+import com.boot.cleanhub.common.dto.PageResponse;
 import com.boot.cleanhub.expense.dto.ExpenseRequest;
 import com.boot.cleanhub.expense.dto.ExpenseResponse;
 import com.boot.cleanhub.expense.service.ExpenseService;
@@ -38,8 +38,11 @@ public class ExpenseAdminController {
     private final ExpenseService expenseService;
 
     @GetMapping
-    public ApiResponse<List<ExpenseResponse>> list(@RequestParam(required = false) String keyword) {
-        return ApiResponse.ok(expenseService.list(keyword));
+    public ApiResponse<PageResponse<ExpenseResponse>> list(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ApiResponse.ok(expenseService.list(keyword, PageRequestFactory.of(page, size)));
     }
 
     @GetMapping("/{id}")

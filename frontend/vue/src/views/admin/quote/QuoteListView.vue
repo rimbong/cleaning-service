@@ -1,10 +1,11 @@
 <script setup>
-// 견적 목록 — vue-query 캐싱, 서비스내용/고객명 검색, 등록/상세/수정/삭제 진입. 행 클릭 시 상세.
-import { computed, ref } from 'vue'
+// 견적 목록 — vue-query 캐싱, 서비스내용/고객명 검색, 페이징, 등록/상세/수정/삭제 진입. 행 클릭 시 상세.
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/vue-query'
 
 import { quoteService } from '@/services/quote/quoteService'
+import Pager from '@/components/common/Pager.vue'
 import { useNotifyStore } from '@/stores/notify/notify'
 
 const router = useRouter()
@@ -13,14 +14,25 @@ const queryClient = useQueryClient()
 
 const searchInput = ref('')
 const appliedKeyword = ref('')
+const page = ref(1)
 
-const { data, isLoading, isError, isFetching } = useQuery({
-    queryKey: ['quotes', appliedKeyword],
-    queryFn: () => quoteService.list(appliedKeyword.value).then((res) => res.data.data),
-    staleTime: 30_000,
+// 검색어가 바뀌면 1페이지로 되돌린다.
+watch(appliedKeyword, () => {
+    page.value = 1
 })
 
-const quotes = computed(() => data.value ?? [])
+const { data, isLoading, isError, isFetching } = useQuery({
+    queryKey: ['quotes', appliedKeyword, page],
+    queryFn: () => quoteService
+        .list({ keyword: appliedKeyword.value, page: page.value })
+        .then((res) => res.data.data),
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+})
+
+const quotes = computed(() => data.value?.content ?? [])
+const totalElements = computed(() => data.value?.totalElements ?? 0)
+const totalPages = computed(() => data.value?.totalPages ?? 0)
 
 function doSearch() {
     appliedKeyword.value = searchInput.value.trim()
@@ -84,7 +96,7 @@ function goDetail(id) {
 
         <div v-else class="table-wrap">
             <div class="list-meta">
-                <span>총 <strong>{{ quotes.length }}</strong>건</span>
+                <span>총 <strong>{{ totalElements }}</strong>건</span>
                 <span v-if="isFetching" class="list-meta__sync">갱신 중…</span>
             </div>
 
@@ -127,6 +139,8 @@ function goDetail(id) {
                     첫 견적 등록하기
                 </button>
             </div>
+
+            <Pager v-model:page="page" :total-pages="totalPages" :total-elements="totalElements" />
         </div>
     </section>
 </template>

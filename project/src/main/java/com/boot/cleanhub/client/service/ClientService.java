@@ -1,8 +1,7 @@
 package com.boot.cleanhub.client.service;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -11,6 +10,7 @@ import com.boot.cleanhub.client.domain.Client;
 import com.boot.cleanhub.client.dto.ClientRequest;
 import com.boot.cleanhub.client.dto.ClientResponse;
 import com.boot.cleanhub.client.repository.ClientRepository;
+import com.boot.cleanhub.common.dto.PageResponse;
 import com.boot.cleanhub.contract.repository.ContractRepository;
 import com.boot.cleanhub.error.BizException;
 import com.boot.cleanhub.error.ErrorCode;
@@ -36,21 +36,20 @@ public class ClientService {
     private final ContractRepository contractRepository;
 
     /**
-     * 거래처 목록 조회(건물명 검색 지원).
+     * 거래처 목록 조회(건물명 검색 지원, 페이징).
      *
-     * @param keyword 건물명 검색어(비어 있으면 전체)
-     * @return 최신 등록순 거래처 목록
+     * @param keyword  건물명 검색어(비어 있으면 전체)
+     * @param pageable 페이지 요청
+     * @return 최신 등록순 거래처 페이지
      */
-    public List<ClientResponse> list(String keyword) {
-        List<Client> clients;
+    public PageResponse<ClientResponse> list(String keyword, Pageable pageable) {
+        Page<Client> clients;
         if (StringUtils.hasText(keyword)) {
-            clients = clientRepository.findByNameContainingIgnoreCaseOrderByIdDesc(keyword.trim());
+            clients = clientRepository.findByNameContainingIgnoreCaseOrderByIdDesc(keyword.trim(), pageable);
         } else {
-            clients = clientRepository.findAllByOrderByIdDesc();
+            clients = clientRepository.findAllByOrderByIdDesc(pageable);
         }
-        return clients.stream()
-                .map(ClientResponse::from)
-                .collect(Collectors.toList());
+        return PageResponse.from(clients.map(ClientResponse::from));
     }
 
     /**

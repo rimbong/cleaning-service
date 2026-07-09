@@ -1,10 +1,11 @@
 <script setup>
-// 지출 목록 — 검색·등록/수정/삭제. 행 클릭 시 수정.
-import { computed, ref } from 'vue'
+// 지출 목록 — 검색·페이징·등록/수정/삭제. 행 클릭 시 수정.
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/vue-query'
 
 import { expenseService } from '@/services/expense/expenseService'
+import Pager from '@/components/common/Pager.vue'
 import { useNotifyStore } from '@/stores/notify/notify'
 
 const router = useRouter()
@@ -13,14 +14,26 @@ const queryClient = useQueryClient()
 
 const searchInput = ref('')
 const appliedKeyword = ref('')
+const page = ref(1)
+
+// 검색어가 바뀌면 1페이지로 되돌린다.
+watch(appliedKeyword, () => {
+    page.value = 1
+})
 
 const { data, isLoading, isError, isFetching } = useQuery({
-    queryKey: ['expenses', appliedKeyword],
-    queryFn: () => expenseService.list(appliedKeyword.value).then((r) => r.data.data),
+    queryKey: ['expenses', appliedKeyword, page],
+    queryFn: () => expenseService
+        .list({ keyword: appliedKeyword.value, page: page.value })
+        .then((r) => r.data.data),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
 })
-const expenses = computed(() => data.value ?? [])
-const total = computed(() => expenses.value.reduce((s, e) => s + (e.amount ?? 0), 0))
+const expenses = computed(() => data.value?.content ?? [])
+const totalElements = computed(() => data.value?.totalElements ?? 0)
+const totalPages = computed(() => data.value?.totalPages ?? 0)
+// 합계는 현재 페이지 기준(전체 합계는 별도 집계가 필요하므로 페이지 합계만 표시)
+const pageSum = computed(() => expenses.value.reduce((s, e) => s + (e.amount ?? 0), 0))
 
 function doSearch() { appliedKeyword.value = searchInput.value.trim() }
 function resetSearch() { searchInput.value = ''; appliedKeyword.value = '' }
@@ -55,7 +68,7 @@ function goEdit(id) { router.push({ name: 'admin-expense-edit', params: { id } }
         <p v-else-if="isError" class="state state--err">불러오지 못했습니다.</p>
         <div v-else class="table-wrap">
             <div class="list-meta">
-                <span>총 <strong>{{ expenses.length }}</strong>건 · 합계 <strong>{{ money(total) }}</strong>원</span>
+                <span>총 <strong>{{ totalElements }}</strong>건 · 이 페이지 합계 <strong>{{ money(pageSum) }}</strong>원</span>
                 <span v-if="isFetching" class="sync">갱신 중…</span>
             </div>
             <table v-if="expenses.length" class="table">
@@ -79,6 +92,8 @@ function goEdit(id) { router.push({ name: 'admin-expense-edit', params: { id } }
                 <p>등록된 지출이 없습니다.</p>
                 <button class="btn btn--primary" @click="router.push({ name: 'admin-expense-new' })">첫 지출 등록</button>
             </div>
+
+            <Pager v-model:page="page" :total-pages="totalPages" :total-elements="totalElements" />
         </div>
     </section>
 </template>

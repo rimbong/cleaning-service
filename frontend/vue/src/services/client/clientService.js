@@ -8,9 +8,25 @@ import { get, post, put, del } from '@/plugins/http/axios'
  * 여기서는 axios 응답(res)을 그대로 반환하고, 화면/스토어에서 res.data.data 로 꺼낸다.
  */
 export const clientService = {
-    /** 목록 조회(건물명 검색) → data: ClientResponse[] */
-    list(keyword) {
-        return get('/api/admin/clients', { params: keyword ? { keyword } : {} })
+    /**
+     * 목록 조회(건물명 검색, 페이징) → data: PageResponse<ClientResponse>
+     * @param {Object} [params]
+     * @param {string} [params.keyword] 건물명 검색어
+     * @param {number} [params.page]    페이지(1-based)
+     * @param {number} [params.size]    페이지 크기
+     */
+    list({ keyword, page, size } = {}) {
+        const query = {}
+        if (keyword) {
+            query.keyword = keyword
+        }
+        if (page != null) {
+            query.page = page
+        }
+        if (size != null) {
+            query.size = size
+        }
+        return get('/api/admin/clients', { params: query })
     },
 
     /** 단건 조회 → data: ClientResponse */

@@ -27,12 +27,13 @@ const client = computed(() => data.value)
 
 // 이 거래처에 걸린 계약 목록 — queryKey 가 'contracts' 로 시작하므로
 // 계약 등록/수정/삭제 시 invalidateQueries(['contracts'])로 함께 갱신된다.
+// 한 거래처의 계약은 보통 소수라, 큰 size 로 한 번에 받아 전부 표시한다(목록 API 는 페이징 응답).
 const { data: contractData } = useQuery({
     queryKey: ['contracts', 'byClient', computed(() => String(props.id))],
-    queryFn: () => contractService.list({ clientId: props.id }).then((res) => res.data.data),
+    queryFn: () => contractService.list({ clientId: props.id, size: 200 }).then((res) => res.data.data),
     staleTime: 30_000,
 })
-const contracts = computed(() => contractData.value ?? [])
+const contracts = computed(() => contractData.value?.content ?? [])
 
 function goAddContract() {
     router.push({ name: 'admin-contract-new', query: { clientId: props.id } })
