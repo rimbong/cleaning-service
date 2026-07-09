@@ -68,6 +68,7 @@ public enum ErrorCode {
     // ===== 정산 (10-03) =====
     BILLING_NOT_FOUND        ("100301", HttpStatus.NOT_FOUND),
     PAYMENT_NOT_FOUND        ("100302", HttpStatus.NOT_FOUND),
+    TAX_INVOICE_NOT_FOUND    ("100303", HttpStatus.NOT_FOUND),
 
     // ===== 공통 / 프레임워크 (99) =====
     VALIDATION_ERROR         ("999001", HttpStatus.BAD_REQUEST),

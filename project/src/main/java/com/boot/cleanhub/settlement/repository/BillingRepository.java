@@ -37,4 +37,12 @@ public interface BillingRepository extends JpaRepository<Billing, Long> {
 
     /** 자동 생성 시 중복 방지 — 그 계약·연월 청구가 이미 있나 */
     boolean existsByContract_IdAndBillYearAndBillMonth(Long contractId, Integer billYear, Integer billMonth);
+
+    /** 기간(연·월범위) 청구(계약·거래처·견적 포함) — 세금계산서 집계용 */
+    @Query("select b from Billing b"
+            + " left join fetch b.contract c left join fetch c.client"
+            + " left join fetch b.quote q left join fetch q.client"
+            + " where b.billYear = :year and b.billMonth between :fromMonth and :toMonth")
+    List<Billing> findByPeriodWithRefs(@Param("year") int year,
+            @Param("fromMonth") int fromMonth, @Param("toMonth") int toMonth);
 }

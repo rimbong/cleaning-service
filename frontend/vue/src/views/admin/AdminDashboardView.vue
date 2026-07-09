@@ -12,6 +12,7 @@ const shortcuts = [
     { to: '/admin/contracts', icon: '📄', title: '계약 관리', desc: '정기 청소 월정액 계약 관리' },
     { to: '/admin/quotes', icon: '🧾', title: '견적 관리', desc: '일회성 특수청소 견적 관리' },
     { to: '/admin/settlements', icon: '💰', title: '정산(수금) 관리', desc: '월 청구·입금(수금) 관리' },
+    { to: '/admin/tax-invoices', icon: '📑', title: '세금계산서', desc: '기간 집계·엑셀 출력·발행 기록' },
 ]
 </script>
 
