@@ -1,5 +1,6 @@
 package com.boot.cleanhub.interceptor;
 
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Map;
 
@@ -45,7 +46,14 @@ public class EventCheckInterceptor implements HandlerInterceptor {
 
         PBox pBox = new PBox();
         String uri = request.getRequestURI();
-        Map<String, String[]> requestMap = request.getParameterMap();
+
+        // 멀티파트(파일 업로드)는 파라미터 선(先) 파싱이 파일 스트림을 소비할 위험이 있어 파라미터 수집을 스킵한다.
+        //  (톰캣 기본 멀티파트 리졸버는 part 를 캐시해 현재는 무해하나, 리졸버/컨테이너 변경 등에 대비한 방어)
+        String contentType = request.getContentType();
+        boolean isMultipart = contentType != null && contentType.toLowerCase().startsWith("multipart/");
+        Map<String, String[]> requestMap = isMultipart
+                ? Collections.<String, String[]>emptyMap()
+                : request.getParameterMap();
 
         // [1] Request 객체로 부터 Parameter 정보를 PBox로 셋팅함.
         for ( Map.Entry<String,String[]> entry : requestMap.entrySet() ) {
