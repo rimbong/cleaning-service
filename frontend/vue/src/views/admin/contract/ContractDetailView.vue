@@ -4,8 +4,16 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 
-import { contractService } from '@/services/admin/contract/contractService'
+import { contractService, WEEKDAYS } from '@/services/admin/contract/contractService'
 import { useNotifyStore } from '@/stores/common/notify/notify'
+
+/** 요일 코드 배열 → "월·수·금" 라벨. 비면 '-'. */
+function weekdayLabels(codes) {
+    if (!Array.isArray(codes) || !codes.length) {
+        return '-'
+    }
+    return WEEKDAYS.filter((d) => codes.includes(d.value)).map((d) => d.label).join('·')
+}
 
 const props = defineProps({
     id: { type: [String, Number], required: true },
@@ -204,6 +212,14 @@ async function onRemoveAttachment(a) {
                     <div class="info-row">
                         <dt>출입문 비번</dt>
                         <dd>{{ fmt(contract.doorCode) }}</dd>
+                    </div>
+                    <div class="info-row">
+                        <dt>청소 요일</dt>
+                        <dd>{{ weekdayLabels(contract.cleaningWeekdays) }}</dd>
+                    </div>
+                    <div class="info-row">
+                        <dt>청소 주기</dt>
+                        <dd>{{ fmt(contract.cleaningCycleLabel) }}</dd>
                     </div>
                     <div class="info-row">
                         <dt>메모</dt>

@@ -6,7 +6,7 @@ import { computed, reactive, ref, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 
-import { contractService, CONTRACT_STATUSES } from '@/services/admin/contract/contractService'
+import { contractService, CONTRACT_STATUSES, WEEKDAYS, CLEANING_CYCLES } from '@/services/admin/contract/contractService'
 import { clientService } from '@/services/admin/client/clientService'
 import { useNotifyStore } from '@/stores/common/notify/notify'
 
@@ -34,8 +34,20 @@ const form = reactive({
     documentLocation: '',
     paymentMethod: '',
     doorCode: '',
+    cleaningWeekdays: [],
+    cleaningCycle: 'WEEKLY',
     memo: '',
 })
+
+/** 청소 요일 체크박스 토글 */
+function toggleWeekday(code) {
+    const i = form.cleaningWeekdays.indexOf(code)
+    if (i >= 0) {
+        form.cleaningWeekdays.splice(i, 1)
+    } else {
+        form.cleaningWeekdays.push(code)
+    }
+}
 
 // 거래처 셀렉트 옵션 — 목록 API 는 페이징 응답이라, 큰 size 로 한 번에 받아 .content 를 쓴다.
 const { data: clientData } = useQuery({
@@ -72,6 +84,8 @@ watch(() => props.id, async (id) => {
         form.documentLocation = c.documentLocation ?? ''
         form.paymentMethod = c.paymentMethod ?? ''
         form.doorCode = c.doorCode ?? ''
+        form.cleaningWeekdays = Array.isArray(c.cleaningWeekdays) ? [...c.cleaningWeekdays] : []
+        form.cleaningCycle = c.cleaningCycle ?? 'WEEKLY'
         form.memo = c.memo ?? ''
     } catch (e) {
         notify.bar('계약 정보를 불러오지 못했습니다.', { color: 'red' })
@@ -93,6 +107,8 @@ function buildPayload() {
         documentLocation: form.documentLocation.trim() || null,
         paymentMethod: form.paymentMethod.trim() || null,
         doorCode: form.doorCode.trim() || null,
+        cleaningWeekdays: form.cleaningWeekdays,
+        cleaningCycle: form.cleaningCycle || 'WEEKLY',
         memo: form.memo.trim() || null,
     }
 }
@@ -210,6 +226,30 @@ function onCancel() {
                 </div>
             </div>
 
+            <div class="row">
+                <div class="field">
+                    <label>청소 요일 <small class="hint">(정기 청소 실행 요일, 복수 선택)</small></label>
+                    <div class="weekdays">
+                        <button
+                            v-for="d in WEEKDAYS"
+                            :key="d.value"
+                            type="button"
+                            class="wd"
+                            :class="{ 'is-on': form.cleaningWeekdays.includes(d.value) }"
+                            @click="toggleWeekday(d.value)"
+                        >
+                            {{ d.label }}
+                        </button>
+                    </div>
+                </div>
+                <div class="field">
+                    <label>청소 주기</label>
+                    <select v-model="form.cleaningCycle">
+                        <option v-for="c in CLEANING_CYCLES" :key="c.value" :value="c.value">{{ c.label }}</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="field">
                 <label>메모</label>
                 <textarea v-model="form.memo" rows="4" placeholder="특이사항, 요청 내용 등"></textarea>
@@ -297,6 +337,35 @@ function onCancel() {
     color: var(--text);
     font-size: 0.78rem;
     font-weight: 400;
+}
+
+.weekdays {
+    display: flex;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+}
+
+.wd {
+    width: 2.2rem;
+    height: 2.2rem;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.85rem;
+}
+
+.wd:hover {
+    border-color: var(--primary);
+}
+
+.wd.is-on {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-fg);
+    font-weight: 700;
 }
 
 .actions {

@@ -77,6 +77,11 @@ export const contractService = {
     removeAttachment(contractId, attachmentId) {
         return del(`/api/admin/contracts/${contractId}/attachments/${attachmentId}`)
     },
+
+    /** 주간 청소 스케줄(월~일 요일별 거래처 목록) → data: { days: [ { weekday, label, count, items[] } ] } */
+    getSchedule() {
+        return get('/api/admin/schedule')
+    },
 }
 
 /** 계약 상태 표시용 옵션(폼 셀렉트·라벨 매핑에 공용) */
@@ -84,4 +89,22 @@ export const CONTRACT_STATUSES = [
     { value: 'ACTIVE', label: '진행 중' },
     { value: 'ENDED', label: '종료' },
     { value: 'SUSPENDED', label: '중지' },
+]
+
+/** 청소 요일 옵션(월~일). value 는 서버 요일 코드. */
+export const WEEKDAYS = [
+    { value: 'MON', label: '월' },
+    { value: 'TUE', label: '화' },
+    { value: 'WED', label: '수' },
+    { value: 'THU', label: '목' },
+    { value: 'FRI', label: '금' },
+    { value: 'SAT', label: '토' },
+    { value: 'SUN', label: '일' },
+]
+
+/** 청소 주기 옵션 */
+export const CLEANING_CYCLES = [
+    { value: 'WEEKLY', label: '매주' },
+    { value: 'BIWEEKLY', label: '격주' },
+    { value: 'MONTHLY', label: '매월' },
 ]

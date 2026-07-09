@@ -90,6 +90,15 @@ public class Contract {
     @Column(name = "door_code", length = 50)
     private String doorCode;
 
+    /** 청소 요일(다중) — 요일 코드 쉼표구분 저장, 예: "MON,WED,FRI". 정기 청소 실행 요일. */
+    @Column(name = "cleaning_weekdays", length = 30)
+    private String cleaningWeekdays;
+
+    /** 청소 주기(매주/격주/매월) */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cleaning_cycle", length = 20)
+    private CleaningCycle cleaningCycle;
+
     /** 등록 시각 */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

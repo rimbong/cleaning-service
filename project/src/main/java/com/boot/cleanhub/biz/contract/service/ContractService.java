@@ -1,5 +1,10 @@
 package com.boot.cleanhub.biz.contract.service;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -9,10 +14,14 @@ import org.springframework.util.StringUtils;
 import com.boot.cleanhub.biz.client.domain.Client;
 import com.boot.cleanhub.biz.client.repository.ClientRepository;
 import com.boot.cleanhub.common.dto.PageResponse;
+import com.boot.cleanhub.biz.contract.domain.CleaningCycle;
 import com.boot.cleanhub.biz.contract.domain.Contract;
 import com.boot.cleanhub.biz.contract.domain.ContractStatus;
 import com.boot.cleanhub.biz.contract.dto.ContractRequest;
 import com.boot.cleanhub.biz.contract.dto.ContractResponse;
+import com.boot.cleanhub.biz.contract.dto.ScheduleDay;
+import com.boot.cleanhub.biz.contract.dto.ScheduleItem;
+import com.boot.cleanhub.biz.contract.dto.WeeklyScheduleResponse;
 import com.boot.cleanhub.biz.contract.repository.ContractRepository;
 import com.boot.cleanhub.error.BizException;
 import com.boot.cleanhub.error.ErrorCode;
@@ -58,6 +67,40 @@ public class ContractService {
             contracts = contractRepository.findAllWithClient(pageable);
         }
         return PageResponse.from(contracts.map(ContractResponse::from));
+    }
+
+    /** 요일 코드(월~일) — 스케줄 정렬/표시 순서. */
+    private static final String[] WEEKDAY_CODES = { "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" };
+    private static final String[] WEEKDAY_LABELS = { "월", "화", "수", "목", "금", "토", "일" };
+
+    /**
+     * 주간 청소 스케줄 — 진행 중(ACTIVE) 계약을 청소 요일별로 분류.
+     * 한 계약이 여러 요일(월수금 등)이면 각 요일에 모두 들어간다.
+     *
+     * @return 월~일 각 요일의 청소 대상 거래처 목록
+     */
+    public WeeklyScheduleResponse getWeeklySchedule() {
+        Map<String, List<ScheduleItem>> byDay = new LinkedHashMap<>();
+        for (String code : WEEKDAY_CODES) {
+            byDay.put(code, new ArrayList<>());
+        }
+        for (Contract c : contractRepository.findActiveWithClient()) {
+            String weekdays = c.getCleaningWeekdays();
+            if (weekdays == null || weekdays.trim().isEmpty()) {
+                continue;
+            }
+            for (String code : weekdays.split(",")) {
+                List<ScheduleItem> list = byDay.get(code.trim());
+                if (list != null) {
+                    list.add(ScheduleItem.of(c));
+                }
+            }
+        }
+        List<ScheduleDay> days = new ArrayList<>();
+        for (int i = 0; i < WEEKDAY_CODES.length; i++) {
+            days.add(new ScheduleDay(WEEKDAY_CODES[i], WEEKDAY_LABELS[i], byDay.get(WEEKDAY_CODES[i])));
+        }
+        return new WeeklyScheduleResponse(days);
     }
 
     /**
@@ -131,6 +174,38 @@ public class ContractService {
         contract.setDocumentLocation(request.getDocumentLocation());
         contract.setPaymentMethod(request.getPaymentMethod());
         contract.setDoorCode(request.getDoorCode());
+        contract.setCleaningWeekdays(joinWeekdays(request.getCleaningWeekdays()));
+        contract.setCleaningCycle(request.getCleaningCycle() != null ? request.getCleaningCycle() : CleaningCycle.WEEKLY);
+    }
+
+    /** 유효 요일 코드(월~일). 알 수 없는 값은 버린다. */
+    private static final java.util.Set<String> VALID_WEEKDAYS =
+            new java.util.LinkedHashSet<>(java.util.Arrays.asList("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"));
+
+    /**
+     * 요일 코드 목록을 "MON,WED,FRI" 문자열로. 요일 정렬 순서로 정규화하고 유효 코드만 남긴다.
+     *
+     * @param weekdays 요청 요일 목록(선택)
+     * @return 쉼표구분 문자열(비면 null)
+     */
+    private static String joinWeekdays(java.util.List<String> weekdays) {
+        if (weekdays == null || weekdays.isEmpty()) {
+            return null;
+        }
+        java.util.Set<String> picked = new java.util.LinkedHashSet<>();
+        for (String w : weekdays) {
+            if (w != null) {
+                String code = w.trim().toUpperCase();
+                if (VALID_WEEKDAYS.contains(code)) {
+                    picked.add(code);
+                }
+            }
+        }
+        if (picked.isEmpty()) {
+            return null;
+        }
+        // 요일 순서(월~일)로 정렬해 저장
+        return VALID_WEEKDAYS.stream().filter(picked::contains).collect(java.util.stream.Collectors.joining(","));
     }
 
     /** ID 로 조회하되(거래처 포함) 없으면 예외 */

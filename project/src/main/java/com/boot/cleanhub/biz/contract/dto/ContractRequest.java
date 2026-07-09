@@ -1,6 +1,7 @@
 package com.boot.cleanhub.biz.contract.dto;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import javax.validation.constraints.AssertTrue;
 import javax.validation.constraints.Max;
@@ -10,6 +11,7 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.PositiveOrZero;
 import javax.validation.constraints.Size;
 
+import com.boot.cleanhub.biz.contract.domain.CleaningCycle;
 import com.boot.cleanhub.biz.contract.domain.ContractStatus;
 
 import lombok.Getter;
@@ -73,6 +75,12 @@ public class ContractRequest {
     /** 출입문 비밀번호(선택) */
     @Size(max = 50)
     private String doorCode;
+
+    /** 청소 요일(다중, 선택) — 요일 코드 목록 예: ["MON","WED","FRI"] */
+    private List<String> cleaningWeekdays;
+
+    /** 청소 주기(비우면 매주 WEEKLY) */
+    private CleaningCycle cleaningCycle;
 
     /**
      * 종료일-시작일 교차검증 — 둘 다 있을 때만, 종료일이 시작일과 같거나 이후여야 한다.

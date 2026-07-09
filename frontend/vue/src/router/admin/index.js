@@ -7,6 +7,7 @@ import AdminLayout from '@/common/layouts/AdminLayout.vue'
 
 import clientRoutes from './clientRoutes'
 import contractRoutes from './contractRoutes'
+import scheduleRoutes from './scheduleRoutes'
 import quoteRoutes from './quoteRoutes'
 import settlementRoutes from './settlementRoutes'
 import expenseRoutes from './expenseRoutes'
@@ -31,6 +32,7 @@ export default [
             },
             ...clientRoutes,
             ...contractRoutes,
+            ...scheduleRoutes,
             ...quoteRoutes,
             ...settlementRoutes,
             ...expenseRoutes,

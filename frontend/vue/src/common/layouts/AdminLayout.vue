@@ -17,6 +17,7 @@ const menu = [
     { to: '/admin', label: '대시보드', icon: '🏠', exact: true },
     { to: '/admin/clients', label: '거래처 관리', icon: '🏢', exact: false },
     { to: '/admin/contracts', label: '계약 관리', icon: '📄', exact: false },
+    { to: '/admin/schedule', label: '청소 스케줄', icon: '🗓️', exact: false },
     { to: '/admin/quotes', label: '견적 관리', icon: '🧾', exact: false },
     { to: '/admin/settlements', label: '정산(수금) 관리', icon: '💰', exact: true },
     { to: '/admin/settlements/yearly', label: '연간 수금현황', icon: '📅', exact: false },

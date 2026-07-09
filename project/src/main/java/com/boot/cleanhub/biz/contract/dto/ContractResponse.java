@@ -2,7 +2,11 @@ package com.boot.cleanhub.biz.contract.dto;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
+import com.boot.cleanhub.biz.contract.domain.CleaningCycle;
 import com.boot.cleanhub.biz.contract.domain.Contract;
 import com.boot.cleanhub.biz.contract.domain.ContractStatus;
 
@@ -38,6 +42,9 @@ public class ContractResponse {
     private final String documentLocation;
     private final String paymentMethod;
     private final String doorCode;
+    private final List<String> cleaningWeekdays;
+    private final CleaningCycle cleaningCycle;
+    private final String cleaningCycleLabel;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
 
@@ -56,8 +63,19 @@ public class ContractResponse {
         this.documentLocation = c.getDocumentLocation();
         this.paymentMethod = c.getPaymentMethod();
         this.doorCode = c.getDoorCode();
+        this.cleaningWeekdays = splitWeekdays(c.getCleaningWeekdays());
+        this.cleaningCycle = c.getCleaningCycle();
+        this.cleaningCycleLabel = c.getCleaningCycle() != null ? c.getCleaningCycle().getLabel() : null;
         this.createdAt = c.getCreatedAt();
         this.updatedAt = c.getUpdatedAt();
+    }
+
+    /** 저장된 "MON,WED,FRI" 문자열을 요일 코드 리스트로. 비어 있으면 빈 리스트. */
+    private static List<String> splitWeekdays(String raw) {
+        if (raw == null || raw.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        return Arrays.asList(raw.split(","));
     }
 
     /** 엔티티 → 응답 DTO 변환 */
