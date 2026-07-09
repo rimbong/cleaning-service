@@ -32,6 +32,8 @@ const form = reactive({
     endDate: '',
     status: 'ACTIVE',
     documentLocation: '',
+    paymentMethod: '',
+    doorCode: '',
     memo: '',
 })
 
@@ -68,6 +70,8 @@ watch(() => props.id, async (id) => {
         form.endDate = c.endDate ?? ''
         form.status = c.status ?? 'ACTIVE'
         form.documentLocation = c.documentLocation ?? ''
+        form.paymentMethod = c.paymentMethod ?? ''
+        form.doorCode = c.doorCode ?? ''
         form.memo = c.memo ?? ''
     } catch (e) {
         notify.bar('계약 정보를 불러오지 못했습니다.', { color: 'red' })
@@ -87,6 +91,8 @@ function buildPayload() {
         endDate: form.endDate || null,
         status: form.status || 'ACTIVE',
         documentLocation: form.documentLocation.trim() || null,
+        paymentMethod: form.paymentMethod.trim() || null,
+        doorCode: form.doorCode.trim() || null,
         memo: form.memo.trim() || null,
     }
 }
@@ -191,6 +197,17 @@ function onCancel() {
                 <label>계약서 보관 위치</label>
                 <input v-model="form.documentLocation" placeholder="예: 캐비닛 A-3, 공유드라이브 링크" maxlength="255" />
                 <small class="hint">종이 원본 등 실물 보관 위치. 스캔 파일은 등록 후 상세에서 첨부하세요.</small>
+            </div>
+
+            <div class="row">
+                <div class="field">
+                    <label>수금 방법</label>
+                    <input v-model="form.paymentMethod" placeholder="예: 현금, 신한, 국민" maxlength="30" />
+                </div>
+                <div class="field">
+                    <label>출입문 비번</label>
+                    <input v-model="form.doorCode" placeholder="운영 메모" maxlength="50" />
+                </div>
             </div>
 
             <div class="field">

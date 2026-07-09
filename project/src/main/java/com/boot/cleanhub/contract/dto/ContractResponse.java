@@ -36,6 +36,8 @@ public class ContractResponse {
     private final String statusLabel;
     private final String memo;
     private final String documentLocation;
+    private final String paymentMethod;
+    private final String doorCode;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
 
@@ -52,6 +54,8 @@ public class ContractResponse {
         this.statusLabel = c.getStatus() != null ? c.getStatus().getLabel() : null;
         this.memo = c.getMemo();
         this.documentLocation = c.getDocumentLocation();
+        this.paymentMethod = c.getPaymentMethod();
+        this.doorCode = c.getDoorCode();
         this.createdAt = c.getCreatedAt();
         this.updatedAt = c.getUpdatedAt();
     }

@@ -6,6 +6,7 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Size;
 
 import com.boot.cleanhub.client.domain.CleaningType;
+import com.boot.cleanhub.client.domain.TaxInvoiceType;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -49,4 +50,25 @@ public class ClientRequest {
 
     /** 메모 */
     private String memo;
+
+    // ── 세금계산서/사업자 정보(선택) ──
+
+    /** 사업자번호 */
+    @Size(max = 20)
+    private String businessNumber;
+
+    /** 대표자/성명 */
+    @Size(max = 50)
+    private String representativeName;
+
+    /** 업태 */
+    @Size(max = 50)
+    private String businessType;
+
+    /** 종목 */
+    @Size(max = 50)
+    private String businessItem;
+
+    /** 세금계산서 발행 방식 */
+    private TaxInvoiceType taxInvoiceType;
 }

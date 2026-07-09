@@ -198,6 +198,14 @@ async function onRemoveAttachment(a) {
                         <dd>{{ fmt(contract.documentLocation) }}</dd>
                     </div>
                     <div class="info-row">
+                        <dt>수금 방법</dt>
+                        <dd>{{ fmt(contract.paymentMethod) }}</dd>
+                    </div>
+                    <div class="info-row">
+                        <dt>출입문 비번</dt>
+                        <dd>{{ fmt(contract.doorCode) }}</dd>
+                    </div>
+                    <div class="info-row">
                         <dt>메모</dt>
                         <dd class="info-multi">{{ fmt(contract.memo) }}</dd>
                     </div>

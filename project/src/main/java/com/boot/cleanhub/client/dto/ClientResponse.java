@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 
 import com.boot.cleanhub.client.domain.CleaningType;
 import com.boot.cleanhub.client.domain.Client;
+import com.boot.cleanhub.client.domain.TaxInvoiceType;
 
 import lombok.Getter;
 
@@ -30,6 +31,12 @@ public class ClientResponse {
     private final String cleaningTypeLabel;
     private final LocalDate contractStartDate;
     private final String memo;
+    private final String businessNumber;
+    private final String representativeName;
+    private final String businessType;
+    private final String businessItem;
+    private final TaxInvoiceType taxInvoiceType;
+    private final String taxInvoiceTypeLabel;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
 
@@ -43,6 +50,12 @@ public class ClientResponse {
         this.cleaningTypeLabel = c.getCleaningType() != null ? c.getCleaningType().getLabel() : null;
         this.contractStartDate = c.getContractStartDate();
         this.memo = c.getMemo();
+        this.businessNumber = c.getBusinessNumber();
+        this.representativeName = c.getRepresentativeName();
+        this.businessType = c.getBusinessType();
+        this.businessItem = c.getBusinessItem();
+        this.taxInvoiceType = c.getTaxInvoiceType();
+        this.taxInvoiceTypeLabel = c.getTaxInvoiceType() != null ? c.getTaxInvoiceType().getLabel() : null;
         this.createdAt = c.getCreatedAt();
         this.updatedAt = c.getUpdatedAt();
     }

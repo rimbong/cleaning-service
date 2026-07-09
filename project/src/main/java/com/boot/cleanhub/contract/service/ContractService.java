@@ -130,6 +130,8 @@ public class ContractService {
         contract.setStatus(request.getStatus() != null ? request.getStatus() : ContractStatus.ACTIVE);
         contract.setMemo(request.getMemo());
         contract.setDocumentLocation(request.getDocumentLocation());
+        contract.setPaymentMethod(request.getPaymentMethod());
+        contract.setDoorCode(request.getDoorCode());
     }
 
     /** ID 로 조회하되(거래처 포함) 없으면 예외 */

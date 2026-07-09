@@ -82,6 +82,14 @@ public class Contract {
     @Column(name = "document_location", length = 255)
     private String documentLocation;
 
+    /** 수금 방법/계좌(선택) — 예: 현금, 신한, 국민 */
+    @Column(name = "payment_method", length = 30)
+    private String paymentMethod;
+
+    /** 출입문 비밀번호(운영 메모, 선택) */
+    @Column(name = "door_code", length = 50)
+    private String doorCode;
+
     /** 등록 시각 */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -5,7 +5,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQueryClient } from '@tanstack/vue-query'
 
-import { clientService, CLEANING_TYPES } from '@/services/client/clientService'
+import { clientService, CLEANING_TYPES, TAX_INVOICE_TYPES } from '@/services/client/clientService'
 import { useNotifyStore } from '@/stores/notify/notify'
 
 const props = defineProps({
@@ -28,6 +28,11 @@ const form = reactive({
     cleaningType: '',
     contractStartDate: '',
     memo: '',
+    businessNumber: '',
+    representativeName: '',
+    businessType: '',
+    businessItem: '',
+    taxInvoiceType: '',
 })
 
 // 수정 모드면 기존 값 로드 — props.id 를 명시적으로 추적(watchEffect 는 await 이후 접근한
@@ -47,6 +52,11 @@ watch(() => props.id, async (id) => {
         form.cleaningType = c.cleaningType ?? ''
         form.contractStartDate = c.contractStartDate ?? ''
         form.memo = c.memo ?? ''
+        form.businessNumber = c.businessNumber ?? ''
+        form.representativeName = c.representativeName ?? ''
+        form.businessType = c.businessType ?? ''
+        form.businessItem = c.businessItem ?? ''
+        form.taxInvoiceType = c.taxInvoiceType ?? ''
     } catch (e) {
         notify.bar('거래처 정보를 불러오지 못했습니다.', { color: 'red' })
     } finally {
@@ -64,6 +74,11 @@ function buildPayload() {
         cleaningType: form.cleaningType || null,
         contractStartDate: form.contractStartDate || null,
         memo: form.memo.trim() || null,
+        businessNumber: form.businessNumber.trim() || null,
+        representativeName: form.representativeName.trim() || null,
+        businessType: form.businessType.trim() || null,
+        businessItem: form.businessItem.trim() || null,
+        taxInvoiceType: form.taxInvoiceType || null,
     }
 }
 
@@ -139,6 +154,35 @@ function onCancel() {
                 </div>
             </div>
 
+            <div class="section-label">세금계산서/사업자 정보 (선택)</div>
+            <div class="row">
+                <div class="field">
+                    <label>사업자번호</label>
+                    <input v-model="form.businessNumber" placeholder="000-00-00000" maxlength="20" />
+                </div>
+                <div class="field">
+                    <label>대표자명</label>
+                    <input v-model="form.representativeName" maxlength="50" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="field">
+                    <label>업태</label>
+                    <input v-model="form.businessType" placeholder="예: 임대업" maxlength="50" />
+                </div>
+                <div class="field">
+                    <label>종목</label>
+                    <input v-model="form.businessItem" maxlength="50" />
+                </div>
+            </div>
+            <div class="field">
+                <label>세금계산서 발행 방식</label>
+                <select v-model="form.taxInvoiceType">
+                    <option value="">선택 안 함</option>
+                    <option v-for="t in TAX_INVOICE_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
+                </select>
+            </div>
+
             <div class="field">
                 <label>메모</label>
                 <textarea v-model="form.memo" rows="4" placeholder="특이사항, 요청 내용 등"></textarea>
@@ -197,6 +241,15 @@ function onCancel() {
 
 .req {
     color: var(--danger);
+}
+
+.section-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-h);
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+    margin-top: 0.25rem;
 }
 
 .field input,

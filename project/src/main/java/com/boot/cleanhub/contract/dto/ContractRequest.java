@@ -66,6 +66,14 @@ public class ContractRequest {
     @Size(max = 255, message = "보관 위치는 255자 이하로 입력하세요.")
     private String documentLocation;
 
+    /** 수금 방법/계좌(선택) */
+    @Size(max = 30)
+    private String paymentMethod;
+
+    /** 출입문 비밀번호(선택) */
+    @Size(max = 50)
+    private String doorCode;
+
     /**
      * 종료일-시작일 교차검증 — 둘 다 있을 때만, 종료일이 시작일과 같거나 이후여야 한다.
      * (무기한 계약은 종료일을 비우므로 통과) @AssertTrue 는 isXxx() getter 형태로 인식된다.

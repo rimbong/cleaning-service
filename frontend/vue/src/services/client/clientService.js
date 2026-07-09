@@ -39,3 +39,11 @@ export const CLEANING_TYPES = [
     { value: 'REGULAR', label: '정기 청소' },
     { value: 'SPECIAL', label: '특수 청소' },
 ]
+
+/** 세금계산서 발행 방식 옵션 */
+export const TAX_INVOICE_TYPES = [
+    { value: 'ELECTRONIC', label: '전자세금계산서' },
+    { value: 'EMAIL', label: '이메일 발송' },
+    { value: 'LABOR', label: '인건비 처리' },
+    { value: 'NONE', label: '발행 안 함' },
+]

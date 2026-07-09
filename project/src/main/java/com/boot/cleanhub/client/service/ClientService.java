@@ -119,6 +119,11 @@ public class ClientService {
         client.setCleaningType(request.getCleaningType());
         client.setContractStartDate(request.getContractStartDate());
         client.setMemo(request.getMemo());
+        client.setBusinessNumber(request.getBusinessNumber());
+        client.setRepresentativeName(request.getRepresentativeName());
+        client.setBusinessType(request.getBusinessType());
+        client.setBusinessItem(request.getBusinessItem());
+        client.setTaxInvoiceType(request.getTaxInvoiceType());
     }
 
     /** ID 로 조회하되 없으면 예외 */

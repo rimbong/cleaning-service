@@ -68,6 +68,29 @@ public class Client {
     @Column(columnDefinition = "TEXT")
     private String memo;
 
+    // ── 세금계산서/사업자 정보(선택) — 세금계산서 공급받는자란에 사용 ──
+
+    /** 사업자번호 */
+    @Column(name = "business_number", length = 20)
+    private String businessNumber;
+
+    /** 대표자/성명 */
+    @Column(name = "representative_name", length = 50)
+    private String representativeName;
+
+    /** 업태 */
+    @Column(name = "business_type", length = 50)
+    private String businessType;
+
+    /** 종목 */
+    @Column(name = "business_item", length = 50)
+    private String businessItem;
+
+    /** 세금계산서 발행 방식 */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tax_invoice_type", length = 20)
+    private TaxInvoiceType taxInvoiceType;
+
     /** 등록 시각 */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
