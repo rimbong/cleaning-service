@@ -83,10 +83,13 @@ biz/           # 본격 비즈니스 도메인 루트 (규칙: biz/package-info.
 - 백엔드 **루트(/)로 서빙**(`base:'/'`, 빌드 산출물 → `project/.../static/`(index.html·assets·favicon)).
   대민 `/`, 관리자 `/admin`. `WebConfig`가 SPA 딥링크 폴백(백엔드 경로 `/api`·`/actuator`·`/ws-chat`·`/error`는 제외).
   dev 서버(:5173)는 `/api`·`/auth` 를 백엔드(:70)로 프록시.
-- 공용 인프라는 **`common/` 하위**에 둔다(head 정합): `common/stores`(auth·notify), `common/services/auth`,
-  `common/composables`, `common/plugins/http/axios`(Bearer 자동첨부 + 401 자동갱신), `common/components`(notify·common/Pager·Modal),
-  `common/layouts`(AdminLayout·PublicLayout), `common/i18n`.
-- 화면은 대민 `views/public/`, 관리자 `views/admin/<도메인>/`. 도메인 서비스는 top-level `services/<도메인>/`(공용 아님).
+- **구조 규칙(head 정합)**: 영역 개념 없는 순수 인프라는 `common/`, 영역 개념 있는 타입(stores·services)은
+  타입 폴더 안에서 `common/admin/public` 으로 나눈다. 판단: 두 영역이 같이 쓰면 `common`, 아니면 그 영역.
+  - 순수 인프라: `common/composables`, `common/plugins/http/axios`(Bearer 자동첨부 + 401 자동갱신),
+    `common/i18n`, `common/components`(notify·common/Pager·Modal), `common/layouts`(AdminLayout·PublicLayout).
+  - `stores/common`(auth·notify) — 관리자/대민 전용 생기면 `stores/admin`·`stores/public`.
+  - `services/common/auth`(공유), 도메인 서비스는 `services/admin/<도메인>`(관리자 도메인) — 대민이면 `services/public/`.
+- 화면은 대민 `views/public/`, 관리자 `views/admin/<도메인>/`.
 
 ## 핵심 아키텍처 패턴
 
@@ -115,7 +118,7 @@ biz/           # 본격 비즈니스 도메인 루트 (규칙: biz/package-info.
 ## 작업 시 주의사항
 
 - **새 도메인 추가**: `com.boot.cleanhub.biz.<도메인>/`(controller/service/repository/domain/dto),
-  스키마는 **Flyway 마이그레이션(V*.sql)** 으로 추가(엔티티와 일치 필수), 프론트는 `views/admin/<도메인>/`·`services/<도메인>/`.
+  스키마는 **Flyway 마이그레이션(V*.sql)** 으로 추가(엔티티와 일치 필수), 프론트는 `views/admin/<도메인>/`·`services/admin/<도메인>/`.
 - 설정값은 `application.yml`(공통)/프로파일 yml, 상세는 `config/`의 `@Configuration`.
 - `util/`에 직접 구현 정적 유틸 다수(POI·RSA/TEA·HTTP 등) — 새 유틸 전 중복 확인.
 - 로그: `logback-spring.xml`(파일 구성) + yml `logging.level.*`(레벨). 경로는 프로파일별.

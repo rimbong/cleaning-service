@@ -6,9 +6,9 @@ import { computed, reactive, ref, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 
-import { quoteService, QUOTE_STATUSES } from '@/services/quote/quoteService'
-import { clientService } from '@/services/client/clientService'
-import { useNotifyStore } from '@/common/stores/notify/notify'
+import { quoteService, QUOTE_STATUSES } from '@/services/admin/quote/quoteService'
+import { clientService } from '@/services/admin/client/clientService'
+import { useNotifyStore } from '@/stores/common/notify/notify'
 
 const props = defineProps({
     id: { type: [String, Number], default: null },

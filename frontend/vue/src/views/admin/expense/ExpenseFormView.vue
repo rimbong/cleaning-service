@@ -4,8 +4,8 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQueryClient } from '@tanstack/vue-query'
 
-import { expenseService, EXPENSE_CATEGORIES } from '@/services/expense/expenseService'
-import { useNotifyStore } from '@/common/stores/notify/notify'
+import { expenseService, EXPENSE_CATEGORIES } from '@/services/admin/expense/expenseService'
+import { useNotifyStore } from '@/stores/common/notify/notify'
 
 const props = defineProps({ id: { type: [String, Number], default: null } })
 const router = useRouter()

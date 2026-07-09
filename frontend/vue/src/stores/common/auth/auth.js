@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 
-import { authService } from '@/common/services/auth/authService'
+import { authService } from '@/services/common/auth/authService'
 import { configureAuth } from '@/common/plugins/http/axios'
 
 /**

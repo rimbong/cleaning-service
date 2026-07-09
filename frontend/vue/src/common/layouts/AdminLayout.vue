@@ -4,8 +4,8 @@
 import { computed } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
-import { useAuthStore } from '@/common/stores/auth/auth'
-import { useNotifyStore } from '@/common/stores/notify/notify'
+import { useAuthStore } from '@/stores/common/auth/auth'
+import { useNotifyStore } from '@/stores/common/notify/notify'
 
 const auth = useAuthStore()
 const notify = useNotifyStore()

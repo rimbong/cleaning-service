@@ -5,7 +5,7 @@ import { VueQueryPlugin } from '@tanstack/vue-query'
 import App from './App.vue'
 import router from './router'
 import i18n from './common/i18n'
-import { useAuthStore } from '@/common/stores/auth/auth'
+import { useAuthStore } from '@/stores/common/auth/auth'
 import './style.css'
 
 const app = createApp(App)

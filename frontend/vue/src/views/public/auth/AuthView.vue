@@ -7,9 +7,9 @@
 import { reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useAuthStore } from '@/common/stores/auth/auth'
-import { useNotifyStore } from '@/common/stores/notify/notify'
-import { authService } from '@/common/services/auth/authService'
+import { useAuthStore } from '@/stores/common/auth/auth'
+import { useNotifyStore } from '@/stores/common/notify/notify'
+import { authService } from '@/services/common/auth/authService'
 
 const { t } = useI18n()
 const auth = useAuthStore()

@@ -5,7 +5,7 @@
 //   화면(호출)  ──>  notify store(상태)  ──>  NotifyHost(표시)
 import { useI18n } from 'vue-i18n'
 
-import { useNotifyStore } from '@/common/stores/notify/notify'
+import { useNotifyStore } from '@/stores/common/notify/notify'
 
 const { t } = useI18n()
 

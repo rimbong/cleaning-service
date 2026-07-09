@@ -3,9 +3,9 @@
 import { computed, ref } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 
-import { settlementService } from '@/services/settlement/settlementService'
+import { settlementService } from '@/services/admin/settlement/settlementService'
 import Modal from '@/common/components/common/Modal.vue'
-import { useNotifyStore } from '@/common/stores/notify/notify'
+import { useNotifyStore } from '@/stores/common/notify/notify'
 
 const notify = useNotifyStore()
 const queryClient = useQueryClient()

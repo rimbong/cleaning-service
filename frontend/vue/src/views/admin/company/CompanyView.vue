@@ -2,8 +2,8 @@
 // 회사(공급자) 프로필 설정 — 세금계산서 발행 주체 정보. 단일 설정(조회 후 수정).
 import { reactive, ref, onMounted } from 'vue'
 
-import { companyService } from '@/services/company/companyService'
-import { useNotifyStore } from '@/common/stores/notify/notify'
+import { companyService } from '@/services/admin/company/companyService'
+import { useNotifyStore } from '@/stores/common/notify/notify'
 
 const notify = useNotifyStore()
 const loading = ref(true)

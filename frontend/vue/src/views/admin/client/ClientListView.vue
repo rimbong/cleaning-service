@@ -4,9 +4,9 @@ import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/vue-query'
 
-import { clientService } from '@/services/client/clientService'
+import { clientService } from '@/services/admin/client/clientService'
 import Pager from '@/common/components/common/Pager.vue'
-import { useNotifyStore } from '@/common/stores/notify/notify'
+import { useNotifyStore } from '@/stores/common/notify/notify'
 
 const router = useRouter()
 const notify = useNotifyStore()
