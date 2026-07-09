@@ -1,12 +1,16 @@
 package com.boot.cleanhub.biz.settlement.service;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.poi.ss.usermodel.CellStyle;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,8 +27,11 @@ import com.boot.cleanhub.biz.settlement.dto.BillingResponse;
 import com.boot.cleanhub.biz.settlement.dto.PaymentRequest;
 import com.boot.cleanhub.biz.settlement.dto.PaymentResponse;
 import com.boot.cleanhub.biz.settlement.dto.SettlementMonthResponse;
+import com.boot.cleanhub.biz.settlement.dto.YearlyCollectionResponse;
+import com.boot.cleanhub.biz.settlement.dto.YearlyCollectionRow;
 import com.boot.cleanhub.biz.settlement.repository.BillingRepository;
 import com.boot.cleanhub.biz.settlement.repository.PaymentRepository;
+import com.boot.cleanhub.util.excel.PoiMo;
 
 import lombok.RequiredArgsConstructor;
 
@@ -116,6 +123,131 @@ public class SettlementService {
         b.setAmount(q.getAmount());
         billingRepository.save(b);
         return BillingResponse.of(b, 0L);
+    }
+
+    // ===== 연간 수금 현황 (수정환경.xls 재현) =====
+
+    /** 월 인덱스(1~12) → 배열 인덱스 변환용 상수. */
+    private static final int MONTHS = 12;
+
+    /**
+     * 연간 거래처 수금 현황 — 그 해 유효했던 계약(거래처)마다 1~12월 최종 수금일을 매트릭스로.
+     * 기존 정산(청구/입금)에서 파생한다(입금이 있으면 그 달 최종 수금일을 "M/D" 로).
+     *
+     * @param year 대상 연도
+     * @return 거래처별 월별 수금일 현황
+     */
+    public YearlyCollectionResponse getYearlyCollection(int year) {
+        LocalDate yearStart = LocalDate.of(year, 1, 1);
+        LocalDate yearEnd = LocalDate.of(year, 12, 31);
+        List<Contract> contracts = contractRepository.findOverlappingPeriod(yearStart, yearEnd);
+
+        // (계약id, 월) → 청구id, 그리고 청구id → 최종 수금일
+        List<Billing> billings = billingRepository.findByPeriodWithRefs(year, 1, MONTHS);
+        Map<Long, Long> billingIdByKey = new HashMap<>();
+        List<Long> billingIds = new ArrayList<>();
+        for (Billing b : billings) {
+            if (b.getContract() == null) {
+                continue; // 견적 청구는 거래처 현황에서 제외
+            }
+            billingIds.add(b.getId());
+            billingIdByKey.put(rowKey(b.getContract().getId(), b.getBillMonth()), b.getId());
+        }
+        Map<Long, LocalDate> dateByBilling = new HashMap<>();
+        if (!billingIds.isEmpty()) {
+            for (Object[] row : paymentRepository.findLatestPaidDateByBillingIds(billingIds)) {
+                dateByBilling.put((Long) row[0], (LocalDate) row[1]);
+            }
+        }
+
+        List<YearlyCollectionRow> rows = new ArrayList<>();
+        for (Contract c : contracts) {
+            List<String> months = new ArrayList<>(MONTHS);
+            for (int m = 1; m <= MONTHS; m++) {
+                Long billingId = billingIdByKey.get(rowKey(c.getId(), m));
+                LocalDate paid = billingId != null ? dateByBilling.get(billingId) : null;
+                months.add(paid != null ? (paid.getMonthValue() + "/" + paid.getDayOfMonth()) : "");
+            }
+            rows.add(YearlyCollectionRow.of(c, months));
+        }
+        return new YearlyCollectionResponse(year, rows);
+    }
+
+    /** (계약id, 월) 을 하나의 long 키로 — 매트릭스 조합용. */
+    private static long rowKey(long contractId, int month) {
+        return contractId * 100L + month;
+    }
+
+    /**
+     * 연간 수금 현황 엑셀(xlsx) — 수정환경.xls "거래처 현황(청소)" 레이아웃.
+     * 공용 유틸 PoiMo 로 생성(제목 병합 + 한글 폭 자동조정).
+     *
+     * @param year 대상 연도
+     * @return xlsx 바이트
+     */
+    public byte[] buildYearlyCollectionExcel(int year) {
+        YearlyCollectionResponse data = getYearlyCollection(year);
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            PoiMo poi = PoiMo.create("거래처수금현황.xlsx");
+            try {
+                CellStyle titleStyle = poi.createNewStyle();
+                poi.setFontStyle(titleStyle, "맑은 고딕", (short) 14, "bold", false, false);
+
+                CellStyle head = poi.createNewStyle();
+                poi.setFontStyle(head, "맑은 고딕", (short) 10, "bold", false, false);
+                poi.setBackgroundColor(head, "light-yellow");
+                poi.setLineBorder(head, "thin");
+
+                CellStyle body = poi.createNewStyle();
+                poi.setLineBorder(body, "thin");
+
+                // 헤더: 거래처 | 담당자 | 결재 | 주소 | 전화번호 | 비밀 | 수금 | 금액 | 1월~12월 (총 20열)
+                String[] fixedCols = { "거래처", "담당자", "결재", "주소", "전화번호", "비밀", "수금", "금액" };
+                int totalCols = fixedCols.length + MONTHS;
+
+                // 제목(0행) — 전체 열 병합
+                poi.setMergedData(titleStyle, 0, 0, totalCols - 1, year + "년 거래처 수금 현황 (청소)$c");
+
+                // 헤더(2행)
+                for (int i = 0; i < fixedCols.length; i++) {
+                    poi.setData(head, 2, i, fixedCols[i] + "$c");
+                }
+                for (int m = 1; m <= MONTHS; m++) {
+                    poi.setData(head, 2, fixedCols.length + m - 1, m + "월$c");
+                }
+
+                // 데이터(3행~)
+                int r = 3;
+                for (YearlyCollectionRow row : data.getRows()) {
+                    poi.setData(body, r, 0, nvl(row.getClientName()));
+                    poi.setData(body, r, 1, nvl(row.getManagerName()));
+                    poi.setData(body, r, 2, row.getBillingDay() != null ? row.getBillingDay() + "일$c" : "");
+                    poi.setData(body, r, 3, nvl(row.getAddress()));
+                    poi.setData(body, r, 4, nvl(row.getPhone()));
+                    poi.setData(body, r, 5, nvl(row.getDoorCode()));
+                    poi.setData(body, r, 6, nvl(row.getPaymentMethod()));
+                    poi.setData(body, r, 7, row.getMonthlyFee() != null ? String.format("%,d", row.getMonthlyFee()) + "$r" : "");
+                    List<String> months = row.getMonths();
+                    for (int m = 0; m < MONTHS; m++) {
+                        String v = m < months.size() ? months.get(m) : "";
+                        poi.setData(body, r, fixedCols.length + m, (v.isEmpty() ? "" : v + "$c"));
+                    }
+                    r++;
+                }
+
+                poi.write(out);
+            } finally {
+                poi.close();
+            }
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new BizException(ErrorCode.FILE_UPLOAD_FAILED);
+        }
+    }
+
+    /** null 을 빈 문자열로. */
+    private static String nvl(String s) {
+        return s != null ? s : "";
     }
 
     // ===== 입금 =====

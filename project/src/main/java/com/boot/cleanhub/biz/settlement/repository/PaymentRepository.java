@@ -30,4 +30,9 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     @Query("select p.billing.id, coalesce(sum(p.amount), 0) from Payment p"
             + " where p.billing.id in :billingIds group by p.billing.id")
     List<Object[]> sumGroupedByBillingIds(@Param("billingIds") List<Long> billingIds);
+
+    /** 여러 청구의 최종 수금일(max paidDate)을 (billingId, date) 목록으로 — 연간 수금 현황용 */
+    @Query("select p.billing.id, max(p.paidDate) from Payment p"
+            + " where p.billing.id in :billingIds group by p.billing.id")
+    List<Object[]> findLatestPaidDateByBillingIds(@Param("billingIds") List<Long> billingIds);
 }

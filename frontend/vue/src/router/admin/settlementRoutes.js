@@ -7,6 +7,12 @@ export default [
         meta: { title: '정산(수금) 관리' },
     },
     {
+        path: 'settlements/yearly',
+        name: 'admin-settlement-yearly',
+        component: () => import('@/views/admin/settlement/YearlyCollectionView.vue'),
+        meta: { title: '연간 수금현황' },
+    },
+    {
         path: 'tax-invoices',
         name: 'admin-tax-invoices',
         component: () => import('@/views/admin/settlement/TaxInvoiceView.vue'),

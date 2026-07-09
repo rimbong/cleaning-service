@@ -60,4 +60,14 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
             + " and c.startDate <= :monthEnd and (c.endDate is null or c.endDate >= :monthStart)")
     List<Contract> findActiveInPeriod(@Param("monthStart") java.time.LocalDate monthStart,
             @Param("monthEnd") java.time.LocalDate monthEnd);
+
+    /**
+     * 특정 기간(연)과 겹치는 계약 — 상태 무관(진행/종료 모두), 거래처 포함. 연간 수금 현황 로스터.
+     * 시작일<=연말 AND (종료일 없음 OR 종료일>=연초). 거래처명·id 순.
+     */
+    @Query("select c from Contract c join fetch c.client"
+            + " where c.startDate <= :yearEnd and (c.endDate is null or c.endDate >= :yearStart)"
+            + " order by c.client.name, c.id")
+    List<Contract> findOverlappingPeriod(@Param("yearStart") java.time.LocalDate yearStart,
+            @Param("yearEnd") java.time.LocalDate yearEnd);
 }

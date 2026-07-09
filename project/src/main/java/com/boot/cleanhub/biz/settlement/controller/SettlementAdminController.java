@@ -14,13 +14,17 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.http.ResponseEntity;
+
 import com.boot.cleanhub.common.api.ApiResponse;
 import com.boot.cleanhub.biz.settlement.dto.BillingEditRequest;
 import com.boot.cleanhub.biz.settlement.dto.BillingResponse;
 import com.boot.cleanhub.biz.settlement.dto.PaymentRequest;
 import com.boot.cleanhub.biz.settlement.dto.PaymentResponse;
 import com.boot.cleanhub.biz.settlement.dto.SettlementMonthResponse;
+import com.boot.cleanhub.biz.settlement.dto.YearlyCollectionResponse;
 import com.boot.cleanhub.biz.settlement.service.SettlementService;
+import com.boot.cleanhub.util.file.FileUtillMo;
 
 import lombok.RequiredArgsConstructor;
 
@@ -54,6 +58,21 @@ public class SettlementAdminController {
             @RequestParam int year, @RequestParam int month) {
         int created = settlementService.generateMonth(year, month);
         return ApiResponse.ok(created, created + "건의 청구가 생성되었습니다.");
+    }
+
+    /** 연간 거래처 수금 현황(거래처 x 12개월 수금일 매트릭스) */
+    @GetMapping("/yearly")
+    public ApiResponse<YearlyCollectionResponse> yearly(@RequestParam int year) {
+        return ApiResponse.ok(settlementService.getYearlyCollection(year));
+    }
+
+    /** 연간 거래처 수금 현황 엑셀(xlsx) 다운로드 */
+    @GetMapping("/yearly/excel")
+    public ResponseEntity<byte[]> yearlyExcel(@RequestParam int year) {
+        byte[] bytes = settlementService.buildYearlyCollectionExcel(year);
+        String filename = "거래처수금현황_" + year + ".xlsx";
+        return FileUtillMo.downloadResponse(bytes, filename,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     }
 
     /** 청구액/메모 수정 */
