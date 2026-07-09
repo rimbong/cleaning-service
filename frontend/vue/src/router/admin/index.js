@@ -9,6 +9,7 @@ import clientRoutes from './clientRoutes'
 import contractRoutes from './contractRoutes'
 import quoteRoutes from './quoteRoutes'
 import settlementRoutes from './settlementRoutes'
+import expenseRoutes from './expenseRoutes'
 import companyRoutes from './companyRoutes'
 
 export default [
@@ -32,6 +33,7 @@ export default [
             ...contractRoutes,
             ...quoteRoutes,
             ...settlementRoutes,
+            ...expenseRoutes,
             ...companyRoutes,
         ],
     },

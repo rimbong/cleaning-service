@@ -20,6 +20,7 @@ const menu = [
     { to: '/admin/quotes', label: '견적 관리', icon: '🧾', exact: false },
     { to: '/admin/settlements', label: '정산(수금) 관리', icon: '💰', exact: false },
     { to: '/admin/tax-invoices', label: '세금계산서', icon: '📑', exact: false },
+    { to: '/admin/expenses', label: '지출 관리', icon: '⛽', exact: false },
     { to: '/admin/company', label: '회사 정보', icon: '🏛️', exact: false },
 ]
 
