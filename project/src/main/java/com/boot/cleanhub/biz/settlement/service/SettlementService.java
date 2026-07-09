@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -27,6 +28,7 @@ import com.boot.cleanhub.biz.settlement.dto.BillingResponse;
 import com.boot.cleanhub.biz.settlement.dto.PaymentRequest;
 import com.boot.cleanhub.biz.settlement.dto.PaymentResponse;
 import com.boot.cleanhub.biz.settlement.dto.SettlementMonthResponse;
+import com.boot.cleanhub.biz.settlement.dto.YearlyCollectionGroup;
 import com.boot.cleanhub.biz.settlement.dto.YearlyCollectionResponse;
 import com.boot.cleanhub.biz.settlement.dto.YearlyCollectionRow;
 import com.boot.cleanhub.biz.settlement.repository.BillingRepository;
@@ -129,13 +131,18 @@ public class SettlementService {
 
     /** 월 인덱스(1~12) → 배열 인덱스 변환용 상수. */
     private static final int MONTHS = 12;
+    /** 요일 코드/라벨 — 수금 현황 블록 순서. */
+    private static final String[] WEEKDAY_CODES = { "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" };
+    private static final String[] WEEKDAY_LABELS = { "월", "화", "수", "목", "금", "토", "일" };
 
     /**
-     * 연간 거래처 수금 현황 — 그 해 유효했던 계약(거래처)마다 1~12월 최종 수금일을 매트릭스로.
+     * 연간 거래처 수금 현황 — 그 해 유효했던 계약(거래처)마다 1~12월 최종 수금일을 매트릭스로,
+     * 거래처를 청소 요일 블록(월~일, 미지정)으로 묶는다(수정환경.xls 요일 블록 구조).
+     * 한 거래처가 여러 요일(월수금)이면 각 요일 블록에 모두 들어간다.
      * 기존 정산(청구/입금)에서 파생한다(입금이 있으면 그 달 최종 수금일을 "M/D" 로).
      *
      * @param year 대상 연도
-     * @return 거래처별 월별 수금일 현황
+     * @return 요일 블록별 거래처 월별 수금일 현황
      */
     public YearlyCollectionResponse getYearlyCollection(int year) {
         LocalDate yearStart = LocalDate.of(year, 1, 1);
@@ -160,7 +167,13 @@ public class SettlementService {
             }
         }
 
-        List<YearlyCollectionRow> rows = new ArrayList<>();
+        // 요일 블록 준비(월~일) + 미지정
+        Map<String, List<YearlyCollectionRow>> byDay = new LinkedHashMap<>();
+        for (String code : WEEKDAY_CODES) {
+            byDay.put(code, new ArrayList<>());
+        }
+        List<YearlyCollectionRow> unassigned = new ArrayList<>();
+
         for (Contract c : contracts) {
             List<String> months = new ArrayList<>(MONTHS);
             for (int m = 1; m <= MONTHS; m++) {
@@ -168,9 +181,31 @@ public class SettlementService {
                 LocalDate paid = billingId != null ? dateByBilling.get(billingId) : null;
                 months.add(paid != null ? (paid.getMonthValue() + "/" + paid.getDayOfMonth()) : "");
             }
-            rows.add(YearlyCollectionRow.of(c, months));
+            YearlyCollectionRow row = YearlyCollectionRow.of(c, months);
+            String weekdays = c.getCleaningWeekdays();
+            if (weekdays == null || weekdays.trim().isEmpty()) {
+                unassigned.add(row);
+            } else {
+                for (String code : weekdays.split(",")) {
+                    List<YearlyCollectionRow> list = byDay.get(code.trim());
+                    if (list != null) {
+                        list.add(row); // 다중 요일이면 각 블록에 모두
+                    }
+                }
+            }
         }
-        return new YearlyCollectionResponse(year, rows);
+
+        List<YearlyCollectionGroup> groups = new ArrayList<>();
+        for (int i = 0; i < WEEKDAY_CODES.length; i++) {
+            List<YearlyCollectionRow> dayRows = byDay.get(WEEKDAY_CODES[i]);
+            if (!dayRows.isEmpty()) {
+                groups.add(new YearlyCollectionGroup(WEEKDAY_CODES[i], WEEKDAY_LABELS[i], dayRows));
+            }
+        }
+        if (!unassigned.isEmpty()) {
+            groups.add(new YearlyCollectionGroup("NONE", "요일 미지정", unassigned));
+        }
+        return new YearlyCollectionResponse(year, groups);
     }
 
     /** (계약id, 월) 을 하나의 long 키로 — 매트릭스 조합용. */
@@ -180,6 +215,7 @@ public class SettlementService {
 
     /**
      * 연간 수금 현황 엑셀(xlsx) — 수정환경.xls "거래처 현황(청소)" 레이아웃.
+     * 청소 요일 블록(월~일)별로 나눠, 각 블록에 요일 헤더 + 컬럼 헤더 + 거래처 행을 그린다.
      * 공용 유틸 PoiMo 로 생성(제목 병합 + 한글 폭 자동조정).
      *
      * @param year 대상 연도
@@ -193,6 +229,11 @@ public class SettlementService {
                 CellStyle titleStyle = poi.createNewStyle();
                 poi.setFontStyle(titleStyle, "맑은 고딕", (short) 14, "bold", false, false);
 
+                CellStyle dayStyle = poi.createNewStyle();
+                poi.setFontStyle(dayStyle, "맑은 고딕", (short) 12, "bold", false, false);
+                poi.setBackgroundColor(dayStyle, "orange");
+                poi.setLineBorder(dayStyle, "thin");
+
                 CellStyle head = poi.createNewStyle();
                 poi.setFontStyle(head, "맑은 고딕", (short) 10, "bold", false, false);
                 poi.setBackgroundColor(head, "light-yellow");
@@ -201,38 +242,48 @@ public class SettlementService {
                 CellStyle body = poi.createNewStyle();
                 poi.setLineBorder(body, "thin");
 
-                // 헤더: 거래처 | 담당자 | 결재 | 주소 | 전화번호 | 비밀 | 수금 | 금액 | 1월~12월 (총 20열)
-                String[] fixedCols = { "거래처", "담당자", "결재", "주소", "전화번호", "비밀", "수금", "금액" };
+                // 컬럼: 순번 | 거래처 | 담당자 | 결재 | 주소 | 전화번호 | 비밀 | 수금 | 금액 | 1월~12월
+                String[] fixedCols = { "순번", "거래처", "담당자", "결재", "주소", "전화번호", "비밀", "수금", "금액" };
                 int totalCols = fixedCols.length + MONTHS;
 
                 // 제목(0행) — 전체 열 병합
                 poi.setMergedData(titleStyle, 0, 0, totalCols - 1, year + "년 거래처 수금 현황 (청소)$c");
 
-                // 헤더(2행)
-                for (int i = 0; i < fixedCols.length; i++) {
-                    poi.setData(head, 2, i, fixedCols[i] + "$c");
-                }
-                for (int m = 1; m <= MONTHS; m++) {
-                    poi.setData(head, 2, fixedCols.length + m - 1, m + "월$c");
-                }
-
-                // 데이터(3행~)
-                int r = 3;
-                for (YearlyCollectionRow row : data.getRows()) {
-                    poi.setData(body, r, 0, nvl(row.getClientName()));
-                    poi.setData(body, r, 1, nvl(row.getManagerName()));
-                    poi.setData(body, r, 2, row.getBillingDay() != null ? row.getBillingDay() + "일$c" : "");
-                    poi.setData(body, r, 3, nvl(row.getAddress()));
-                    poi.setData(body, r, 4, nvl(row.getPhone()));
-                    poi.setData(body, r, 5, nvl(row.getDoorCode()));
-                    poi.setData(body, r, 6, nvl(row.getPaymentMethod()));
-                    poi.setData(body, r, 7, row.getMonthlyFee() != null ? String.format("%,d", row.getMonthlyFee()) + "$r" : "");
-                    List<String> months = row.getMonths();
-                    for (int m = 0; m < MONTHS; m++) {
-                        String v = m < months.size() ? months.get(m) : "";
-                        poi.setData(body, r, fixedCols.length + m, (v.isEmpty() ? "" : v + "$c"));
+                int r = 2;
+                for (YearlyCollectionGroup g : data.getGroups()) {
+                    // 요일 블록 헤더(전체 열 병합)
+                    poi.setMergedData(dayStyle, r, 0, totalCols - 1,
+                            "[ " + g.getLabel() + " ]  " + g.getCount() + "곳$l");
+                    r++;
+                    // 컬럼 헤더
+                    for (int i = 0; i < fixedCols.length; i++) {
+                        poi.setData(head, r, i, fixedCols[i] + "$c");
+                    }
+                    for (int m = 1; m <= MONTHS; m++) {
+                        poi.setData(head, r, fixedCols.length + m - 1, m + "월$c");
                     }
                     r++;
+                    // 데이터 행
+                    int no = 1;
+                    for (YearlyCollectionRow row : g.getRows()) {
+                        poi.setData(body, r, 0, (no++) + "$c");
+                        poi.setData(body, r, 1, nvl(row.getClientName()));
+                        poi.setData(body, r, 2, nvl(row.getManagerName()));
+                        poi.setData(body, r, 3, row.getBillingDay() != null ? row.getBillingDay() + "일$c" : "");
+                        poi.setData(body, r, 4, nvl(row.getAddress()));
+                        poi.setData(body, r, 5, nvl(row.getPhone()));
+                        poi.setData(body, r, 6, nvl(row.getDoorCode()));
+                        poi.setData(body, r, 7, nvl(row.getPaymentMethod()));
+                        poi.setData(body, r, 8, row.getMonthlyFee() != null
+                                ? String.format("%,d", row.getMonthlyFee()) + "$r" : "");
+                        List<String> months = row.getMonths();
+                        for (int m = 0; m < MONTHS; m++) {
+                            String v = m < months.size() ? months.get(m) : "";
+                            poi.setData(body, r, fixedCols.length + m, v.isEmpty() ? "" : v + "$c");
+                        }
+                        r++;
+                    }
+                    r++; // 블록 사이 공백 행
                 }
 
                 poi.write(out);

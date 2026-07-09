@@ -19,8 +19,9 @@ const { data, isLoading, isError, isFetching } = useQuery({
     staleTime: 15_000,
 })
 
-const rows = computed(() => data.value?.rows ?? [])
-const count = computed(() => data.value?.count ?? 0)
+const groups = computed(() => data.value?.groups ?? [])
+// 전체 거래처 수(요일 블록 합 — 다중 요일이면 중복 포함)
+const total = computed(() => groups.value.reduce((s, g) => s + (g.count ?? 0), 0))
 
 function shiftYear(delta) {
     year.value += delta
@@ -57,48 +58,58 @@ async function onDownload() {
             </button>
         </div>
 
-        <p class="hint">각 월 칸은 그 달 <strong>최종 수금일</strong>입니다(정산 입금 기록에서 자동 반영). 빈 칸은 미수금.</p>
+        <p class="hint">
+            <strong>청소 요일별</strong>로 묶었습니다(계약의 청소 요일 기준, 월수금이면 각 요일에 모두 표시).
+            각 월 칸은 그 달 <strong>최종 수금일</strong>(정산 입금에서 자동 반영), 빈 칸은 미수금.
+        </p>
 
         <p v-if="isLoading" class="state">불러오는 중…</p>
         <p v-else-if="isError" class="state state--err">불러오지 못했습니다.</p>
-        <div v-else class="table-wrap">
-            <div class="list-meta">거래처 <strong>{{ count }}</strong>곳</div>
-            <div class="scroll">
-                <table v-if="rows.length" class="table">
-                    <thead>
-                        <tr>
-                            <th class="sticky-l col-name">거래처</th>
-                            <th>담당자</th>
-                            <th>수금</th>
-                            <th class="col-fee">월정액</th>
-                            <th v-for="m in MONTHS" :key="m" class="col-month">{{ m }}월</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="row in rows" :key="row.contractId">
-                            <td class="sticky-l col-name">
-                                <span class="name">{{ row.clientName || '-' }}</span>
-                                <span v-if="row.title" class="sub">{{ row.title }}</span>
-                            </td>
-                            <td>{{ row.managerName || '-' }}</td>
-                            <td>{{ row.paymentMethod || '-' }}</td>
-                            <td class="col-fee">{{ money(row.monthlyFee) }}</td>
-                            <td
-                                v-for="(mv, idx) in row.months"
-                                :key="idx"
-                                class="col-month"
-                                :class="{ paid: mv }"
-                            >
-                                {{ mv || '' }}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                <div v-else class="empty">
-                    <p>{{ year }}년에 해당하는 거래처(계약)가 없습니다.</p>
+        <template v-else>
+            <div v-if="groups.length" class="groups">
+                <div v-for="g in groups" :key="g.weekday" class="group">
+                    <div class="group-head">
+                        <span class="day-badge" :class="{ none: g.weekday === 'NONE' }">{{ g.label }}</span>
+                        <span class="day-count">{{ g.count }}곳</span>
+                    </div>
+                    <div class="scroll">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th class="sticky-l col-name">거래처</th>
+                                    <th>담당자</th>
+                                    <th>수금</th>
+                                    <th class="col-fee">월정액</th>
+                                    <th v-for="m in MONTHS" :key="m" class="col-month">{{ m }}월</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(row, i) in g.rows" :key="g.weekday + '-' + row.contractId + '-' + i">
+                                    <td class="sticky-l col-name">
+                                        <span class="name">{{ row.clientName || '-' }}</span>
+                                        <span v-if="row.title" class="sub">{{ row.title }}</span>
+                                    </td>
+                                    <td>{{ row.managerName || '-' }}</td>
+                                    <td>{{ row.paymentMethod || '-' }}</td>
+                                    <td class="col-fee">{{ money(row.monthlyFee) }}</td>
+                                    <td
+                                        v-for="(mv, idx) in row.months"
+                                        :key="idx"
+                                        class="col-month"
+                                        :class="{ paid: mv }"
+                                    >
+                                        {{ mv || '' }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-        </div>
+            <div v-else class="empty">
+                <p>{{ year }}년에 해당하는 거래처(계약)가 없습니다. 계약에 청소 요일을 지정하면 요일별로 묶여 표시됩니다.</p>
+            </div>
+        </template>
     </section>
 </template>
 
@@ -106,7 +117,13 @@ async function onDownload() {
 .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
 .year-nav { display: flex; align-items: center; gap: 0.6rem; font-size: 1.1rem; }
 .sync { color: var(--primary); font-size: 0.78rem; }
-.hint { font-size: 0.82rem; color: var(--text); margin: 0 0 1rem; }
+.hint { font-size: 0.82rem; color: var(--text); margin: 0 0 1rem; line-height: 1.5; }
+.groups { display: flex; flex-direction: column; gap: 1.25rem; }
+.group { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.group-head { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--border); background: var(--muted); }
+.day-badge { font-weight: 700; font-size: 0.95rem; background: var(--primary); color: var(--primary-fg); border-radius: 8px; padding: 0.15rem 0.7rem; }
+.day-badge.none { background: var(--text); }
+.day-count { font-size: 0.82rem; color: var(--text); }
 .btn { padding: 0.45rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; color: var(--text-h); cursor: pointer; font: inherit; }
 .btn:hover { border-color: var(--primary); color: var(--primary); }
 .btn--primary { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); }
