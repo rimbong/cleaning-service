@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 
 import { settlementService } from '@/services/settlement/settlementService'
+import Modal from '@/components/common/Modal.vue'
 import { useNotifyStore } from '@/stores/notify/notify'
 
 const notify = useNotifyStore()
@@ -174,39 +175,45 @@ function fmtDate(v) { return v ? String(v).slice(0, 10) : '-' }
             </div>
         </div>
 
-        <!-- 입금 모달 -->
-        <div v-if="payModal" class="modal-overlay" @click.self="closePayments">
-            <div class="modal">
-                <h3>입금 관리 — {{ payModal.targetName }} ({{ money(payModal.amount) }}원)</h3>
-                <ul class="pay-list">
-                    <li v-for="p in payments" :key="p.id">
-                        <span>{{ money(p.amount) }}원 · {{ fmtDate(p.paidDate) }} · {{ p.method || '-' }}</span>
-                        <button class="btn btn--sm btn--danger" @click="removePayment(p)">삭제</button>
-                    </li>
-                    <li v-if="!payments.length" class="muted">입금 기록 없음</li>
-                </ul>
-                <div class="pay-form">
-                    <input v-model="payForm.amount" type="number" min="0" placeholder="입금액" />
-                    <input v-model="payForm.paidDate" type="date" />
-                    <input v-model="payForm.method" placeholder="방법(현금·신한)" maxlength="30" />
-                    <button class="btn btn--primary" @click="addPayment">입금 추가</button>
-                </div>
-                <div class="modal-actions"><button class="btn" @click="closePayments">닫기</button></div>
+        <!-- 입금 모달 (배경 클릭으로 닫히지 않음) -->
+        <Modal
+            v-if="payModal"
+            :title="`입금 관리 — ${payModal.targetName} (${money(payModal.amount)}원)`"
+            :close-on-backdrop="false"
+            @close="closePayments"
+        >
+            <ul class="pay-list">
+                <li v-for="p in payments" :key="p.id">
+                    <span>{{ money(p.amount) }}원 · {{ fmtDate(p.paidDate) }} · {{ p.method || '-' }}</span>
+                    <button class="btn btn--sm btn--danger" @click="removePayment(p)">삭제</button>
+                </li>
+                <li v-if="!payments.length" class="muted">입금 기록 없음</li>
+            </ul>
+            <div class="pay-form">
+                <input v-model="payForm.amount" type="number" min="0" placeholder="입금액" />
+                <input v-model="payForm.paidDate" type="date" />
+                <input v-model="payForm.method" placeholder="방법(현금·신한)" maxlength="30" />
+                <button class="btn btn--primary" @click="addPayment">입금 추가</button>
             </div>
-        </div>
+            <template #actions>
+                <button class="btn" @click="closePayments">닫기</button>
+            </template>
+        </Modal>
 
-        <!-- 청구 편집 모달 -->
-        <div v-if="editModal" class="modal-overlay" @click.self="closeEdit">
-            <div class="modal">
-                <h3>청구 편집 — {{ editModal.targetName }}</h3>
-                <div class="field"><label>청구액</label><input v-model="editForm.amount" type="number" min="0" /></div>
-                <div class="field"><label>메모</label><input v-model="editForm.memo" maxlength="255" /></div>
-                <div class="modal-actions">
-                    <button class="btn" @click="closeEdit">취소</button>
-                    <button class="btn btn--primary" @click="saveEdit">저장</button>
-                </div>
-            </div>
-        </div>
+        <!-- 청구 편집 모달 (배경 클릭으로 닫히지 않음) -->
+        <Modal
+            v-if="editModal"
+            :title="`청구 편집 — ${editModal.targetName}`"
+            :close-on-backdrop="false"
+            @close="closeEdit"
+        >
+            <div class="field"><label>청구액</label><input v-model="editForm.amount" type="number" min="0" /></div>
+            <div class="field"><label>메모</label><input v-model="editForm.memo" maxlength="255" /></div>
+            <template #actions>
+                <button class="btn" @click="closeEdit">취소</button>
+                <button class="btn btn--primary" @click="saveEdit">저장</button>
+            </template>
+        </Modal>
     </section>
 </template>
 
@@ -242,9 +249,7 @@ function fmtDate(v) { return v ? String(v).slice(0, 10) : '-' }
 .state--err { color: var(--danger); }
 .empty { padding: 3rem 1rem; text-align: center; color: var(--text); }
 .empty p { margin-bottom: 1rem; }
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: grid; place-items: center; z-index: 50; }
-.modal { background: #fff; border-radius: var(--radius); padding: 1.5rem; width: min(90vw, 460px); box-shadow: var(--shadow); }
-.modal h3 { margin: 0 0 1rem; font-size: 1.05rem; }
+/* 아래 pay-list/pay-form/field 는 Modal 슬롯 안에서 쓰인다(슬롯 내용은 부모 스코프라 적용됨) */
 .pay-list { list-style: none; margin: 0 0 1rem; padding: 0; }
 .pay-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
 .pay-list .muted { color: var(--text); justify-content: center; }
@@ -254,5 +259,4 @@ function fmtDate(v) { return v ? String(v).slice(0, 10) : '-' }
 .field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.75rem; }
 .field label { font-size: 0.85rem; font-weight: 600; color: var(--text); }
 .field input { padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius); font: inherit; }
-.modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
 </style>
