@@ -65,6 +65,10 @@ public enum ErrorCode {
     // ===== 견적 (10-02) =====
     QUOTE_NOT_FOUND          ("100201", HttpStatus.NOT_FOUND),
 
+    // ===== 정산 (10-03) =====
+    BILLING_NOT_FOUND        ("100301", HttpStatus.NOT_FOUND),
+    PAYMENT_NOT_FOUND        ("100302", HttpStatus.NOT_FOUND),
+
     // ===== 공통 / 프레임워크 (99) =====
     VALIDATION_ERROR         ("999001", HttpStatus.BAD_REQUEST),
     // 최후 안전망: properties 조회 실패에 대비해 default 를 명시적으로 선언한 예외 케이스.

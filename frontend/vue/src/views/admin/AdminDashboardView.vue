@@ -11,6 +11,7 @@ const shortcuts = [
     { to: '/admin/clients', icon: '🏢', title: '거래처 관리', desc: '건물·거래처 등록 및 조회' },
     { to: '/admin/contracts', icon: '📄', title: '계약 관리', desc: '정기 청소 월정액 계약 관리' },
     { to: '/admin/quotes', icon: '🧾', title: '견적 관리', desc: '일회성 특수청소 견적 관리' },
+    { to: '/admin/settlements', icon: '💰', title: '정산(수금) 관리', desc: '월 청구·입금(수금) 관리' },
 ]
 </script>
 

@@ -41,4 +41,13 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
 
     /** 특정 거래처에 걸린 계약 수(거래처 삭제 가능 여부 판단용) */
     long countByClientId(Long clientId);
+
+    /**
+     * 특정 기간(월)에 유효한 ACTIVE 계약 — 정산 월 청구 자동 생성 대상.
+     * 시작일<=월말 AND (종료일 없음 OR 종료일>=월초).
+     */
+    @Query("select c from Contract c where c.status = com.boot.cleanhub.contract.domain.ContractStatus.ACTIVE"
+            + " and c.startDate <= :monthEnd and (c.endDate is null or c.endDate >= :monthStart)")
+    List<Contract> findActiveInPeriod(@Param("monthStart") java.time.LocalDate monthStart,
+            @Param("monthEnd") java.time.LocalDate monthEnd);
 }
