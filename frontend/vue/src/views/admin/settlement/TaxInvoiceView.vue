@@ -57,6 +57,12 @@ const removeMut = useMutation({
     mutationFn: (id) => taxInvoiceService.remove(id),
     onSuccess: () => { notify.toast('삭제됨', { type: 'info' }); queryClient.invalidateQueries({ queryKey: ['tax-records'] }) },
 })
+
+async function downloadForm(t) {
+    try {
+        await taxInvoiceService.downloadForm(t.id, `세금계산서_${t.clientName ?? t.id}.xlsx`)
+    } catch (e) { notify.bar('세금계산서 양식 다운로드 실패', { color: 'red' }) }
+}
 </script>
 
 <template>
@@ -122,7 +128,10 @@ const removeMut = useMutation({
                         <td>{{ money(t.taxAmount) }}원</td>
                         <td>{{ t.basis === 'PAID' ? '수금' : '청구' }}</td>
                         <td>{{ t.issueDate }}</td>
-                        <td class="col-actions"><button class="btn btn--sm btn--danger" @click="removeMut.mutate(t.id)">삭제</button></td>
+                        <td class="col-actions">
+                            <button class="btn btn--sm" @click="downloadForm(t)">양식</button>
+                            <button class="btn btn--sm btn--danger" @click="removeMut.mutate(t.id)">삭제</button>
+                        </td>
                     </tr>
                 </tbody>
             </table>

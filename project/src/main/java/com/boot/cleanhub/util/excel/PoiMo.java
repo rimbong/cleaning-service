@@ -216,6 +216,21 @@ public class PoiMo {
         // 열 너비 자동조정은 의도적으로 생략(병합 텍스트가 열 폭에 영향 주지 않게).
     }
 
+    /**
+     * 열 너비를 명시적으로 지정한다(고정 양식용). 단위는 1/256 문자폭.
+     * setData 의 자동 조정과 달리, 지정 후 더 넓히지 않는다(고정 폭 유지).
+     *
+     * @param col        열 인덱스(0-based)
+     * @param widthChars 문자 단위 너비(예: 3 이면 약 3글자 폭)
+     */
+    public void setColumnWidth(int col, int widthChars) {
+        if (sheet == null) {
+            throw new IllegalStateException("Sheet is not initialized");
+        }
+        int units = Math.min(widthChars * 256, MAX_COLUMN_WIDTH);
+        sheet.setColumnWidth(col, units);
+    }
+
     private void autoAdjustColumnWidth(int col, String text) {
         int width = calculateCellWidth(text);
         if (sheet.getColumnWidth(col) < width) {

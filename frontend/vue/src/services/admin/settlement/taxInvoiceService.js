@@ -29,6 +29,11 @@ export const taxInvoiceService = {
     remove(id) {
         return del(`/api/admin/tax-invoices/${id}`)
     },
+
+    /** 개별 세금계산서(별지11호) 양식 다운로드(Bearer 자동, 파일 저장) */
+    downloadForm(id, fallbackName) {
+        return downloadGet(`/api/admin/tax-invoices/${id}/form`, { fallbackName })
+    },
 }
 
 /** 집계 기준 옵션 */
