@@ -6,10 +6,14 @@ import App from './App.vue'
 import router from './router'
 import i18n from './common/i18n'
 import { useAuthStore } from '@/stores/common/auth/auth'
+import { installDatePickerOpener } from '@/common/plugins/datePicker/datePicker'
 import './style.css'
 
 const app = createApp(App)
 app.use(createPinia()) // 전역 상태(Pinia) — store 는 src/stores/ 참고
+
+// 날짜 input 사용성: 박스 아무 곳이나 클릭해도 달력이 열리게(아이콘 전용 X)
+installDatePickerOpener()
 
 // 자동로그인 복원: refresh(HttpOnly 쿠키)로 access 재발급을 "먼저" 시도한 뒤 마운트한다.
 // → 라우터 가드(첫 내비게이션)가 복원된 로그인 상태를 보고 판단하므로,
