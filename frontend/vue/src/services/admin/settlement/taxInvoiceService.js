@@ -33,9 +33,9 @@ export const taxInvoiceService = {
         return del(`/api/admin/tax-invoices/${id}`)
     },
 
-    /** 개별 세금계산서(별지11호) 양식 다운로드(Bearer 자동, 파일 저장) */
-    downloadForm(id, fallbackName) {
-        return downloadGet(`/api/admin/tax-invoices/${id}/form`, { fallbackName })
+    /** 개별 세금계산서(별지11호) 양식 다운로드(Bearer 자동, 파일 저장). withStamp=true 면 도장 포함 */
+    downloadForm(id, fallbackName, withStamp = false) {
+        return downloadGet(`/api/admin/tax-invoices/${id}/form`, { params: { withStamp }, fallbackName })
     },
 }
 

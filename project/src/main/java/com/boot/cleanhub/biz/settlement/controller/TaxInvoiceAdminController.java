@@ -81,10 +81,11 @@ public class TaxInvoiceAdminController {
         return ApiResponse.ok(taxInvoiceService.issue(request), "세금계산서 발행 기록이 저장되었습니다.");
     }
 
-    /** 개별 세금계산서(별지11호) 양식 xls 다운로드 — 원본 빈 양식 템플릿을 채워 생성 */
+    /** 개별 세금계산서(별지11호) 양식 xls 다운로드 — 원본 빈 양식 템플릿을 채워 생성. withStamp=true 면 도장 포함 */
     @GetMapping("/{id}/form")
-    public ResponseEntity<byte[]> form(@PathVariable Long id) {
-        byte[] bytes = taxInvoiceService.buildInvoiceForm(id);
+    public ResponseEntity<byte[]> form(@PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "false") boolean withStamp) {
+        byte[] bytes = taxInvoiceService.buildInvoiceForm(id, withStamp);
         String filename = "세금계산서_" + id + ".xls";
         return FileUtillMo.downloadResponse(bytes, filename, "application/vnd.ms-excel");
     }

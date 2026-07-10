@@ -26,6 +26,7 @@ public class CompanyResponse {
     private final String businessType;
     private final String businessItem;
     private final String phone;
+    private final boolean hasStamp;   // 도장 이미지 등록 여부(경로 자체는 노출하지 않음)
     private final LocalDateTime updatedAt;
 
     private CompanyResponse(Company c) {
@@ -37,6 +38,7 @@ public class CompanyResponse {
         this.businessType = c.getBusinessType();
         this.businessItem = c.getBusinessItem();
         this.phone = c.getPhone();
+        this.hasStamp = c.getStampImagePath() != null && !c.getStampImagePath().trim().isEmpty();
         this.updatedAt = c.getUpdatedAt();
     }
 

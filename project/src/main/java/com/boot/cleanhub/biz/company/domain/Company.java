@@ -63,6 +63,10 @@ public class Company {
     @Column(length = 30)
     private String phone;
 
+    /** 도장(인장) 이미지 저장 상대경로(file.upload-dir 기준). 세금계산서 양식에 찍을 때 사용. */
+    @Column(name = "stamp_image_path", length = 255)
+    private String stampImagePath;
+
     /** 수정 시각 */
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;

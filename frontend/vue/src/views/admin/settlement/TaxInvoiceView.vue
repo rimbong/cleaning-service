@@ -18,6 +18,7 @@ const params = ref({
     basis: 'BILLED',
 })
 const issueDate = ref('')
+const withStamp = ref(false) // 양식 다운로드 시 회사 도장 포함 여부
 
 const aggKey = computed(() => ['tax-agg', params.value.fromYear, params.value.fromMonth, params.value.toYear, params.value.toMonth, params.value.basis])
 const { data: aggData, isFetching } = useQuery({
@@ -77,7 +78,7 @@ async function onDeleteRecord(t) {
 
 async function downloadForm(t) {
     try {
-        await taxInvoiceService.downloadForm(t.id, `세금계산서_${t.clientName ?? t.id}.xls`)
+        await taxInvoiceService.downloadForm(t.id, `세금계산서_${t.clientName ?? t.id}.xls`, withStamp.value)
     } catch (e) { notify.bar(e.response?.data?.message ?? '세금계산서 양식 다운로드 실패', { color: 'red' }) }
 }
 </script>
@@ -133,7 +134,13 @@ async function downloadForm(t) {
             <p v-else class="state">이 기간 청구가 없습니다.</p>
         </div>
 
-        <h3 class="rec-title">발행 기록</h3>
+        <div class="rec-head">
+            <h3 class="rec-title">발행 기록</h3>
+            <label class="stamp-toggle">
+                <input v-model="withStamp" type="checkbox" />
+                도장 포함(양식 다운로드)
+            </label>
+        </div>
         <div class="table-wrap">
             <table v-if="records.length" class="table">
                 <thead>
@@ -184,6 +191,8 @@ async function downloadForm(t) {
 .total-row td { font-weight: 700; background: var(--muted); }
 .col-actions { text-align: right; }
 .muted { color: var(--text); font-size: 0.82rem; }
-.rec-title { font-size: 1rem; margin: 0 0 0.75rem; }
+.rec-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 0 0 0.75rem; flex-wrap: wrap; }
+.rec-title { font-size: 1rem; margin: 0; }
+.stamp-toggle { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--text); cursor: pointer; }
 .state { text-align: center; padding: 2rem 0; color: var(--text); margin: 0; }
 </style>

@@ -16,6 +16,8 @@ import java.util.stream.Collectors;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.ClientAnchor;
+import org.apache.poi.ss.usermodel.Drawing;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -291,10 +293,11 @@ public class TaxInvoiceService {
      * 한 장에 2부(공급받는자 보관용=위, 공급자 보관용=아래, +24행 오프셋)가 있어 같은 값을 양쪽에 기입한다.
      * 공급자는 회사정보(Company), 공급받는자는 거래처(Client), 금액은 발행 기록(TaxInvoice)에서 가져온다.
      *
-     * @param id 발행 기록(TaxInvoice) id
+     * @param id        발행 기록(TaxInvoice) id
+     * @param withStamp 회사 도장(인장) 포함 여부(등록된 도장이 있을 때만)
      * @return 별지11호 양식 xls 바이트
      */
-    public byte[] buildInvoiceForm(Long id) {
+    public byte[] buildInvoiceForm(Long id, boolean withStamp) {
         TaxInvoice ti = taxInvoiceRepository.findById(id)
                 .orElseThrow(() -> new BizException(ErrorCode.TAX_INVOICE_NOT_FOUND));
         CompanyResponse supplier = companyService.get();
@@ -311,12 +314,55 @@ public class TaxInvoiceService {
             for (int base : new int[] { 0, 24 }) {
                 fillInvoiceCopy(sheet, base, supplier, buyer, supply, tax, issue);
             }
+            // 도장 포함 요청 시, 등록된 회사 도장을 공급자·영수 자리에 찍는다(2부 모두).
+            if (withStamp) {
+                byte[] stamp = companyService.getStampBytes();
+                if (stamp != null) {
+                    insertStamps(wb, sheet, stamp);
+                }
+            }
             wb.write(out);
             wb.close();
             return out.toByteArray();
         } catch (IOException e) {
             throw new BizException(ErrorCode.FILE_UPLOAD_FAILED);
         }
+    }
+
+    /**
+     * 도장 이미지를 각 부(공급받는자용=위, 공급자용=아래)에 2군데씩 찍는다:
+     * (1) 공급자 성명/(인) 자리, (2) 우하단 "이 금액을 (영수) 함" 자리(영수 도장).
+     * 이미지 종류(PNG/JPEG)는 바이트 시그니처로 판별한다.
+     */
+    private static void insertStamps(Workbook wb, Sheet sheet, byte[] stamp) {
+        int picIdx = wb.addPicture(stamp, detectPictureType(stamp));
+        Drawing<?> drawing = sheet.createDrawingPatriarch();
+        for (int base : new int[] { 0, 24 }) {
+            // 공급자 도장 — 성명/(인) 부근(대략 열 13~18, 행 base+5~base+10)
+            placePicture(wb, drawing, picIdx, 13, base + 5, 18, base + 10);
+            // 영수 도장 — 우하단 "(영수) 함" 부근(대략 열 28~33, 행 base+19~base+23)
+            placePicture(wb, drawing, picIdx, 28, base + 19, 33, base + 23);
+        }
+    }
+
+    /** 지정한 셀 영역(col1,row1)~(col2,row2)에 그림을 배치. */
+    private static void placePicture(Workbook wb, Drawing<?> drawing, int picIdx,
+            int col1, int row1, int col2, int row2) {
+        ClientAnchor anchor = wb.getCreationHelper().createClientAnchor();
+        anchor.setCol1(col1);
+        anchor.setRow1(row1);
+        anchor.setCol2(col2);
+        anchor.setRow2(row2);
+        drawing.createPicture(anchor, picIdx);
+    }
+
+    /** 이미지 바이트 시그니처로 POI 그림 종류 판별(PNG/JPEG, 그 외는 PNG 로 가정). */
+    private static int detectPictureType(byte[] bytes) {
+        if (bytes != null && bytes.length >= 2
+                && (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xD8) {
+            return Workbook.PICTURE_TYPE_JPEG;
+        }
+        return Workbook.PICTURE_TYPE_PNG;
     }
 
     /** 사업자등록번호 자릿수 칸(대시는 양식에 이미 있음) — 공급자/공급받는자. */
