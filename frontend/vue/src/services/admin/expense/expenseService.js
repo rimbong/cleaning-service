@@ -1,4 +1,4 @@
-import { get, post, put, del } from '@/common/plugins/http/axios'
+import { get, post, put, del, downloadGet } from '@/common/plugins/http/axios'
 
 /**
  * 지출 관리 API — 관리자 전용(/api/admin/expenses). 주유 등 경비(정산과 독립).
@@ -43,6 +43,11 @@ export const expenseService = {
     /** 삭제 */
     remove(id) {
         return del(`/api/admin/expenses/${id}`)
+    },
+
+    /** 지출 내역 엑셀 다운로드(거래처/주유소명 검색 반영, Bearer 자동) */
+    downloadExcel(keyword, fallbackName) {
+        return downloadGet('/api/admin/expenses/excel', { params: keyword ? { keyword } : {}, fallbackName })
     },
 }
 

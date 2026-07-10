@@ -51,6 +51,18 @@ async function onDelete(e) {
 function money(v) { return v != null ? Number(v).toLocaleString('ko-KR') : '0' }
 function fmtDate(v) { return v ? String(v).slice(0, 10) : '-' }
 function goEdit(id) { router.push({ name: 'admin-expense-edit', params: { id } }) }
+
+const downloading = ref(false)
+async function onDownload() {
+    downloading.value = true
+    try {
+        await expenseService.downloadExcel(appliedKeyword.value, '지출내역.xlsx')
+    } catch (e) {
+        notify.bar('엑셀 다운로드에 실패했습니다.', { color: 'red' })
+    } finally {
+        downloading.value = false
+    }
+}
 </script>
 
 <template>
@@ -61,7 +73,12 @@ function goEdit(id) { router.push({ name: 'admin-expense-edit', params: { id } }
                 <button class="btn" type="submit">검색</button>
                 <button v-if="appliedKeyword" class="btn btn--ghost" type="button" @click="resetSearch">초기화</button>
             </form>
-            <button class="btn btn--primary" @click="router.push({ name: 'admin-expense-new' })">+ 새 지출</button>
+            <div class="tools">
+                <button class="btn" :disabled="downloading" @click="onDownload">
+                    {{ downloading ? '내보내는 중…' : '엑셀 다운로드' }}
+                </button>
+                <button class="btn btn--primary" @click="router.push({ name: 'admin-expense-new' })">+ 새 지출</button>
+            </div>
         </div>
 
         <p v-if="isLoading" class="state">불러오는 중…</p>
@@ -100,6 +117,7 @@ function goEdit(id) { router.push({ name: 'admin-expense-edit', params: { id } }
 
 <style scoped>
 .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.tools { display: flex; gap: 0.5rem; }
 .search { display: flex; gap: 0.5rem; }
 .search input { padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius); font: inherit; min-width: 220px; }
 .btn { padding: 0.5rem 0.9rem; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; color: var(--text-h); cursor: pointer; font: inherit; text-decoration: none; display: inline-flex; align-items: center; }

@@ -22,4 +22,10 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
 
     /** 거래처/주유소명 검색(지출일 최신순) 페이지 */
     Page<Expense> findByVendorNameContainingIgnoreCaseOrderByExpenseDateDescIdDesc(String vendorName, Pageable pageable);
+
+    /** 전체(지출일 최신순) — 엑셀 출력용(페이징 없이 전부) */
+    java.util.List<Expense> findAllByOrderByExpenseDateDescIdDesc();
+
+    /** 거래처/주유소명 검색(지출일 최신순) — 엑셀 출력용 */
+    java.util.List<Expense> findByVendorNameContainingIgnoreCaseOrderByExpenseDateDescIdDesc(String vendorName);
 }

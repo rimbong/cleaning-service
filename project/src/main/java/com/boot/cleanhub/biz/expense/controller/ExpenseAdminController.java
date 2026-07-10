@@ -2,6 +2,7 @@ package com.boot.cleanhub.biz.expense.controller;
 
 import javax.validation.Valid;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,6 +19,7 @@ import com.boot.cleanhub.common.dto.PageResponse;
 import com.boot.cleanhub.biz.expense.dto.ExpenseRequest;
 import com.boot.cleanhub.biz.expense.dto.ExpenseResponse;
 import com.boot.cleanhub.biz.expense.service.ExpenseService;
+import com.boot.cleanhub.util.file.FileUtillMo;
 
 import lombok.RequiredArgsConstructor;
 
@@ -36,6 +38,14 @@ import lombok.RequiredArgsConstructor;
 public class ExpenseAdminController {
 
     private final ExpenseService expenseService;
+
+    /** 지출 내역 엑셀(xlsx) 다운로드(거래처/주유소명 검색 지원) */
+    @GetMapping("/excel")
+    public ResponseEntity<byte[]> excel(@RequestParam(required = false) String keyword) {
+        byte[] bytes = expenseService.buildExcel(keyword);
+        return FileUtillMo.downloadResponse(bytes, "지출내역.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    }
 
     @GetMapping
     public ApiResponse<PageResponse<ExpenseResponse>> list(
