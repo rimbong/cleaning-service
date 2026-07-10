@@ -11,6 +11,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.util.CellReference;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -162,6 +163,22 @@ public class TaxInvoiceService {
                 poi.setFontStyle(total, "맑은 고딕", (short) 11, "bold", false, false);
                 poi.setLineBorder(total, "thin");
 
+                // 금액용 숫자 스타일(테두리+오른쪽정렬+천단위콤마) — 텍스트가 아닌 진짜 숫자라 SUM 대상이 됨
+                CellStyle num = poi.createNewStyle();
+                poi.setLineBorder(num, "thin");
+                poi.setAlign(num, "r");
+                poi.setNumberFormat(num, "#,##0");
+                // 건수용 가운데 숫자 스타일
+                CellStyle cnt = poi.createNewStyle();
+                poi.setLineBorder(cnt, "thin");
+                poi.setAlign(cnt, "c");
+                // 합계 금액용(굵게 + 숫자)
+                CellStyle numTotal = poi.createNewStyle();
+                poi.setFontStyle(numTotal, "맑은 고딕", (short) 11, "bold", false, false);
+                poi.setLineBorder(numTotal, "thin");
+                poi.setAlign(numTotal, "r");
+                poi.setNumberFormat(numTotal, "#,##0");
+
                 // 제목(0행) — 0~5열 병합, 가운데 정렬(열 너비에 영향 주지 않음)
                 poi.setMergedData(titleStyle, 0, 0, 5, titleText + "$c");
 
@@ -171,27 +188,35 @@ public class TaxInvoiceService {
                     poi.setData(head, 2, i, cols[i] + "$c");
                 }
 
-                // 데이터(3행~)
-                int r = 3;
+                // 데이터(3행~). 공급가액·세액·건수는 숫자 셀로 넣어야 합계 SUM 이 동작한다.
+                final int firstDataRow = 3;
+                int r = firstDataRow;
                 int no = 1;
                 for (TaxInvoiceAggRow row : agg.getRows()) {
                     poi.setData(body, r, 0, no++ + "$c");
                     poi.setData(body, r, 1, row.getBusinessNumber() != null ? row.getBusinessNumber() : "");
                     poi.setData(body, r, 2, row.getClientName() != null ? row.getClientName() : "");
-                    poi.setData(body, r, 3, String.format("%,d", row.getSupplyAmount()) + "$r");
-                    poi.setData(body, r, 4, String.format("%,d", row.getTaxAmount()) + "$r");
-                    poi.setData(body, r, 5, row.getCount() + "$c");
+                    poi.setNumber(num, r, 3, row.getSupplyAmount());
+                    poi.setNumber(num, r, 4, row.getTaxAmount());
+                    poi.setNumber(cnt, r, 5, row.getCount());
                     r++;
                 }
 
-                // 합계 행
+                // 합계 행 — 공급가액/세액은 SUM 수식(엑셀에서 값 수정 시 자동 재계산)
                 poi.setData(total, r, 0, "");
                 poi.setData(total, r, 1, "");
                 poi.setData(total, r, 2, "합계$c");
-                poi.setData(total, r, 3, String.format("%,d", agg.getTotalSupply()) + "$r");
-                poi.setData(total, r, 4, String.format("%,d", agg.getTotalTax()) + "$r");
+                if (!agg.getRows().isEmpty()) {
+                    int lastDataRow = r - 1;
+                    poi.setFormula(numTotal, r, 3, "SUM(" + ref(firstDataRow, 3) + ":" + ref(lastDataRow, 3) + ")");
+                    poi.setFormula(numTotal, r, 4, "SUM(" + ref(firstDataRow, 4) + ":" + ref(lastDataRow, 4) + ")");
+                } else {
+                    poi.setNumber(numTotal, r, 3, 0L);
+                    poi.setNumber(numTotal, r, 4, 0L);
+                }
                 poi.setData(total, r, 5, "");
 
+                poi.evaluateAllFormulas(); // 수식 결과를 미리 계산해 캐시(뷰어 호환)
                 poi.write(out);
             } finally {
                 poi.close();
@@ -368,6 +393,11 @@ public class TaxInvoiceService {
     /** null → 빈 문자열. */
     private static String nvl(String s) {
         return s != null ? s : "";
+    }
+
+    /** (row,col) 0-based 좌표를 엑셀 A1 참조 문자열("D4" 등)로 — SUM 범위 만들 때. */
+    private static String ref(int row, int col) {
+        return new CellReference(row, col).formatAsString();
     }
 
     // ===== helpers =====

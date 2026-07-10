@@ -288,6 +288,48 @@ public class PoiMo {
     }
 
     /**
+     * 셀에 숫자 값을 넣는다(스타일 그대로 적용). setData 와 달리 텍스트가 아닌 "숫자"라,
+     * SUM 같은 수식의 대상이 되고 셀 서식(#,##0 등)으로 표시된다.
+     * 열 너비 자동조정은 하지 않는다(숫자 열 폭은 헤더/서식으로 확보).
+     *
+     * @param style 적용할 스타일(정렬·테두리·숫자서식 등, null 허용)
+     * @param row   행 인덱스(0-based)
+     * @param col   열 인덱스(0-based)
+     * @param value 숫자 값
+     * @throws IllegalStateException 시트가 없을 때
+     */
+    public void setNumber(CellStyle style, int row, int col, double value) {
+        if (sheet == null) throw new IllegalStateException("Sheet is not initialized");
+        Row rowObj = sheet.getRow(row) != null ? sheet.getRow(row) : sheet.createRow(row);
+        Cell cell = rowObj.getCell(col, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+        cell.setCellValue(value);
+        if (style != null) {
+            cell.setCellStyle(style);
+        }
+    }
+
+    /**
+     * 셀에 수식을 넣는다(맨 앞 '=' 없이, 예: "SUM(D4:D9)"). 실제 값은 엑셀이 파일을 열 때 계산한다
+     * (미리 계산된 값을 파일에 넣고 싶으면 write 전에 {@link #evaluateAllFormulas()} 호출).
+     * SUM 이 제대로 더하려면 대상 셀들이 텍스트가 아니라 숫자여야 한다(setNumber 로 넣을 것).
+     *
+     * @param style   적용할 스타일(null 허용)
+     * @param row     행 인덱스(0-based)
+     * @param col     열 인덱스(0-based)
+     * @param formula 수식(맨 앞 '=' 제외)
+     * @throws IllegalStateException 시트가 없을 때
+     */
+    public void setFormula(CellStyle style, int row, int col, String formula) {
+        if (sheet == null) throw new IllegalStateException("Sheet is not initialized");
+        Row rowObj = sheet.getRow(row) != null ? sheet.getRow(row) : sheet.createRow(row);
+        Cell cell = rowObj.getCell(col, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+        cell.setCellFormula(formula);
+        if (style != null) {
+            cell.setCellStyle(style);
+        }
+    }
+
+    /**
      * (편의) 한 행 안에서 여러 열을 가로 병합해 값을 쓴다(제목 행 등).
      * 내부적으로 {@link #setMergedData(CellStyle, int, int, int, int, String)} 에 위임한다.
      *
@@ -526,6 +568,31 @@ public class PoiMo {
     }
 
     /**
+     * 스타일에 숫자 표시 형식을 지정한다. 예: "#,##0" → 1,000 처럼 천단위 콤마, "0.00" → 소수 2자리.
+     * setNumber 로 넣은 숫자·수식 결과의 "보이는 형식"을 정한다(값 자체는 안 바뀜).
+     *
+     * @param style   대상 스타일(null 이면 무시)
+     * @param pattern 표시 형식(엑셀 서식 코드)
+     */
+    public void setNumberFormat(CellStyle style, String pattern) {
+        if (style == null || pattern == null) return;
+        style.setDataFormat(wb.createDataFormat().getFormat(pattern));
+    }
+
+    /**
+     * 스타일에 가로 정렬을 지정한다(setNumber/setFormula 처럼 "$" 수식어를 못 쓰는 셀용).
+     * 세로 정렬은 항상 가운데.
+     *
+     * @param style 대상 스타일(null 이면 무시)
+     * @param code  정렬 코드("l"/"c"/"r", 기본 왼쪽)
+     */
+    public void setAlign(CellStyle style, String code) {
+        if (style == null) return;
+        style.setAlignment(alignTypeMap.getOrDefault(code == null ? "" : code.toLowerCase(), HorizontalAlignment.LEFT));
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+    }
+
+    /**
      * 스타일에 폰트를 지정한다(이름·크기·굵기·기울임·취소선).
      * 굵기는 "bold" 문자열일 때만 굵게(그 외는 보통).
      *
@@ -574,6 +641,17 @@ public class PoiMo {
     public void setSheet(Sheet sheet) {
         if (sheet == null) throw new IllegalArgumentException("Sheet cannot be null");
         this.sheet = sheet;
+    }
+
+    /**
+     * 모든 수식 셀을 지금 계산해 결과를 파일에 캐시한다. write 직전에 호출하면,
+     * 수식을 다시 계산하지 않는 뷰어(미리보기·일부 라이브러리)에서도 합계 값이 바로 보인다.
+     * (엑셀·구글시트 등은 파일을 열 때 어차피 재계산하므로 없어도 화면은 맞다.)
+     */
+    public void evaluateAllFormulas() {
+        if (wb != null) {
+            wb.getCreationHelper().createFormulaEvaluator().evaluateAll();
+        }
     }
 
     /**
