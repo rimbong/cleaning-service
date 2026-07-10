@@ -6,12 +6,15 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,6 +63,8 @@ public class SettlementService {
 
     /**
      * 월 청구 자동 생성 — 그 달 유효한 ACTIVE 계약마다 청구 1건(청구액=월정액). 이미 있으면 건너뜀.
+     * 이미 청구가 있는 계약은 한 번에 preload 해 계약마다 존재확인(N+1)을 없앤다.
+     * 동시 실행(중복 클릭 등)으로 유니크 제약(uq_billing_contract_month) 충돌 시 500 대신 409 로 응답한다.
      *
      * @return 생성된 청구 건수
      */
@@ -69,18 +74,25 @@ public class SettlementService {
         LocalDate start = ym.atDay(1);
         LocalDate end = ym.atEndOfMonth();
         List<Contract> contracts = contractRepository.findActiveInPeriod(start, end);
+        // 이미 청구가 있는 계약 id 를 한 번에 조회(계약마다 existsBy 호출하던 N+1 제거)
+        Set<Long> alreadyBilled = new HashSet<>(billingRepository.findContractIdsWithBilling(year, month));
         int created = 0;
-        for (Contract c : contracts) {
-            if (billingRepository.existsByContract_IdAndBillYearAndBillMonth(c.getId(), year, month)) {
-                continue;
+        try {
+            for (Contract c : contracts) {
+                if (alreadyBilled.contains(c.getId())) {
+                    continue;
+                }
+                Billing b = new Billing();
+                b.setContract(c);
+                b.setBillYear(year);
+                b.setBillMonth(month);
+                b.setAmount(c.getMonthlyFee());
+                billingRepository.save(b);
+                created++;
             }
-            Billing b = new Billing();
-            b.setContract(c);
-            b.setBillYear(year);
-            b.setBillMonth(month);
-            b.setAmount(c.getMonthlyFee());
-            billingRepository.save(b);
-            created++;
+        } catch (DataIntegrityViolationException e) {
+            // 두 요청이 동시에 같은 계약·연월을 생성 → 유니크 위반. 데이터는 안전(중복 저장 안 됨).
+            throw new BizException(ErrorCode.BILLING_GENERATION_CONFLICT);
         }
         return created;
     }
@@ -319,11 +331,20 @@ public class SettlementService {
                 .collect(Collectors.toList());
     }
 
-    /** 입금 등록. */
+    /**
+     * 입금 등록.
+     * 입금액이 남은 잔액(청구액 - 기존 입금합)을 초과하면 거부한다(과입금 방지 → 월 미수합계 왜곡 예방).
+     */
     @Transactional
     public PaymentResponse addPayment(Long billingId, PaymentRequest request) {
         Billing b = billingRepository.findById(billingId)
                 .orElseThrow(() -> new BizException(ErrorCode.BILLING_NOT_FOUND));
+        long billed = b.getAmount() != null ? b.getAmount() : 0L;
+        long alreadyPaid = paymentRepository.sumByBillingId(billingId);
+        long incoming = request.getAmount() != null ? request.getAmount() : 0L;
+        if (alreadyPaid + incoming > billed) {
+            throw new BizException(ErrorCode.PAYMENT_EXCEEDS_BALANCE);
+        }
         Payment p = new Payment();
         p.setBilling(b);
         p.setAmount(request.getAmount());

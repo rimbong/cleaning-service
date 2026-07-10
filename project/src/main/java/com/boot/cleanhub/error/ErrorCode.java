@@ -72,6 +72,9 @@ public enum ErrorCode {
     TAX_INVOICE_NOT_FOUND    ("100303", HttpStatus.NOT_FOUND),
     BILLING_ALREADY_EXISTS   ("100304", HttpStatus.CONFLICT),
     TAX_INVOICE_ALREADY_ISSUED("100305", HttpStatus.CONFLICT),
+    BILLING_GENERATION_CONFLICT("100306", HttpStatus.CONFLICT),
+    PAYMENT_EXCEEDS_BALANCE  ("100307", HttpStatus.BAD_REQUEST),
+    INVALID_PERIOD           ("100308", HttpStatus.BAD_REQUEST),
 
     // ===== 지출 (10-04) =====
     EXPENSE_NOT_FOUND        ("100401", HttpStatus.NOT_FOUND),

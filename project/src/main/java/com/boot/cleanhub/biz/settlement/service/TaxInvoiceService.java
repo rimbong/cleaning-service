@@ -2,6 +2,8 @@ package com.boot.cleanhub.biz.settlement.service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -60,13 +62,17 @@ public class TaxInvoiceService {
 
     /** 거래처별 기간 집계(BILLED=청구합 / PAID=수금합). */
     public TaxInvoiceAggResponse aggregate(int year, int fromMonth, int toMonth, String basis) {
+        validatePeriod(fromMonth, toMonth);
         String b = BASIS_PAID.equalsIgnoreCase(basis) ? BASIS_PAID : "BILLED";
         List<Billing> billings = billingRepository.findByPeriodWithRefs(year, fromMonth, toMonth);
 
         Map<Long, Long> paidMap = new HashMap<>();
         if (BASIS_PAID.equals(b) && !billings.isEmpty()) {
             List<Long> ids = billings.stream().map(Billing::getId).collect(Collectors.toList());
-            for (Object[] row : paymentRepository.sumGroupedByBillingIds(ids)) {
+            // 수금 기준: 입금일이 집계 기간 내인 입금만 합산(기간 밖에 들어온 입금은 제외)
+            LocalDate fromDate = YearMonth.of(year, fromMonth).atDay(1);
+            LocalDate toDate = YearMonth.of(year, toMonth).atEndOfMonth();
+            for (Object[] row : paymentRepository.sumGroupedByBillingIdsInPeriod(ids, fromDate, toDate)) {
                 paidMap.put((Long) row[0], ((Number) row[1]).longValue());
             }
         }
@@ -97,6 +103,17 @@ public class TaxInvoiceService {
         }
         rows.sort(Comparator.comparing(TaxInvoiceAggRow::getClientName, Comparator.nullsLast(Comparator.naturalOrder())));
         return new TaxInvoiceAggResponse(year, fromMonth, toMonth, b, rows);
+    }
+
+    /**
+     * 집계 기간 파라미터 검증 — 월은 1~12, 시작월은 종료월보다 클 수 없다.
+     * GET 파라미터가 원시 int 라 0·13·역순이 들어오면 조용히 빈 결과가 나오던 것을 400 으로 막는다.
+     * (같은 연도 내 기간만 지원 — 연도경계(11~2월)는 화면·파라미터 확장이 필요해 후속 과제로 둔다.)
+     */
+    private static void validatePeriod(int fromMonth, int toMonth) {
+        if (fromMonth < 1 || fromMonth > 12 || toMonth < 1 || toMonth > 12 || fromMonth > toMonth) {
+            throw new BizException(ErrorCode.INVALID_PERIOD);
+        }
     }
 
     /** 발행 기록 저장 — 그 거래처·기간 집계액으로(중복 발행 방지). */

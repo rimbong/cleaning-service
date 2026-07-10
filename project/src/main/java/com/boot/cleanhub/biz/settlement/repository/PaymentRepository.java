@@ -1,5 +1,6 @@
 package com.boot.cleanhub.biz.settlement.repository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -30,6 +31,16 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     @Query("select p.billing.id, coalesce(sum(p.amount), 0) from Payment p"
             + " where p.billing.id in :billingIds group by p.billing.id")
     List<Object[]> sumGroupedByBillingIds(@Param("billingIds") List<Long> billingIds);
+
+    /**
+     * 여러 청구의 입금 합을 (billingId, sum) 로 — 단, 입금일(paidDate)이 기간 내인 입금만 합산.
+     * 세금계산서 "수금 기준" 집계에서 기간 밖 입금을 제외하기 위함.
+     */
+    @Query("select p.billing.id, coalesce(sum(p.amount), 0) from Payment p"
+            + " where p.billing.id in :billingIds and p.paidDate between :fromDate and :toDate"
+            + " group by p.billing.id")
+    List<Object[]> sumGroupedByBillingIdsInPeriod(@Param("billingIds") List<Long> billingIds,
+            @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
 
     /** 여러 청구의 최종 수금일(max paidDate)을 (billingId, date) 목록으로 — 연간 수금 현황용 */
     @Query("select p.billing.id, max(p.paidDate) from Payment p"
