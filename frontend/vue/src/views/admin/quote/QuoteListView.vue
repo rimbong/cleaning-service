@@ -177,55 +177,7 @@ function goDetail(id) {
     box-shadow: 0 0 0 3px var(--primary-soft);
 }
 
-.btn {
-    padding: 0.5rem 0.9rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: #fff;
-    color: var(--text-h);
-    cursor: pointer;
-    font: inherit;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-}
-
-.btn:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-}
-
-.btn--primary {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: var(--primary-fg);
-}
-
-.btn--primary:hover {
-    background: var(--primary-hover);
-    color: var(--primary-fg);
-}
-
-.btn--ghost {
-    background: transparent;
-    border-color: transparent;
-    color: var(--text);
-}
-
-.btn--sm {
-    padding: 0.3rem 0.6rem;
-    font-size: 0.82rem;
-}
-
-.btn--danger {
-    color: var(--danger);
-}
-
-.btn--danger:hover {
-    border-color: var(--danger);
-    color: var(--danger);
-    background: var(--danger-soft);
-}
+/* 버튼은 전역 .btn 계열(style.css) 사용 */
 
 .state {
     color: var(--text);

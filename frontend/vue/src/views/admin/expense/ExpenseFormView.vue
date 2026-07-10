@@ -128,10 +128,6 @@ async function onSubmit() {
 .field.has-error input:focus, .field.has-error select:focus { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
 .err-msg { margin: 0; color: var(--danger); font-size: 0.78rem; }
 .actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
-.btn { padding: 0.55rem 1.2rem; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; color: var(--text-h); cursor: pointer; font: inherit; }
-.btn--ghost { background: transparent; border-color: var(--border); color: var(--text); }
-.btn--primary { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); }
-.btn--primary:hover:not(:disabled) { background: var(--primary-hover); }
-.btn--primary:disabled { opacity: 0.6; cursor: default; }
+/* 버튼은 전역 .btn 계열(style.css) 사용 */
 .state { text-align: center; padding: 2rem 0; color: var(--text); }
 </style>

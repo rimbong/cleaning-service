@@ -16,6 +16,25 @@
     --radius: 10px;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
 
+    /* 간격 스케일 — 여백/gap 을 이 토큰으로 통일(4px 배수) */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.5rem;
+    --space-6: 2rem;
+
+    /* 글자 크기 스케일 */
+    --fs-sm: 0.82rem;
+    --fs-md: 0.9rem;
+    --fs-lg: 1.05rem;
+
+    /* 버튼 크기 토큰(기본/작은) */
+    --btn-py: 0.5rem;
+    --btn-px: 1rem;
+    --btn-py-sm: 0.32rem;
+    --btn-px-sm: 0.6rem;
+
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     line-height: 1.6;
     color: var(--text-h);
@@ -40,4 +59,72 @@ code {
     padding: 0.1em 0.4em;
     border-radius: 5px;
     font-size: 0.9em;
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * 공용 버튼 — 각 화면 scoped CSS 에 흩어져 있던 .btn 계열을 토큰 기반으로 통일.
+ * 변형: 기본(흰 배경) / --primary(강조) / --ghost(투명) / --sm(작게) / --danger(위험).
+ * ────────────────────────────────────────────────────────────── */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    padding: var(--btn-py) var(--btn-px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: #fff;
+    color: var(--text-h);
+    cursor: pointer;
+    font: inherit;
+    line-height: 1.2;
+    text-decoration: none;
+}
+
+.btn:hover:not(:disabled) {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.btn--primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-fg);
+}
+
+.btn--primary:hover:not(:disabled) {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+    color: var(--primary-fg);
+}
+
+.btn--ghost {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--text);
+}
+
+.btn--ghost:hover:not(:disabled) {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.btn--sm {
+    padding: var(--btn-py-sm) var(--btn-px-sm);
+    font-size: var(--fs-sm);
+}
+
+.btn--danger {
+    color: var(--danger);
+}
+
+.btn--danger:hover:not(:disabled) {
+    border-color: var(--danger);
+    color: var(--danger);
+    background: var(--danger-soft);
 }

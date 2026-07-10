@@ -168,39 +168,7 @@ function fmtMoney(v) {
     gap: 0.5rem;
 }
 
-.btn {
-    padding: 0.45rem 0.9rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: #fff;
-    color: var(--text-h);
-    cursor: pointer;
-    font: inherit;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-}
-
-.btn:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-}
-
-.btn--ghost {
-    background: transparent;
-    border-color: transparent;
-    color: var(--text);
-}
-
-.btn--danger {
-    color: var(--danger);
-}
-
-.btn--danger:hover {
-    border-color: var(--danger);
-    color: var(--danger);
-    background: var(--danger-soft);
-}
+/* 버튼은 전역 .btn 계열(style.css) 사용 */
 
 .card {
     background: #fff;
