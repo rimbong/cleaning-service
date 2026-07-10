@@ -13,14 +13,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
-import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.ClientAnchor;
-import org.apache.poi.ss.usermodel.Drawing;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellReference;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -308,21 +301,28 @@ public class TaxInvoiceService {
 
         try (InputStream in = new ClassPathResource("templates/tax_resource.xls").getInputStream();
                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            Workbook wb = new HSSFWorkbook(in);
-            Sheet sheet = wb.getSheetAt(0);
-            // 위(공급받는자 보관용)/아래(공급자 보관용) 두 부에 동일 데이터 기입
-            for (int base : new int[] { 0, 24 }) {
-                fillInvoiceCopy(sheet, base, supplier, buyer, supply, tax, issue);
-            }
-            // 도장 포함 요청 시, 등록된 회사 도장을 공급자·영수 자리에 찍는다(2부 모두).
-            if (withStamp) {
-                byte[] stamp = companyService.getStampBytes();
-                if (stamp != null) {
-                    insertStamps(wb, sheet, stamp);
+            PoiMo poi = PoiMo.open(in, false); // 원본 빈 양식(.xls=HSSF)을 열어 값만 채운다(서식 보존)
+            try {
+                // 위(공급받는자 보관용)/아래(공급자 보관용) 두 부에 동일 데이터 기입
+                for (int base : new int[] { 0, 24 }) {
+                    fillInvoiceCopy(poi, base, supplier, buyer, supply, tax, issue);
                 }
+                // 도장 포함 요청 시, 등록된 회사 도장을 공급자·영수 자리에 찍는다(2부 모두).
+                if (withStamp) {
+                    byte[] stamp = companyService.getStampBytes();
+                    if (stamp != null) {
+                        for (int base : new int[] { 0, 24 }) {
+                            poi.insertPicture(stamp, STAMP_SUPPLIER[0], base + STAMP_SUPPLIER[1],
+                                    STAMP_SUPPLIER[2], base + STAMP_SUPPLIER[3]);
+                            poi.insertPicture(stamp, STAMP_RECEIPT[0], base + STAMP_RECEIPT[1],
+                                    STAMP_RECEIPT[2], base + STAMP_RECEIPT[3]);
+                        }
+                    }
+                }
+                poi.write(out);
+            } finally {
+                poi.close();
             }
-            wb.write(out);
-            wb.close();
             return out.toByteArray();
         } catch (IOException e) {
             throw new BizException(ErrorCode.FILE_UPLOAD_FAILED);
@@ -330,45 +330,9 @@ public class TaxInvoiceService {
     }
 
     // 도장 위치·크기 = 셀 영역(col1,row1)~(col2,row2), 한 부 내 상대 좌표(아래 부는 +24행).
-    // 공급자 도장(성명/공급받는자 경계 위)이 영수 도장(우하단)보다 조금 크다.
+    // 공급자 도장(성명/공급받는자 경계 위)이 영수 도장(우하단)보다 조금 크다. 삽입은 PoiMo.insertPicture.
     private static final int[] STAMP_SUPPLIER = { 15, 5, 18, 8 };  // 공급자: cols 15~17, rows 5~7 (3x3)
     private static final int[] STAMP_RECEIPT = { 29, 20, 31, 22 }; // 영수: cols 29~30, rows 20~21 (2x2)
-
-    /**
-     * 도장 이미지를 각 부(공급받는자용=위, 공급자용=아래)에 2군데씩 찍는다:
-     * (1) 공급자 성명/(인)~공급받는자 경계, (2) 우하단 "이 금액을 (영수) 함"(영수 도장).
-     * 셀 영역(두 셀 앵커)으로 크기·위치를 정한다. 이미지 종류는 바이트 시그니처로 판별.
-     */
-    private static void insertStamps(Workbook wb, Sheet sheet, byte[] stamp) {
-        int picIdx = wb.addPicture(stamp, detectPictureType(stamp));
-        Drawing<?> drawing = sheet.createDrawingPatriarch();
-        for (int base : new int[] { 0, 24 }) {
-            placePicture(wb, drawing, picIdx, STAMP_SUPPLIER[0], base + STAMP_SUPPLIER[1],
-                    STAMP_SUPPLIER[2], base + STAMP_SUPPLIER[3]);
-            placePicture(wb, drawing, picIdx, STAMP_RECEIPT[0], base + STAMP_RECEIPT[1],
-                    STAMP_RECEIPT[2], base + STAMP_RECEIPT[3]);
-        }
-    }
-
-    /** 셀 영역(col1,row1)~(col2,row2)에 그림을 채워 배치. */
-    private static void placePicture(Workbook wb, Drawing<?> drawing, int picIdx,
-            int col1, int row1, int col2, int row2) {
-        ClientAnchor anchor = wb.getCreationHelper().createClientAnchor();
-        anchor.setCol1(col1);
-        anchor.setRow1(row1);
-        anchor.setCol2(col2);
-        anchor.setRow2(row2);
-        drawing.createPicture(anchor, picIdx);
-    }
-
-    /** 이미지 바이트 시그니처로 POI 그림 종류 판별(PNG/JPEG, 그 외는 PNG 로 가정). */
-    private static int detectPictureType(byte[] bytes) {
-        if (bytes != null && bytes.length >= 2
-                && (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xD8) {
-            return Workbook.PICTURE_TYPE_JPEG;
-        }
-        return Workbook.PICTURE_TYPE_PNG;
-    }
 
     /** 사업자등록번호 자릿수 칸(대시는 양식에 이미 있음) — 공급자/공급받는자. */
     private static final int[] SUPPLIER_REG_COLS = { 5, 6, 7, 9, 10, 12, 13, 14, 15, 16 };
@@ -378,86 +342,68 @@ public class TaxInvoiceService {
      * 별지11호 한 부를 채운다(base = 행 오프셋; 0=위 보관용, 24=아래 보관용).
      * 셀 스타일(파란 선·글꼴)은 템플릿 것을 그대로 유지하고 값만 넣는다.
      */
-    private void fillInvoiceCopy(Sheet sheet, int base, CompanyResponse supplier, Client buyer,
+    private void fillInvoiceCopy(PoiMo poi, int base, CompanyResponse supplier, Client buyer,
             long supply, long tax, LocalDate issue) {
         // 공급자
-        placeRegNumber(sheet, base + 4, SUPPLIER_REG_COLS, supplier.getBusinessNumber());
-        setCellText(sheet, base + 6, 5, supplier.getCompanyName());
-        setCellText(sheet, base + 6, 12, supplier.getOwnerName());
-        setCellText(sheet, base + 8, 5, supplier.getAddress());
-        setCellText(sheet, base + 10, 5, supplier.getBusinessType());
-        setCellText(sheet, base + 10, 12, supplier.getBusinessItem());
+        placeRegNumber(poi, base + 4, SUPPLIER_REG_COLS, supplier.getBusinessNumber());
+        setText(poi, base + 6, 5, supplier.getCompanyName());
+        setText(poi, base + 6, 12, supplier.getOwnerName());
+        setText(poi, base + 8, 5, supplier.getAddress());
+        setText(poi, base + 10, 5, supplier.getBusinessType());
+        setText(poi, base + 10, 12, supplier.getBusinessItem());
         // 공급받는자
-        placeRegNumber(sheet, base + 4, BUYER_REG_COLS, buyer.getBusinessNumber());
-        setCellText(sheet, base + 6, 21, buyer.getName());
-        setCellText(sheet, base + 6, 28, buyer.getRepresentativeName());
-        setCellText(sheet, base + 8, 21, buyer.getAddress());
-        setCellText(sheet, base + 10, 21, buyer.getBusinessType());
-        setCellText(sheet, base + 10, 28, buyer.getBusinessItem());
+        placeRegNumber(poi, base + 4, BUYER_REG_COLS, buyer.getBusinessNumber());
+        setText(poi, base + 6, 21, buyer.getName());
+        setText(poi, base + 6, 28, buyer.getRepresentativeName());
+        setText(poi, base + 8, 21, buyer.getAddress());
+        setText(poi, base + 10, 21, buyer.getBusinessType());
+        setText(poi, base + 10, 28, buyer.getBusinessItem());
         // 작성일(년/월/일)
         if (issue != null) {
-            setCellNumber(sheet, base + 14, 1, issue.getYear());
-            setCellNumber(sheet, base + 14, 3, issue.getMonthValue());
-            setCellNumber(sheet, base + 14, 4, issue.getDayOfMonth());
+            poi.setCellValue(base + 14, 1, issue.getYear());
+            poi.setCellValue(base + 14, 3, issue.getMonthValue());
+            poi.setCellValue(base + 14, 4, issue.getDayOfMonth());
         }
         // 공급가액(백…일 c7~c17) / 세액(십…일 c18~c27) 자릿수 기입
-        placeAmountDigits(sheet, base + 14, 7, 17, supply);
-        placeAmountDigits(sheet, base + 14, 18, 27, tax);
+        placeAmountDigits(poi, base + 14, 7, 17, supply);
+        placeAmountDigits(poi, base + 14, 18, 27, tax);
         // 품목 첫 행(월/일/품목/공급가액/세액)
         if (issue != null) {
-            setCellNumber(sheet, base + 16, 1, issue.getMonthValue());
-            setCellNumber(sheet, base + 16, 2, issue.getDayOfMonth());
+            poi.setCellValue(base + 16, 1, issue.getMonthValue());
+            poi.setCellValue(base + 16, 2, issue.getDayOfMonth());
         }
-        setCellText(sheet, base + 16, 3, "청소비");
-        setCellNumber(sheet, base + 16, 20, supply);
-        setCellNumber(sheet, base + 16, 26, tax);
+        setText(poi, base + 16, 3, "청소비");
+        poi.setCellValue(base + 16, 20, supply);
+        poi.setCellValue(base + 16, 26, tax);
         // 합계금액
-        setCellNumber(sheet, base + 21, 1, supply + tax);
+        poi.setCellValue(base + 21, 1, supply + tax);
     }
 
-    /** 셀에 문자열 기입(빈 값이면 건너뜀) — 템플릿 셀 스타일 유지. */
-    private static void setCellText(Sheet sheet, int rowIdx, int colIdx, String value) {
+    /** 문자열 기입(빈 값이면 건너뜀) — PoiMo 값전용 세터(템플릿 스타일 유지). */
+    private static void setText(PoiMo poi, int row, int col, String value) {
         if (value == null || value.trim().isEmpty()) {
             return;
         }
-        cellAt(sheet, rowIdx, colIdx).setCellValue(value);
-    }
-
-    /** 셀에 숫자 기입 — 템플릿 셀 스타일(표시 형식 포함) 유지. */
-    private static void setCellNumber(Sheet sheet, int rowIdx, int colIdx, double value) {
-        cellAt(sheet, rowIdx, colIdx).setCellValue(value);
-    }
-
-    /** (row,col) 셀을 얻는다(행/셀 없으면 생성). */
-    private static Cell cellAt(Sheet sheet, int rowIdx, int colIdx) {
-        Row row = sheet.getRow(rowIdx);
-        if (row == null) {
-            row = sheet.createRow(rowIdx);
-        }
-        Cell cell = row.getCell(colIdx);
-        if (cell == null) {
-            cell = row.createCell(colIdx);
-        }
-        return cell;
+        poi.setCellValue(row, col, value);
     }
 
     /** 사업자등록번호에서 숫자만 뽑아 지정 칸에 한 자리씩(대시는 양식에 이미 있음). */
-    private static void placeRegNumber(Sheet sheet, int rowIdx, int[] cols, String bizNumber) {
+    private static void placeRegNumber(PoiMo poi, int row, int[] cols, String bizNumber) {
         if (bizNumber == null) {
             return;
         }
         String digits = bizNumber.replaceAll("[^0-9]", "");
         for (int i = 0; i < cols.length && i < digits.length(); i++) {
-            cellAt(sheet, rowIdx, cols[i]).setCellValue(String.valueOf(digits.charAt(i)));
+            poi.setCellValue(row, cols[i], String.valueOf(digits.charAt(i)));
         }
     }
 
     /** 금액을 자릿수 칸(startCol~endCol)에 오른쪽부터 한 자리씩 채운다. */
-    private static void placeAmountDigits(Sheet sheet, int rowIdx, int startCol, int endCol, long amount) {
+    private static void placeAmountDigits(PoiMo poi, int row, int startCol, int endCol, long amount) {
         String s = String.valueOf(Math.max(0L, amount));
         int di = s.length() - 1;
         for (int col = endCol; col >= startCol && di >= 0; col--) {
-            cellAt(sheet, rowIdx, col).setCellValue(String.valueOf(s.charAt(di)));
+            poi.setCellValue(row, col, String.valueOf(s.charAt(di)));
             di--;
         }
     }

@@ -3,9 +3,11 @@ package com.boot.cleanhub.util.excel;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
@@ -13,6 +15,8 @@ import org.apache.poi.poifs.filesystem.POIFSFileSystem;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.ClientAnchor;
+import org.apache.poi.ss.usermodel.Drawing;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.HorizontalAlignment;
@@ -77,6 +81,10 @@ public class PoiMo {
     private Workbook wb = null;
     /** 현재 작업 대상 시트. setData 등은 이 시트에 쓴다. */
     private Sheet sheet = null;
+    /** 그림(도장 등) 배치용 patriarch — 시트당 1개만 만들어 재사용(여러 번 만들면 기존 그림이 지워짐). */
+    private Drawing<?> drawing = null;
+    /** 같은 이미지(byte[] 동일 참조)를 여러 번 넣을 때 addPicture 를 1회만 하도록 한 캐시. */
+    private final Map<byte[], Integer> pictureIndexCache = new IdentityHashMap<>();
 
     /** 자동 열너비 계산 시 한글 1글자에 더하는 폭(1/256 문자폭 단위). 한글은 넓어 크게 잡는다. */
     private static final int CELL_WIDTH_KR = 400;
@@ -158,6 +166,24 @@ public class PoiMo {
             if (poi.wb.getNumberOfSheets() > 0) {
                 poi.sheet = poi.wb.getSheetAt(0);
             }
+        }
+        return poi;
+    }
+
+    /**
+     * 기존 엑셀을 입력 스트림에서 열어 편집 대상으로 삼는다(클래스패스 리소스 템플릿 등, 파일경로가 없을 때).
+     * 첫 번째 시트를 작업 대상으로 잡는다.
+     *
+     * @param in   엑셀 바이트 스트림(호출측이 닫는다)
+     * @param xlsx true=XSSF(.xlsx), false=HSSF(.xls)
+     * @return 그 통합문서를 담은 PoiMo
+     * @throws IOException 읽기 실패 시
+     */
+    public static PoiMo open(InputStream in, boolean xlsx) throws IOException {
+        PoiMo poi = new PoiMo();
+        poi.wb = xlsx ? new XSSFWorkbook(in) : new HSSFWorkbook(new POIFSFileSystem(in));
+        if (poi.wb.getNumberOfSheets() > 0) {
+            poi.sheet = poi.wb.getSheetAt(0);
         }
         return poi;
     }
@@ -327,6 +353,62 @@ public class PoiMo {
         if (style != null) {
             cell.setCellStyle(style);
         }
+    }
+
+    /**
+     * 셀에 문자열 값만 넣는다(스타일은 건드리지 않음) — 서식이 있는 템플릿(open)에 값만 채울 때.
+     * setData 는 자체 스타일을 입혀 템플릿 서식을 덮으므로, 서식 보존이 필요하면 이 메서드를 쓴다.
+     *
+     * @param row   행(0-based)
+     * @param col   열(0-based)
+     * @param value 넣을 값(null 이면 빈 문자열)
+     */
+    public void setCellValue(int row, int col, String value) {
+        cellAt(row, col).setCellValue(value != null ? value : "");
+    }
+
+    /** 셀에 숫자 값만 넣는다(스타일 보존). {@link #setCellValue(int, int, String)} 참고. */
+    public void setCellValue(int row, int col, double value) {
+        cellAt(row, col).setCellValue(value);
+    }
+
+    /** (row,col) 셀을 얻는다(행/셀 없으면 생성). setCellValue 계열이 공용으로 쓴다. */
+    private Cell cellAt(int row, int col) {
+        if (sheet == null) throw new IllegalStateException("Sheet is not initialized");
+        Row rowObj = sheet.getRow(row) != null ? sheet.getRow(row) : sheet.createRow(row);
+        return rowObj.getCell(col, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+    }
+
+    /**
+     * 셀 영역(col1,row1)~(col2,row2)에 이미지를 삽입한다(도장 등). PNG/JPEG 는 바이트 시그니처로 판별.
+     * 그림 patriarch 는 시트당 1개만 만들어 재사용한다(여러 번 새로 만들면 앞서 넣은 그림이 지워진다).
+     *
+     * @param image 이미지 바이트(PNG/JPEG). null·빈 배열이면 무시
+     * @param col1  시작 열(0-based)
+     * @param row1  시작 행(0-based)
+     * @param col2  끝 열(0-based, 이 열 시작까지 채움)
+     * @param row2  끝 행(0-based)
+     */
+    public void insertPicture(byte[] image, int col1, int row1, int col2, int row2) {
+        if (sheet == null) throw new IllegalStateException("Sheet is not initialized");
+        if (image == null || image.length == 0) return;
+        // 같은 이미지를 여러 자리에 넣을 때 통합문서엔 1벌만 저장(중복 방지)
+        Integer picIdx = pictureIndexCache.get(image);
+        if (picIdx == null) {
+            int type = (image.length >= 2 && (image[0] & 0xFF) == 0xFF && (image[1] & 0xFF) == 0xD8)
+                    ? Workbook.PICTURE_TYPE_JPEG : Workbook.PICTURE_TYPE_PNG;
+            picIdx = wb.addPicture(image, type);
+            pictureIndexCache.put(image, picIdx);
+        }
+        if (drawing == null) {
+            drawing = sheet.createDrawingPatriarch();
+        }
+        ClientAnchor anchor = wb.getCreationHelper().createClientAnchor();
+        anchor.setCol1(col1);
+        anchor.setRow1(row1);
+        anchor.setCol2(col2);
+        anchor.setRow2(row2);
+        drawing.createPicture(anchor, picIdx);
     }
 
     /**
