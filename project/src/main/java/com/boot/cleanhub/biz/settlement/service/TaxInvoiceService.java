@@ -330,9 +330,9 @@ public class TaxInvoiceService {
     }
 
     // 도장 위치·크기 = 셀 영역(col1,row1)~(col2,row2), 한 부 내 상대 좌표(아래 부는 +24행).
-    // 서현푸드처럼 공급자 도장(성명/공급받는자 경계 위)이 영수 도장(우하단)보다 조금 크다.
-    private static final int[] STAMP_SUPPLIER = { 14, 5, 20, 10 }; // 공급자: cols 14~19, rows 5~9
-    private static final int[] STAMP_RECEIPT = { 28, 20, 32, 23 }; // 영수: cols 28~31, rows 20~22
+    // 공급자 도장(성명/공급받는자 경계 위)이 영수 도장(우하단)보다 조금 크다.
+    private static final int[] STAMP_SUPPLIER = { 14, 5, 19, 9 };  // 공급자: cols 14~18, rows 5~8 (5x4)
+    private static final int[] STAMP_RECEIPT = { 28, 20, 31, 23 }; // 영수: cols 28~30, rows 20~22 (3x3)
 
     /**
      * 도장 이미지를 각 부(공급받는자용=위, 공급자용=아래)에 2군데씩 찍는다:
