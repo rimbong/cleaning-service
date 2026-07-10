@@ -95,10 +95,15 @@ public class TaxInvoiceService {
         return new TaxInvoiceAggResponse(year, fromMonth, toMonth, b, rows);
     }
 
-    /** 발행 기록 저장 — 그 거래처·기간 집계액으로. */
+    /** 발행 기록 저장 — 그 거래처·기간 집계액으로(중복 발행 방지). */
     @Transactional
     public TaxInvoiceResponse issue(TaxInvoiceIssueRequest req) {
         TaxInvoiceAggResponse agg = aggregate(req.getYear(), req.getFromMonth(), req.getToMonth(), req.getBasis());
+        // 같은 거래처·기간·기준으로 이미 발행됐으면 거부(재발행은 삭제 후 다시)
+        if (taxInvoiceRepository.existsByClient_IdAndPeriodYearAndFromMonthAndToMonthAndBasis(
+                req.getClientId(), req.getYear(), req.getFromMonth(), req.getToMonth(), agg.getBasis())) {
+            throw new BizException(ErrorCode.TAX_INVOICE_ALREADY_ISSUED);
+        }
         TaxInvoiceAggRow row = agg.getRows().stream()
                 .filter(r -> Objects.equals(r.getClientId(), req.getClientId()))
                 .findFirst()
@@ -323,7 +328,8 @@ public class TaxInvoiceService {
                 poi.setMergedData(cell, 8, 28, 32, "");
 
                 // 자릿수 값(9행)
-                poi.setMergedData(cell, 9, 0, 1, ti.getPeriodYear() + "$c");
+                // 작성일 = 발행일 기준(년·월·일 모두 issueDate 로 통일)
+                poi.setMergedData(cell, 9, 0, 1, ti.getIssueDate().getYear() + "$c");
                 poi.setMergedData(cell, 9, 2, 3, ti.getIssueDate().getMonthValue() + "$c");
                 poi.setMergedData(cell, 9, 4, 5, ti.getIssueDate().getDayOfMonth() + "$c");
                 poi.setData(cell, 9, 6, "");

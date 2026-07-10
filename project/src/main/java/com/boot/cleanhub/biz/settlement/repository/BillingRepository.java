@@ -38,6 +38,9 @@ public interface BillingRepository extends JpaRepository<Billing, Long> {
     /** 자동 생성 시 중복 방지 — 그 계약·연월 청구가 이미 있나 */
     boolean existsByContract_IdAndBillYearAndBillMonth(Long contractId, Integer billYear, Integer billMonth);
 
+    /** 견적 1회성 청구 중복 방지 — 그 견적·연월 청구가 이미 있나 */
+    boolean existsByQuote_IdAndBillYearAndBillMonth(Long quoteId, Integer billYear, Integer billMonth);
+
     /** 기간(연·월범위) 청구(계약·거래처·견적 포함) — 세금계산서 집계용 */
     @Query("select b from Billing b"
             + " left join fetch b.contract c left join fetch c.client"

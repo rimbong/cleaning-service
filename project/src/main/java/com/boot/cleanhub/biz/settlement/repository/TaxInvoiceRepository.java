@@ -26,4 +26,8 @@ public interface TaxInvoiceRepository extends JpaRepository<TaxInvoice, Long> {
     /** 단건(거래처 포함) */
     @Query("select t from TaxInvoice t join fetch t.client where t.id = :id")
     Optional<TaxInvoice> findByIdWithClient(Long id);
+
+    /** 중복 발행 방지 — 그 거래처·기간·기준으로 이미 발행 기록이 있나 */
+    boolean existsByClient_IdAndPeriodYearAndFromMonthAndToMonthAndBasis(
+            Long clientId, Integer periodYear, Integer fromMonth, Integer toMonth, String basis);
 }

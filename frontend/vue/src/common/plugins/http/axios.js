@@ -151,6 +151,27 @@ function triggerBlobDownload(res, fallbackName) {
  * @param {string} [options.fallbackName]  Content-Disposition 없을 때 파일명
  * @returns {Promise<void>}
  */
+/**
+ * 다운로드(blob) 요청 에러 처리 — 에러 응답 본문이 Blob(서버 ApiResponse JSON)이면
+ * 텍스트로 읽어 error.response.data 를 파싱된 객체로 교체한다.
+ * 그래야 호출부가 `e.response?.data?.message` 로 서버 에러 메시지를 읽을 수 있다
+ * (responseType:'blob' 이면 에러 본문도 Blob 이라 그냥은 못 읽음).
+ *
+ * @param {*} error axios 에러
+ * @returns {Promise<never>} 항상 재던짐
+ */
+async function rethrowBlobError(error) {
+    const data = error?.response?.data
+    if (data instanceof Blob) {
+        try {
+            error.response.data = JSON.parse(await data.text())
+        } catch (e) {
+            // 파싱 실패 시 원본 유지
+        }
+    }
+    throw error
+}
+
 export function downloadGet(url, options = {}) {
     const { params, onProgress, fallbackName } = options
     return instance
@@ -165,6 +186,7 @@ export function downloadGet(url, options = {}) {
             },
         })
         .then((res) => triggerBlobDownload(res, fallbackName))
+        .catch(rethrowBlobError)
 }
 
 /**
@@ -194,6 +216,7 @@ export function downloadPost(url, options = {}) {
             },
         })
         .then((res) => triggerBlobDownload(res, fallbackName))
+        .catch(rethrowBlobError)
 }
 
 export default instance

@@ -39,7 +39,7 @@ async function downloadExcel() {
     try {
         await taxInvoiceService.downloadExcel(params.value.year, params.value.fromMonth, params.value.toMonth, params.value.basis,
             `세금계산서집계_${params.value.year}_${params.value.fromMonth}-${params.value.toMonth}.xlsx`)
-    } catch (e) { notify.bar('엑셀 다운로드 실패', { color: 'red' }) }
+    } catch (e) { notify.bar(e.response?.data?.message ?? '엑셀 다운로드 실패', { color: 'red' }) }
 }
 
 const issueMut = useMutation({
@@ -56,12 +56,21 @@ const issueMut = useMutation({
 const removeMut = useMutation({
     mutationFn: (id) => taxInvoiceService.remove(id),
     onSuccess: () => { notify.toast('삭제됨', { type: 'info' }); queryClient.invalidateQueries({ queryKey: ['tax-records'] }) },
+    onError: (e) => notify.bar(e.response?.data?.message ?? '삭제 실패', { color: 'red' }),
 })
+
+async function onDeleteRecord(t) {
+    const label = t.clientName ?? '발행 기록'
+    if (!(await notify.confirm(`'${label}' 발행 기록을 삭제하시겠습니까?`))) {
+        return
+    }
+    removeMut.mutate(t.id)
+}
 
 async function downloadForm(t) {
     try {
         await taxInvoiceService.downloadForm(t.id, `세금계산서_${t.clientName ?? t.id}.xlsx`)
-    } catch (e) { notify.bar('세금계산서 양식 다운로드 실패', { color: 'red' }) }
+    } catch (e) { notify.bar(e.response?.data?.message ?? '세금계산서 양식 다운로드 실패', { color: 'red' }) }
 }
 </script>
 
@@ -130,7 +139,7 @@ async function downloadForm(t) {
                         <td>{{ t.issueDate }}</td>
                         <td class="col-actions">
                             <button class="btn btn--sm" @click="downloadForm(t)">양식</button>
-                            <button class="btn btn--sm btn--danger" @click="removeMut.mutate(t.id)">삭제</button>
+                            <button class="btn btn--sm btn--danger" @click="onDeleteRecord(t)">삭제</button>
                         </td>
                     </tr>
                 </tbody>

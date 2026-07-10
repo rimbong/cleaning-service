@@ -58,7 +58,7 @@ async function onDownload() {
     try {
         await expenseService.downloadExcel(appliedKeyword.value, '지출내역.xlsx')
     } catch (e) {
-        notify.bar('엑셀 다운로드에 실패했습니다.', { color: 'red' })
+        notify.bar(e.response?.data?.message ?? '엑셀 다운로드에 실패했습니다.', { color: 'red' })
     } finally {
         downloading.value = false
     }

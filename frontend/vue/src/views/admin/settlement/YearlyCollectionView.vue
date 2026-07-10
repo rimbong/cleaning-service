@@ -37,7 +37,7 @@ async function onDownload() {
     try {
         await settlementService.downloadYearlyExcel(year.value, `거래처수금현황_${year.value}.xlsx`)
     } catch (e) {
-        notify.bar('엑셀 다운로드에 실패했습니다.', { color: 'red' })
+        notify.bar(e.response?.data?.message ?? '엑셀 다운로드에 실패했습니다.', { color: 'red' })
     } finally {
         downloading.value = false
     }

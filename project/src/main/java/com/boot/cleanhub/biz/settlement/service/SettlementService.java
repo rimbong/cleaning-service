@@ -20,6 +20,7 @@ import com.boot.cleanhub.biz.contract.repository.ContractRepository;
 import com.boot.cleanhub.error.BizException;
 import com.boot.cleanhub.error.ErrorCode;
 import com.boot.cleanhub.biz.quote.domain.Quote;
+import com.boot.cleanhub.biz.quote.domain.QuoteStatus;
 import com.boot.cleanhub.biz.quote.repository.QuoteRepository;
 import com.boot.cleanhub.biz.settlement.domain.Billing;
 import com.boot.cleanhub.biz.settlement.domain.Payment;
@@ -113,11 +114,19 @@ public class SettlementService {
         billingRepository.delete(b);
     }
 
-    /** 수락된 견적을 특정 연월의 1회성 청구로 생성. */
+    /** 수락된 견적을 특정 연월의 1회성 청구로 생성(수락 상태만·중복 방지). */
     @Transactional
     public BillingResponse createQuoteBilling(Long quoteId, int year, int month) {
         Quote q = quoteRepository.findByIdWithClient(quoteId)
                 .orElseThrow(() -> new BizException(ErrorCode.QUOTE_NOT_FOUND));
+        // 수락된 견적만 청구로 전환(대기/거절 견적 방지)
+        if (q.getStatus() != QuoteStatus.ACCEPTED) {
+            throw new BizException(ErrorCode.QUOTE_NOT_ACCEPTED);
+        }
+        // 같은 견적·연월 중복 청구 방지(멱등)
+        if (billingRepository.existsByQuote_IdAndBillYearAndBillMonth(quoteId, year, month)) {
+            throw new BizException(ErrorCode.BILLING_ALREADY_EXISTS);
+        }
         Billing b = new Billing();
         b.setQuote(q);
         b.setBillYear(year);

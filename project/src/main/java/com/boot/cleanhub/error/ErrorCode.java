@@ -64,11 +64,14 @@ public enum ErrorCode {
 
     // ===== 견적 (10-02) =====
     QUOTE_NOT_FOUND          ("100201", HttpStatus.NOT_FOUND),
+    QUOTE_NOT_ACCEPTED       ("100202", HttpStatus.CONFLICT),
 
     // ===== 정산 (10-03) =====
     BILLING_NOT_FOUND        ("100301", HttpStatus.NOT_FOUND),
     PAYMENT_NOT_FOUND        ("100302", HttpStatus.NOT_FOUND),
     TAX_INVOICE_NOT_FOUND    ("100303", HttpStatus.NOT_FOUND),
+    BILLING_ALREADY_EXISTS   ("100304", HttpStatus.CONFLICT),
+    TAX_INVOICE_ALREADY_ISSUED("100305", HttpStatus.CONFLICT),
 
     // ===== 지출 (10-04) =====
     EXPENSE_NOT_FOUND        ("100401", HttpStatus.NOT_FOUND),
