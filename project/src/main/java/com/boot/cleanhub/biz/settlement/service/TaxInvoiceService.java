@@ -60,18 +60,24 @@ public class TaxInvoiceService {
     private final ClientRepository clientRepository;
     private final CompanyService companyService;
 
-    /** 거래처별 기간 집계(BILLED=청구합 / PAID=수금합). */
-    public TaxInvoiceAggResponse aggregate(int year, int fromMonth, int toMonth, String basis) {
-        validatePeriod(fromMonth, toMonth);
+    /**
+     * 거래처별 기간 집계(BILLED=청구합 / PAID=수금합).
+     * 기간은 (시작연,시작월)~(종료연,종료월) — 연도 경계(예: 2025-11 ~ 2026-02)도 지원한다.
+     */
+    public TaxInvoiceAggResponse aggregate(int fromYear, int fromMonth, int toYear, int toMonth, String basis) {
+        validatePeriod(fromYear, fromMonth, toYear, toMonth);
         String b = BASIS_PAID.equalsIgnoreCase(basis) ? BASIS_PAID : "BILLED";
-        List<Billing> billings = billingRepository.findByPeriodWithRefs(year, fromMonth, toMonth);
+        // 연·월을 하나의 키(연*100+월)로 만들어 연도 경계 기간도 한 번에 조회
+        int fromKey = fromYear * 100 + fromMonth;
+        int toKey = toYear * 100 + toMonth;
+        List<Billing> billings = billingRepository.findByPeriodWithRefs(fromKey, toKey);
 
         Map<Long, Long> paidMap = new HashMap<>();
         if (BASIS_PAID.equals(b) && !billings.isEmpty()) {
             List<Long> ids = billings.stream().map(Billing::getId).collect(Collectors.toList());
             // 수금 기준: 입금일이 집계 기간 내인 입금만 합산(기간 밖에 들어온 입금은 제외)
-            LocalDate fromDate = YearMonth.of(year, fromMonth).atDay(1);
-            LocalDate toDate = YearMonth.of(year, toMonth).atEndOfMonth();
+            LocalDate fromDate = YearMonth.of(fromYear, fromMonth).atDay(1);
+            LocalDate toDate = YearMonth.of(toYear, toMonth).atEndOfMonth();
             for (Object[] row : paymentRepository.sumGroupedByBillingIdsInPeriod(ids, fromDate, toDate)) {
                 paidMap.put((Long) row[0], ((Number) row[1]).longValue());
             }
@@ -102,27 +108,37 @@ public class TaxInvoiceService {
             rows.add(new TaxInvoiceAggRow(e.getKey(), a.name, a.businessNumber, a.supply, a.tax, a.count));
         }
         rows.sort(Comparator.comparing(TaxInvoiceAggRow::getClientName, Comparator.nullsLast(Comparator.naturalOrder())));
-        return new TaxInvoiceAggResponse(year, fromMonth, toMonth, b, rows);
+        return new TaxInvoiceAggResponse(fromYear, fromMonth, toYear, toMonth, b, rows);
     }
 
     /**
-     * 집계 기간 파라미터 검증 — 월은 1~12, 시작월은 종료월보다 클 수 없다.
+     * 집계 기간 파라미터 검증 — 월은 1~12, 시작 시점(연,월)은 종료 시점보다 이후일 수 없다.
      * GET 파라미터가 원시 int 라 0·13·역순이 들어오면 조용히 빈 결과가 나오던 것을 400 으로 막는다.
-     * (같은 연도 내 기간만 지원 — 연도경계(11~2월)는 화면·파라미터 확장이 필요해 후속 과제로 둔다.)
      */
-    private static void validatePeriod(int fromMonth, int toMonth) {
-        if (fromMonth < 1 || fromMonth > 12 || toMonth < 1 || toMonth > 12 || fromMonth > toMonth) {
+    private static void validatePeriod(int fromYear, int fromMonth, int toYear, int toMonth) {
+        if (fromMonth < 1 || fromMonth > 12 || toMonth < 1 || toMonth > 12) {
             throw new BizException(ErrorCode.INVALID_PERIOD);
         }
+        if (fromYear * 100 + fromMonth > toYear * 100 + toMonth) {
+            throw new BizException(ErrorCode.INVALID_PERIOD);
+        }
+    }
+
+    /** 기간 라벨 — 같은 해면 "2026년 1~6월", 해를 넘기면 "2025년 11월 ~ 2026년 2월". */
+    private static String periodLabel(int fromYear, int fromMonth, int toYear, int toMonth) {
+        if (fromYear == toYear) {
+            return fromYear + "년 " + fromMonth + "~" + toMonth + "월";
+        }
+        return fromYear + "년 " + fromMonth + "월 ~ " + toYear + "년 " + toMonth + "월";
     }
 
     /** 발행 기록 저장 — 그 거래처·기간 집계액으로(중복 발행 방지). */
     @Transactional
     public TaxInvoiceResponse issue(TaxInvoiceIssueRequest req) {
-        TaxInvoiceAggResponse agg = aggregate(req.getYear(), req.getFromMonth(), req.getToMonth(), req.getBasis());
+        TaxInvoiceAggResponse agg = aggregate(req.getFromYear(), req.getFromMonth(), req.getToYear(), req.getToMonth(), req.getBasis());
         // 같은 거래처·기간·기준으로 이미 발행됐으면 거부(재발행은 삭제 후 다시)
-        if (taxInvoiceRepository.existsByClient_IdAndPeriodYearAndFromMonthAndToMonthAndBasis(
-                req.getClientId(), req.getYear(), req.getFromMonth(), req.getToMonth(), agg.getBasis())) {
+        if (taxInvoiceRepository.existsByClient_IdAndFromYearAndFromMonthAndToYearAndToMonthAndBasis(
+                req.getClientId(), req.getFromYear(), req.getFromMonth(), req.getToYear(), req.getToMonth(), agg.getBasis())) {
             throw new BizException(ErrorCode.TAX_INVOICE_ALREADY_ISSUED);
         }
         TaxInvoiceAggRow row = agg.getRows().stream()
@@ -134,8 +150,9 @@ public class TaxInvoiceService {
 
         TaxInvoice t = new TaxInvoice();
         t.setClient(client);
-        t.setPeriodYear(req.getYear());
+        t.setFromYear(req.getFromYear());
         t.setFromMonth(req.getFromMonth());
+        t.setToYear(req.getToYear());
         t.setToMonth(req.getToMonth());
         t.setSupplyAmount(row.getSupplyAmount());
         t.setTaxAmount(row.getTaxAmount());
@@ -166,10 +183,10 @@ public class TaxInvoiceService {
      * 제목은 setMergedData 로 병합해 넣어(열 너비 영향 없음) 순번 열이 넓어지지 않게 한다.
      * 구성: 0행 제목(병합) / 1행 공백 / 2행 헤더 / 3행~ 데이터 / 마지막 합계.
      */
-    public byte[] buildSummaryExcel(int year, int fromMonth, int toMonth, String basis) {
-        TaxInvoiceAggResponse agg = aggregate(year, fromMonth, toMonth, basis);
+    public byte[] buildSummaryExcel(int fromYear, int fromMonth, int toYear, int toMonth, String basis) {
+        TaxInvoiceAggResponse agg = aggregate(fromYear, fromMonth, toYear, toMonth, basis);
         String basisLabel = BASIS_PAID.equals(agg.getBasis()) ? "수금 기준" : "청구 기준";
-        String titleText = year + "년 " + fromMonth + "~" + toMonth + "월 세금계산서 집계 (" + basisLabel + ")";
+        String titleText = periodLabel(fromYear, fromMonth, toYear, toMonth) + " 세금계산서 집계 (" + basisLabel + ")";
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             PoiMo poi = PoiMo.create("세금계산서집계.xlsx");
             try {

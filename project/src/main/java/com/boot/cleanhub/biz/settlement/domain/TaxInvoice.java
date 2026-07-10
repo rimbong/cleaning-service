@@ -46,13 +46,17 @@ public class TaxInvoice {
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;
 
-    /** 대상 연 */
-    @Column(name = "period_year", nullable = false)
-    private Integer periodYear;
+    /** 대상 시작 연 */
+    @Column(name = "from_year", nullable = false)
+    private Integer fromYear;
 
     /** 대상 시작 월 */
     @Column(name = "from_month", nullable = false)
     private Integer fromMonth;
+
+    /** 대상 종료 연 */
+    @Column(name = "to_year", nullable = false)
+    private Integer toYear;
 
     /** 대상 종료 월 */
     @Column(name = "to_month", nullable = false)

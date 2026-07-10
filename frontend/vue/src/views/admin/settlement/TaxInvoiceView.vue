@@ -11,20 +11,28 @@ const queryClient = useQueryClient()
 
 const now = new Date()
 const params = ref({
-    year: now.getFullYear(),
+    fromYear: now.getFullYear(),
     fromMonth: now.getMonth() + 1 <= 6 ? 1 : 7,
+    toYear: now.getFullYear(),
     toMonth: now.getMonth() + 1 <= 6 ? 6 : 12,
     basis: 'BILLED',
 })
 const issueDate = ref('')
 
-const aggKey = computed(() => ['tax-agg', params.value.year, params.value.fromMonth, params.value.toMonth, params.value.basis])
+const aggKey = computed(() => ['tax-agg', params.value.fromYear, params.value.fromMonth, params.value.toYear, params.value.toMonth, params.value.basis])
 const { data: aggData, isFetching } = useQuery({
     queryKey: aggKey,
-    queryFn: () => taxInvoiceService.aggregate(params.value.year, params.value.fromMonth, params.value.toMonth, params.value.basis).then((r) => r.data.data),
+    queryFn: () => taxInvoiceService.aggregate(params.value).then((r) => r.data.data),
     staleTime: 15_000,
 })
 const agg = computed(() => aggData.value)
+
+/** 기간 라벨 — 같은 해면 "2026.1~6", 해를 넘기면 "2025.11~2026.2" */
+function periodLabel(p) {
+    return p.fromYear === p.toYear
+        ? `${p.fromYear}.${p.fromMonth}~${p.toMonth}`
+        : `${p.fromYear}.${p.fromMonth}~${p.toYear}.${p.toMonth}`
+}
 
 const { data: recordsData } = useQuery({
     queryKey: ['tax-records'],
@@ -37,15 +45,15 @@ function money(v) { return v != null ? Number(v).toLocaleString('ko-KR') : '0' }
 
 async function downloadExcel() {
     try {
-        await taxInvoiceService.downloadExcel(params.value.year, params.value.fromMonth, params.value.toMonth, params.value.basis,
-            `세금계산서집계_${params.value.year}_${params.value.fromMonth}-${params.value.toMonth}.xlsx`)
+        await taxInvoiceService.downloadExcel(params.value, `세금계산서집계_${periodLabel(params.value)}.xlsx`)
     } catch (e) { notify.bar(e.response?.data?.message ?? '엑셀 다운로드 실패', { color: 'red' }) }
 }
 
 const issueMut = useMutation({
     mutationFn: (row) => taxInvoiceService.issue({
         clientId: row.clientId,
-        year: params.value.year, fromMonth: params.value.fromMonth, toMonth: params.value.toMonth,
+        fromYear: params.value.fromYear, fromMonth: params.value.fromMonth,
+        toYear: params.value.toYear, toMonth: params.value.toMonth,
         basis: params.value.basis,
         issueDate: issueDate.value || new Date().toISOString().slice(0, 10),
     }),
@@ -78,9 +86,11 @@ async function downloadForm(t) {
     <section class="tax">
         <div class="toolbar">
             <div class="period">
-                <input v-model.number="params.year" type="number" class="yr" /> 년
-                <input v-model.number="params.fromMonth" type="number" min="1" max="12" class="mo" /> ~
-                <input v-model.number="params.toMonth" type="number" min="1" max="12" class="mo" /> 월
+                <input v-model.number="params.fromYear" type="number" class="yr" />년
+                <input v-model.number="params.fromMonth" type="number" min="1" max="12" class="mo" />월
+                <span class="tilde">~</span>
+                <input v-model.number="params.toYear" type="number" class="yr" />년
+                <input v-model.number="params.toMonth" type="number" min="1" max="12" class="mo" />월
                 <select v-model="params.basis">
                     <option v-for="b in TAX_BASIS" :key="b.value" :value="b.value">{{ b.label }}</option>
                 </select>
@@ -132,7 +142,7 @@ async function downloadForm(t) {
                 <tbody>
                     <tr v-for="t in records" :key="t.id">
                         <td>{{ t.clientName }}</td>
-                        <td>{{ t.periodYear }}.{{ t.fromMonth }}~{{ t.toMonth }}</td>
+                        <td>{{ t.fromYear === t.toYear ? `${t.fromYear}.${t.fromMonth}~${t.toMonth}` : `${t.fromYear}.${t.fromMonth}~${t.toYear}.${t.toMonth}` }}</td>
                         <td>{{ money(t.supplyAmount) }}원</td>
                         <td>{{ money(t.taxAmount) }}원</td>
                         <td>{{ t.basis === 'PAID' ? '수금' : '청구' }}</td>

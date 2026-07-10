@@ -170,8 +170,8 @@ public class SettlementService {
         LocalDate yearEnd = LocalDate.of(year, 12, 31);
         List<Contract> contracts = contractRepository.findOverlappingPeriod(yearStart, yearEnd);
 
-        // (계약id, 월) → 청구id, 그리고 청구id → 최종 수금일
-        List<Billing> billings = billingRepository.findByPeriodWithRefs(year, 1, MONTHS);
+        // (계약id, 월) → 청구id, 그리고 청구id → 최종 수금일 (그 해 1~12월 전체)
+        List<Billing> billings = billingRepository.findByPeriodWithRefs(year * 100 + 1, year * 100 + MONTHS);
         Map<Long, Long> billingIdByKey = new HashMap<>();
         List<Long> billingIds = new ArrayList<>();
         for (Billing b : billings) {

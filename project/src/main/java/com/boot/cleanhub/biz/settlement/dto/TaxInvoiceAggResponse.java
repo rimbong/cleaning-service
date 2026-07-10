@@ -16,17 +16,19 @@ import lombok.Getter;
 @Getter
 public class TaxInvoiceAggResponse {
 
-    private final int year;
+    private final int fromYear;
     private final int fromMonth;
+    private final int toYear;
     private final int toMonth;
     private final String basis;        // BILLED / PAID
     private final long totalSupply;
     private final long totalTax;
     private final List<TaxInvoiceAggRow> rows;
 
-    public TaxInvoiceAggResponse(int year, int fromMonth, int toMonth, String basis, List<TaxInvoiceAggRow> rows) {
-        this.year = year;
+    public TaxInvoiceAggResponse(int fromYear, int fromMonth, int toYear, int toMonth, String basis, List<TaxInvoiceAggRow> rows) {
+        this.fromYear = fromYear;
         this.fromMonth = fromMonth;
+        this.toYear = toYear;
         this.toMonth = toMonth;
         this.basis = basis;
         this.rows = rows;

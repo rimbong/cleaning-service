@@ -25,12 +25,15 @@ public class TaxInvoiceIssueRequest {
     @NotNull(message = "거래처는 필수입니다.")
     private Long clientId;
 
-    @NotNull(message = "연도는 필수입니다.")
-    private Integer year;
+    @NotNull(message = "시작 연도는 필수입니다.")
+    private Integer fromYear;
 
     @NotNull
     @Min(1) @Max(12)
     private Integer fromMonth;
+
+    @NotNull(message = "종료 연도는 필수입니다.")
+    private Integer toYear;
 
     @NotNull
     @Min(1) @Max(12)

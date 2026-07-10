@@ -40,26 +40,31 @@ public class TaxInvoiceAdminController {
 
     private final TaxInvoiceService taxInvoiceService;
 
-    /** 거래처별 기간 집계(청구/수금 기준) 미리보기 */
+    /** 거래처별 기간 집계(청구/수금 기준) 미리보기 — 기간은 (시작연,시작월)~(종료연,종료월) */
     @GetMapping("/aggregate")
     public ApiResponse<TaxInvoiceAggResponse> aggregate(
-            @RequestParam int year,
+            @RequestParam int fromYear,
             @RequestParam int fromMonth,
+            @RequestParam int toYear,
             @RequestParam int toMonth,
             @RequestParam(required = false, defaultValue = "BILLED") String basis) {
-        return ApiResponse.ok(taxInvoiceService.aggregate(year, fromMonth, toMonth, basis));
+        return ApiResponse.ok(taxInvoiceService.aggregate(fromYear, fromMonth, toYear, toMonth, basis));
     }
 
     /** 집계표 엑셀(xlsx) 다운로드 */
     @GetMapping("/excel")
     public ResponseEntity<byte[]> excel(
-            @RequestParam int year,
+            @RequestParam int fromYear,
             @RequestParam int fromMonth,
+            @RequestParam int toYear,
             @RequestParam int toMonth,
             @RequestParam(required = false, defaultValue = "BILLED") String basis) {
-        byte[] bytes = taxInvoiceService.buildSummaryExcel(year, fromMonth, toMonth, basis);
+        byte[] bytes = taxInvoiceService.buildSummaryExcel(fromYear, fromMonth, toYear, toMonth, basis);
         String basisLabel = "PAID".equalsIgnoreCase(basis) ? "수금" : "청구";
-        String filename = "세금계산서집계_" + basisLabel + "_" + year + "_" + fromMonth + "-" + toMonth + ".xlsx";
+        String period = fromYear == toYear
+                ? fromYear + "_" + fromMonth + "-" + toMonth
+                : fromYear + "-" + fromMonth + "_" + toYear + "-" + toMonth;
+        String filename = "세금계산서집계_" + basisLabel + "_" + period + ".xlsx";
         return FileUtillMo.downloadResponse(bytes, filename,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     }

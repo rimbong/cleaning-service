@@ -22,8 +22,9 @@ public class TaxInvoiceResponse {
     private final Long id;
     private final Long clientId;
     private final String clientName;
-    private final Integer periodYear;
+    private final Integer fromYear;
     private final Integer fromMonth;
+    private final Integer toYear;
     private final Integer toMonth;
     private final Long supplyAmount;
     private final Long taxAmount;
@@ -35,8 +36,9 @@ public class TaxInvoiceResponse {
         this.id = t.getId();
         this.clientId = t.getClient() != null ? t.getClient().getId() : null;
         this.clientName = t.getClient() != null ? t.getClient().getName() : null;
-        this.periodYear = t.getPeriodYear();
+        this.fromYear = t.getFromYear();
         this.fromMonth = t.getFromMonth();
+        this.toYear = t.getToYear();
         this.toMonth = t.getToMonth();
         this.supplyAmount = t.getSupplyAmount();
         this.taxAmount = t.getTaxAmount();

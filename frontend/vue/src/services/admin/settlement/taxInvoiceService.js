@@ -5,14 +5,17 @@ import { get, post, del, downloadGet } from '@/common/plugins/http/axios'
  * 기간·거래처 집계(청구/수금 기준) + 발행 기록 + 집계표 엑셀 출력.
  */
 export const taxInvoiceService = {
-    /** 거래처별 기간 집계 → data: { year, fromMonth, toMonth, basis, totalSupply, totalTax, rows[] } */
-    aggregate(year, fromMonth, toMonth, basis) {
-        return get('/api/admin/tax-invoices/aggregate', { params: { year, fromMonth, toMonth, basis } })
+    /**
+     * 거래처별 기간 집계 → data: { fromYear, fromMonth, toYear, toMonth, basis, totalSupply, totalTax, rows[] }
+     * @param {Object} p { fromYear, fromMonth, toYear, toMonth, basis }
+     */
+    aggregate({ fromYear, fromMonth, toYear, toMonth, basis }) {
+        return get('/api/admin/tax-invoices/aggregate', { params: { fromYear, fromMonth, toYear, toMonth, basis } })
     },
 
     /** 집계표 엑셀 다운로드(Bearer 자동, 파일 저장) */
-    downloadExcel(year, fromMonth, toMonth, basis, fallbackName) {
-        return downloadGet('/api/admin/tax-invoices/excel', { params: { year, fromMonth, toMonth, basis }, fallbackName })
+    downloadExcel({ fromYear, fromMonth, toYear, toMonth, basis }, fallbackName) {
+        return downloadGet('/api/admin/tax-invoices/excel', { params: { fromYear, fromMonth, toYear, toMonth, basis }, fallbackName })
     },
 
     /** 발행 기록 목록 → data: TaxInvoiceResponse[] */
