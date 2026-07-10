@@ -11,6 +11,7 @@ import java.util.HashSet;
  * <pre>
     com.boot.cleanhub.util.date.DateUtil 사용 바람
  * </pre>
+ * @deprecated
  * @author In-seong Hwang
  * @version 1.0
  */

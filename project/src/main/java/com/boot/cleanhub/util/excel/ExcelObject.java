@@ -15,9 +15,11 @@ import java.util.Map;
  * <pre>
  *   ExcelObject 
  *   PoiMo를 기반으로 만든 Builder 형태의 Excel 객체
+ *   사용하기에 불완전한 요소가 많음.... PoiMo를 직접 쓰는게 더 나음
  * </pre>
  * 
  * lib : implementation 'org.apache.poi:poi:4.1.2'
+ * @deprecated
  * @author In-seong Hwang
  * @version 1.0
  */
