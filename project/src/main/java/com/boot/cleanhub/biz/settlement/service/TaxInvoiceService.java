@@ -2,6 +2,7 @@ package com.boot.cleanhub.biz.settlement.service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
@@ -12,8 +13,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellReference;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -271,12 +278,13 @@ public class TaxInvoiceService {
     }
 
     /**
-     * 개별 세금계산서(별지 제11호 서식) 엑셀 — 발행 기록 하나를 그 양식으로 출력.
-     * 공급자는 회사정보(Company), 공급받는자는 거래처(Client), 금액은 발행 기록에서.
-     * 공급가액·세액은 자릿수 칸(억·천·백·십·만…)에 한 자리씩 넣는다(원본 양식 재현). 공용 PoiMo 로 그린다.
+     * 개별 세금계산서(별지 제11호 서식) — 빈 양식 템플릿(templates/tax_resource.xls)을 열어 값만 채운다.
+     * 원본 양식의 선·색·병합·라벨을 그대로 유지하려고 코드로 다시 그리지 않고 템플릿을 채우는 방식이다.
+     * 한 장에 2부(공급받는자 보관용=위, 공급자 보관용=아래, +24행 오프셋)가 있어 같은 값을 양쪽에 기입한다.
+     * 공급자는 회사정보(Company), 공급받는자는 거래처(Client), 금액은 발행 기록(TaxInvoice)에서 가져온다.
      *
      * @param id 발행 기록(TaxInvoice) id
-     * @return 별지11호 양식 xlsx 바이트
+     * @return 별지11호 양식 xls 바이트
      */
     public byte[] buildInvoiceForm(Long id) {
         TaxInvoice ti = taxInvoiceRepository.findById(id)
@@ -285,158 +293,114 @@ public class TaxInvoiceService {
         Client buyer = ti.getClient();
         long supply = ti.getSupplyAmount() != null ? ti.getSupplyAmount() : 0L;
         long tax = ti.getTaxAmount() != null ? ti.getTaxAmount() : 0L;
+        LocalDate issue = ti.getIssueDate();
 
-        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            PoiMo poi = PoiMo.create("세금계산서.xlsx");
-            try {
-                for (int c = 0; c <= 32; c++) {
-                    poi.setColumnWidth(c, 3);
-                }
-                CellStyle title = poi.createNewStyle();
-                poi.setFontStyle(title, "맑은 고딕", (short) 16, "bold", false, false);
-                CellStyle sub = poi.createNewStyle();
-                poi.setFontStyle(sub, "맑은 고딕", (short) 9, "normal", false, false);
-                CellStyle label = poi.createNewStyle();
-                poi.setFontStyle(label, "맑은 고딕", (short) 9, "bold", false, false);
-                poi.setBackgroundColor(label, "light-yellow");
-                poi.setLineBorder(label, "thin");
-                CellStyle cell = poi.createNewStyle();
-                poi.setFontStyle(cell, "맑은 고딕", (short) 9, "normal", false, false);
-                poi.setLineBorder(cell, "thin");
-
-                // 제목
-                poi.setMergedData(title, 0, 0, 32, "세  금  계  산  서$c");
-                poi.setMergedData(sub, 1, 0, 32, "( 공급받는자 보관용 )$c");
-
-                // 블록 헤더(공급자 / 공급받는자)
-                poi.setMergedData(label, 2, 0, 15, "공 급 자$c");
-                poi.setMergedData(label, 2, 16, 32, "공 급 받 는 자$c");
-
-                // 등록번호
-                poi.setMergedData(label, 3, 0, 2, "등록번호$c");
-                poi.setMergedData(cell, 3, 3, 15, nvl(supplier.getBusinessNumber()) + "$c");
-                poi.setMergedData(label, 3, 16, 18, "등록번호$c");
-                poi.setMergedData(cell, 3, 19, 32, nvl(buyer.getBusinessNumber()) + "$c");
-
-                // 상호 / 성명
-                poi.setMergedData(label, 4, 0, 2, "상호$c");
-                poi.setMergedData(cell, 4, 3, 8, nvl(supplier.getCompanyName()) + "$c");
-                poi.setMergedData(label, 4, 9, 10, "성명$c");
-                poi.setMergedData(cell, 4, 11, 15, nvl(supplier.getOwnerName()) + "$c");
-                poi.setMergedData(label, 4, 16, 18, "상호$c");
-                poi.setMergedData(cell, 4, 19, 25, nvl(buyer.getName()) + "$c");
-                poi.setMergedData(label, 4, 26, 27, "성명$c");
-                poi.setMergedData(cell, 4, 28, 32, nvl(buyer.getRepresentativeName()) + "$c");
-
-                // 사업장 주소
-                poi.setMergedData(label, 5, 0, 2, "사업장$c");
-                poi.setMergedData(cell, 5, 3, 15, nvl(supplier.getAddress()) + "$l");
-                poi.setMergedData(label, 5, 16, 18, "사업장$c");
-                poi.setMergedData(cell, 5, 19, 32, nvl(buyer.getAddress()) + "$l");
-
-                // 업태 / 종목
-                poi.setMergedData(label, 6, 0, 2, "업태$c");
-                poi.setMergedData(cell, 6, 3, 8, nvl(supplier.getBusinessType()) + "$c");
-                poi.setMergedData(label, 6, 9, 10, "종목$c");
-                poi.setMergedData(cell, 6, 11, 15, nvl(supplier.getBusinessItem()) + "$c");
-                poi.setMergedData(label, 6, 16, 18, "업태$c");
-                poi.setMergedData(cell, 6, 19, 25, nvl(buyer.getBusinessType()) + "$c");
-                poi.setMergedData(label, 6, 26, 27, "종목$c");
-                poi.setMergedData(cell, 6, 28, 32, nvl(buyer.getBusinessItem()) + "$c");
-
-                // 작성 / 공급가액 / 세액 / 비고 헤더
-                poi.setMergedData(label, 7, 0, 6, "작성$c");
-                poi.setMergedData(label, 7, 7, 17, "공 급 가 액$c");
-                poi.setMergedData(label, 7, 18, 27, "세 액$c");
-                poi.setMergedData(label, 7, 28, 32, "비고$c");
-
-                // 자릿수 라벨(8행)
-                poi.setMergedData(label, 8, 0, 1, "년$c");
-                poi.setMergedData(label, 8, 2, 3, "월$c");
-                poi.setMergedData(label, 8, 4, 5, "일$c");
-                poi.setData(label, 8, 6, "공란$c");
-                String[] supplyLabels = { "백", "십", "억", "천", "백", "십", "만", "천", "백", "십", "일" };
-                for (int i = 0; i < supplyLabels.length; i++) {
-                    poi.setData(label, 8, 7 + i, supplyLabels[i] + "$c");
-                }
-                String[] taxLabels = { "십", "억", "천", "백", "십", "만", "천", "백", "십", "일" };
-                for (int i = 0; i < taxLabels.length; i++) {
-                    poi.setData(label, 8, 18 + i, taxLabels[i] + "$c");
-                }
-                poi.setMergedData(cell, 8, 28, 32, "");
-
-                // 자릿수 값(9행)
-                // 작성일 = 발행일 기준(년·월·일 모두 issueDate 로 통일)
-                poi.setMergedData(cell, 9, 0, 1, ti.getIssueDate().getYear() + "$c");
-                poi.setMergedData(cell, 9, 2, 3, ti.getIssueDate().getMonthValue() + "$c");
-                poi.setMergedData(cell, 9, 4, 5, ti.getIssueDate().getDayOfMonth() + "$c");
-                poi.setData(cell, 9, 6, "");
-                placeDigits(poi, cell, 9, 7, 17, supply);
-                placeDigits(poi, cell, 9, 18, 27, tax);
-                poi.setMergedData(cell, 9, 28, 32, "");
-
-                // 품목 헤더(10행)
-                poi.setData(label, 10, 0, "월$c");
-                poi.setData(label, 10, 1, "일$c");
-                poi.setMergedData(label, 10, 2, 8, "품목$c");
-                poi.setMergedData(label, 10, 9, 11, "규격$c");
-                poi.setMergedData(label, 10, 12, 14, "수량$c");
-                poi.setMergedData(label, 10, 15, 19, "단가$c");
-                poi.setMergedData(label, 10, 20, 25, "공급가액$c");
-                poi.setMergedData(label, 10, 26, 30, "세액$c");
-                poi.setMergedData(label, 10, 31, 32, "비고$c");
-
-                // 품목 값(11행)
-                poi.setData(cell, 11, 0, ti.getIssueDate().getMonthValue() + "$c");
-                poi.setData(cell, 11, 1, ti.getIssueDate().getDayOfMonth() + "$c");
-                poi.setMergedData(cell, 11, 2, 8, "청소비$c");
-                poi.setMergedData(cell, 11, 9, 11, "");
-                poi.setMergedData(cell, 11, 12, 14, "1$c");
-                poi.setMergedData(cell, 11, 15, 19, String.format("%,d", supply) + "$r");
-                poi.setMergedData(cell, 11, 20, 25, String.format("%,d", supply) + "$r");
-                poi.setMergedData(cell, 11, 26, 30, String.format("%,d", tax) + "$r");
-                poi.setMergedData(cell, 11, 31, 32, "");
-
-                // 합계 헤더(12행)
-                poi.setMergedData(label, 12, 0, 5, "합계금액$c");
-                poi.setMergedData(label, 12, 6, 10, "현금$c");
-                poi.setMergedData(label, 12, 11, 15, "수표$c");
-                poi.setMergedData(label, 12, 16, 20, "어음$c");
-                poi.setMergedData(label, 12, 21, 25, "외상미수금$c");
-                poi.setMergedData(label, 12, 26, 32, "이 금액을 (청구) 함$c");
-
-                // 합계 값(13행)
-                poi.setMergedData(cell, 13, 0, 5, String.format("%,d", supply + tax) + "$r");
-                poi.setMergedData(cell, 13, 6, 10, "");
-                poi.setMergedData(cell, 13, 11, 15, "");
-                poi.setMergedData(cell, 13, 16, 20, "");
-                poi.setMergedData(cell, 13, 21, 25, "");
-                poi.setMergedData(cell, 13, 26, 32, "");
-
-                poi.write(out);
-            } finally {
-                poi.close();
+        try (InputStream in = new ClassPathResource("templates/tax_resource.xls").getInputStream();
+                ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Workbook wb = new HSSFWorkbook(in);
+            Sheet sheet = wb.getSheetAt(0);
+            // 위(공급받는자 보관용)/아래(공급자 보관용) 두 부에 동일 데이터 기입
+            for (int base : new int[] { 0, 24 }) {
+                fillInvoiceCopy(sheet, base, supplier, buyer, supply, tax, issue);
             }
+            wb.write(out);
+            wb.close();
             return out.toByteArray();
         } catch (IOException e) {
             throw new BizException(ErrorCode.FILE_UPLOAD_FAILED);
         }
     }
 
-    /** 금액을 자릿수 칸(startCol~endCol)에 한 자리씩 오른쪽 정렬로 채운다. */
-    private static void placeDigits(PoiMo poi, CellStyle style, int row, int startCol, int endCol, long amount) {
-        String s = String.valueOf(Math.max(0L, amount));
-        int di = s.length() - 1;
-        for (int col = endCol; col >= startCol; col--) {
-            String ch = di >= 0 ? String.valueOf(s.charAt(di)) : "";
-            poi.setData(style, row, col, ch.isEmpty() ? "" : (ch + "$c"));
-            di--;
+    /** 사업자등록번호 자릿수 칸(대시는 양식에 이미 있음) — 공급자/공급받는자. */
+    private static final int[] SUPPLIER_REG_COLS = { 5, 6, 7, 9, 10, 12, 13, 14, 15, 16 };
+    private static final int[] BUYER_REG_COLS = { 21, 22, 23, 25, 26, 28, 29, 30, 31, 32 };
+
+    /**
+     * 별지11호 한 부를 채운다(base = 행 오프셋; 0=위 보관용, 24=아래 보관용).
+     * 셀 스타일(파란 선·글꼴)은 템플릿 것을 그대로 유지하고 값만 넣는다.
+     */
+    private void fillInvoiceCopy(Sheet sheet, int base, CompanyResponse supplier, Client buyer,
+            long supply, long tax, LocalDate issue) {
+        // 공급자
+        placeRegNumber(sheet, base + 4, SUPPLIER_REG_COLS, supplier.getBusinessNumber());
+        setCellText(sheet, base + 6, 5, supplier.getCompanyName());
+        setCellText(sheet, base + 6, 12, supplier.getOwnerName());
+        setCellText(sheet, base + 8, 5, supplier.getAddress());
+        setCellText(sheet, base + 10, 5, supplier.getBusinessType());
+        setCellText(sheet, base + 10, 12, supplier.getBusinessItem());
+        // 공급받는자
+        placeRegNumber(sheet, base + 4, BUYER_REG_COLS, buyer.getBusinessNumber());
+        setCellText(sheet, base + 6, 21, buyer.getName());
+        setCellText(sheet, base + 6, 28, buyer.getRepresentativeName());
+        setCellText(sheet, base + 8, 21, buyer.getAddress());
+        setCellText(sheet, base + 10, 21, buyer.getBusinessType());
+        setCellText(sheet, base + 10, 28, buyer.getBusinessItem());
+        // 작성일(년/월/일)
+        if (issue != null) {
+            setCellNumber(sheet, base + 14, 1, issue.getYear());
+            setCellNumber(sheet, base + 14, 3, issue.getMonthValue());
+            setCellNumber(sheet, base + 14, 4, issue.getDayOfMonth());
+        }
+        // 공급가액(백…일 c7~c17) / 세액(십…일 c18~c27) 자릿수 기입
+        placeAmountDigits(sheet, base + 14, 7, 17, supply);
+        placeAmountDigits(sheet, base + 14, 18, 27, tax);
+        // 품목 첫 행(월/일/품목/공급가액/세액)
+        if (issue != null) {
+            setCellNumber(sheet, base + 16, 1, issue.getMonthValue());
+            setCellNumber(sheet, base + 16, 2, issue.getDayOfMonth());
+        }
+        setCellText(sheet, base + 16, 3, "청소비");
+        setCellNumber(sheet, base + 16, 20, supply);
+        setCellNumber(sheet, base + 16, 26, tax);
+        // 합계금액
+        setCellNumber(sheet, base + 21, 1, supply + tax);
+    }
+
+    /** 셀에 문자열 기입(빈 값이면 건너뜀) — 템플릿 셀 스타일 유지. */
+    private static void setCellText(Sheet sheet, int rowIdx, int colIdx, String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return;
+        }
+        cellAt(sheet, rowIdx, colIdx).setCellValue(value);
+    }
+
+    /** 셀에 숫자 기입 — 템플릿 셀 스타일(표시 형식 포함) 유지. */
+    private static void setCellNumber(Sheet sheet, int rowIdx, int colIdx, double value) {
+        cellAt(sheet, rowIdx, colIdx).setCellValue(value);
+    }
+
+    /** (row,col) 셀을 얻는다(행/셀 없으면 생성). */
+    private static Cell cellAt(Sheet sheet, int rowIdx, int colIdx) {
+        Row row = sheet.getRow(rowIdx);
+        if (row == null) {
+            row = sheet.createRow(rowIdx);
+        }
+        Cell cell = row.getCell(colIdx);
+        if (cell == null) {
+            cell = row.createCell(colIdx);
+        }
+        return cell;
+    }
+
+    /** 사업자등록번호에서 숫자만 뽑아 지정 칸에 한 자리씩(대시는 양식에 이미 있음). */
+    private static void placeRegNumber(Sheet sheet, int rowIdx, int[] cols, String bizNumber) {
+        if (bizNumber == null) {
+            return;
+        }
+        String digits = bizNumber.replaceAll("[^0-9]", "");
+        for (int i = 0; i < cols.length && i < digits.length(); i++) {
+            cellAt(sheet, rowIdx, cols[i]).setCellValue(String.valueOf(digits.charAt(i)));
         }
     }
 
-    /** null → 빈 문자열. */
-    private static String nvl(String s) {
-        return s != null ? s : "";
+    /** 금액을 자릿수 칸(startCol~endCol)에 오른쪽부터 한 자리씩 채운다. */
+    private static void placeAmountDigits(Sheet sheet, int rowIdx, int startCol, int endCol, long amount) {
+        String s = String.valueOf(Math.max(0L, amount));
+        int di = s.length() - 1;
+        for (int col = endCol; col >= startCol && di >= 0; col--) {
+            cellAt(sheet, rowIdx, col).setCellValue(String.valueOf(s.charAt(di)));
+            di--;
+        }
     }
 
     /** (row,col) 0-based 좌표를 엑셀 A1 참조 문자열("D4" 등)로 — SUM 범위 만들 때. */

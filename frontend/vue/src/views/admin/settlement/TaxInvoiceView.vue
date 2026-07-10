@@ -77,7 +77,7 @@ async function onDeleteRecord(t) {
 
 async function downloadForm(t) {
     try {
-        await taxInvoiceService.downloadForm(t.id, `세금계산서_${t.clientName ?? t.id}.xlsx`)
+        await taxInvoiceService.downloadForm(t.id, `세금계산서_${t.clientName ?? t.id}.xls`)
     } catch (e) { notify.bar(e.response?.data?.message ?? '세금계산서 양식 다운로드 실패', { color: 'red' }) }
 }
 </script>
