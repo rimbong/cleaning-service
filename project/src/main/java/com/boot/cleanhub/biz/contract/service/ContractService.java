@@ -178,6 +178,9 @@ public class ContractService {
         contract.setCleaningWeekdays(joinWeekdays(request.getCleaningWeekdays()));
         contract.setCleaningCycle(request.getCleaningCycle() != null ? request.getCleaningCycle() : CleaningCycle.WEEKLY);
         contract.setVatType(request.getVatType() != null ? request.getVatType() : VatType.EXCLUSIVE);
+        contract.setInitialFee(request.getInitialFee());
+        contract.setCleaningScope(request.getCleaningScope());
+        contract.setServiceItems(request.getServiceItems());
     }
 
     /** 유효 요일 코드(월~일). 알 수 없는 값은 버린다. */

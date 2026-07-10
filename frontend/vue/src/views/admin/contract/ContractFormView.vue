@@ -41,6 +41,9 @@ const form = reactive({
     cleaningWeekdays: [],
     cleaningCycle: 'WEEKLY',
     vatType: 'EXCLUSIVE',
+    initialFee: '',
+    cleaningScope: '',
+    serviceItems: '',
     memo: '',
 })
 
@@ -84,6 +87,9 @@ watch(() => props.id, async (id) => {
         form.cleaningWeekdays = Array.isArray(c.cleaningWeekdays) ? [...c.cleaningWeekdays] : []
         form.cleaningCycle = c.cleaningCycle ?? 'WEEKLY'
         form.vatType = c.vatType ?? 'EXCLUSIVE'
+        form.initialFee = c.initialFee ?? ''
+        form.cleaningScope = c.cleaningScope ?? ''
+        form.serviceItems = c.serviceItems ?? ''
         form.memo = c.memo ?? ''
     } catch (e) {
         notify.bar('계약 정보를 불러오지 못했습니다.', { color: 'red' })
@@ -108,6 +114,9 @@ function buildPayload() {
         cleaningWeekdays: form.cleaningWeekdays,
         cleaningCycle: form.cleaningCycle || 'WEEKLY',
         vatType: form.vatType || 'EXCLUSIVE',
+        initialFee: form.initialFee !== '' ? Number(form.initialFee) : null,
+        cleaningScope: form.cleaningScope.trim() || null,
+        serviceItems: form.serviceItems.trim() || null,
         memo: form.memo.trim() || null,
     }
 }
@@ -265,6 +274,22 @@ function onCancel() {
                     <option v-for="v in VAT_TYPES" :key="v.value" :value="v.value">{{ v.label }}</option>
                 </select>
                 <small class="hint">세금계산서 발행 시 공급가액·세액 계산 기준. 별도=청구액이 공급가액, 포함=청구액에 부가세 포함, 면세=세액 없음.</small>
+            </div>
+
+            <div class="row">
+                <div class="field">
+                    <label>초도청소비(원)</label>
+                    <input v-model="form.initialFee" type="number" min="0" step="1" placeholder="최초 1회 청소비(선택)" />
+                </div>
+                <div class="field">
+                    <label>청소 범위</label>
+                    <input v-model="form.cleaningScope" placeholder="예: 지하1층~지상4층 건물내부" maxlength="255" />
+                </div>
+            </div>
+
+            <div class="field">
+                <label>기본 서비스 항목</label>
+                <input v-model="form.serviceItems" placeholder="예: 현관, 계단, 창틀, 우편함, 화장실" maxlength="255" />
             </div>
 
             <div class="field">

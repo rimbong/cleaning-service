@@ -48,6 +48,9 @@ public class ContractResponse {
     private final String cleaningCycleLabel;
     private final VatType vatType;
     private final String vatTypeLabel;
+    private final Long initialFee;
+    private final String cleaningScope;
+    private final String serviceItems;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
 
@@ -71,6 +74,9 @@ public class ContractResponse {
         this.cleaningCycleLabel = c.getCleaningCycle() != null ? c.getCleaningCycle().getLabel() : null;
         this.vatType = c.getVatType();
         this.vatTypeLabel = c.getVatType() != null ? c.getVatType().getLabel() : null;
+        this.initialFee = c.getInitialFee();
+        this.cleaningScope = c.getCleaningScope();
+        this.serviceItems = c.getServiceItems();
         this.createdAt = c.getCreatedAt();
         this.updatedAt = c.getUpdatedAt();
     }

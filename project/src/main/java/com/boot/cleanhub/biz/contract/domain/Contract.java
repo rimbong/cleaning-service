@@ -104,6 +104,18 @@ public class Contract {
     @Column(name = "vat_type", length = 20)
     private VatType vatType;
 
+    /** 초도(최초 1회) 청소비(원, 선택) — 계약서의 "초도청소비" */
+    @Column(name = "initial_fee")
+    private Long initialFee;
+
+    /** 청소 범위(선택) — 예: "지하1층~지상4층 건물내부" */
+    @Column(name = "cleaning_scope", length = 255)
+    private String cleaningScope;
+
+    /** 기본 서비스 항목(선택) — 예: "현관,계단창틀,계단손잡이,우편함,화장실" */
+    @Column(name = "service_items", length = 255)
+    private String serviceItems;
+
     /** 등록 시각 */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
