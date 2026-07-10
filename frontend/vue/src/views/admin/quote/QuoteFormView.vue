@@ -1,13 +1,13 @@
 <script setup>
 // 견적 등록/수정 겸용 폼.
 //  - props.id 없음 → 등록, 있음 → 수정(기존 값 로드).
-//  - 거래처는 선택(비우면 고객 정보를 직접 입력). 수정 로드는 watch 로 props.id 를 명시 추적.
+//  - 거래처는 검색 가능한 모달(ClientPickerField)로 선택(비우면 고객 정보를 직접 입력). 수정 로드는 watch 로 props.id 를 명시 추적.
 import { computed, reactive, ref, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useQueryClient } from '@tanstack/vue-query'
 
 import { quoteService, QUOTE_STATUSES } from '@/services/admin/quote/quoteService'
-import { clientService } from '@/services/admin/client/clientService'
+import ClientPickerField from '@/views/admin/client/ClientPickerField.vue'
 import { useFormErrors } from '@/common/composables/useFormErrors'
 import { useNotifyStore } from '@/stores/common/notify/notify'
 
@@ -39,14 +39,6 @@ const form = reactive({
     status: 'PENDING',
     memo: '',
 })
-
-// 거래처 셀렉트 옵션(선택 항목) — 전용 옵션 API(페이징 없이 전량)로 채운다(200곳 넘어도 누락 없음).
-const { data: clientData } = useQuery({
-    queryKey: ['client-options'],
-    queryFn: () => clientService.options().then((res) => res.data.data),
-    staleTime: 30_000,
-})
-const clientOptions = computed(() => clientData.value ?? [])
 
 // 등록 화면에 ?clientId=... 로 진입하면 해당 거래처를 미리 선택.
 watchEffect(() => {
@@ -156,10 +148,12 @@ function onCancel() {
         <form v-else class="card" @submit.prevent="onSubmit">
             <div class="field">
                 <label>거래처 (선택)</label>
-                <select v-model="form.clientId" @change="clearError('customer')">
-                    <option value="">거래처 미연결(신규 고객)</option>
-                    <option v-for="cl in clientOptions" :key="cl.id" :value="cl.id">{{ cl.name }}</option>
-                </select>
+                <ClientPickerField
+                    v-model="form.clientId"
+                    allow-empty
+                    placeholder="거래처 미연결(신규 고객)"
+                    @update:model-value="clearError('customer')"
+                />
                 <small class="hint">기존 거래처면 선택, 아니면 아래 고객 정보를 입력하세요.</small>
             </div>
 

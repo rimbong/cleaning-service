@@ -1,13 +1,13 @@
 <script setup>
 // 계약 등록/수정 겸용 폼.
 //  - props.id 없음 → 등록,  있음 → 수정(기존 값 로드).
-//  - 거래처(건물)는 셀렉트로 선택(거래처 목록을 불러와 채운다).
+//  - 거래처(건물)는 검색 가능한 모달(ClientPickerField)로 선택한다.
 import { computed, reactive, ref, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useQueryClient } from '@tanstack/vue-query'
 
 import { contractService, CONTRACT_STATUSES, WEEKDAYS, CLEANING_CYCLES, VAT_TYPES } from '@/services/admin/contract/contractService'
-import { clientService } from '@/services/admin/client/clientService'
+import ClientPickerField from '@/views/admin/client/ClientPickerField.vue'
 import { useFormErrors } from '@/common/composables/useFormErrors'
 import { useNotifyStore } from '@/stores/common/notify/notify'
 
@@ -53,14 +53,6 @@ function toggleWeekday(code) {
         form.cleaningWeekdays.push(code)
     }
 }
-
-// 거래처 셀렉트 옵션 — 전용 옵션 API(페이징 없이 전량)로 채운다(거래처가 200곳 넘어도 누락 없음).
-const { data: clientData } = useQuery({
-    queryKey: ['client-options'],
-    queryFn: () => clientService.options().then((res) => res.data.data),
-    staleTime: 30_000,
-})
-const clientOptions = computed(() => clientData.value ?? [])
 
 // 등록 화면에 ?clientId=... 로 진입하면(거래처 상세의 "계약 추가") 해당 거래처를 미리 선택.
 watchEffect(() => {
@@ -180,10 +172,11 @@ function onCancel() {
         <form v-else class="card" @submit.prevent="onSubmit">
             <div class="field" :class="{ 'has-error': errors.clientId }">
                 <label>거래처 <span class="req">*</span></label>
-                <select v-model="form.clientId" @change="clearError('clientId')">
-                    <option value="">거래처 선택</option>
-                    <option v-for="cl in clientOptions" :key="cl.id" :value="cl.id">{{ cl.name }}</option>
-                </select>
+                <ClientPickerField
+                    v-model="form.clientId"
+                    :invalid="!!errors.clientId"
+                    @update:model-value="clearError('clientId')"
+                />
                 <p v-if="errors.clientId" class="err-msg">{{ errors.clientId }}</p>
             </div>
 
