@@ -266,6 +266,14 @@ public class TaxInvoiceService {
                 }
                 poi.setData(total, r, 5, "");
 
+                // 금액 열(공급가액·세액)은 setNumber/SUM 이라 자동 폭 조정이 안 돼, 합계가 크면 #### 로 잘린다.
+                // 큰 합계도 보이도록 너비를 명시한다(상호 열은 이름 길이에 맞춰 자동조정되게 그대로 둔다).
+                poi.setColumnWidth(0, 6);   // 순번
+                poi.setColumnWidth(1, 15);  // 사업자번호
+                poi.setColumnWidth(3, 16);  // 공급가액
+                poi.setColumnWidth(4, 16);  // 세액
+                poi.setColumnWidth(5, 8);   // 건수
+
                 poi.evaluateAllFormulas(); // 수식 결과를 미리 계산해 캐시(뷰어 호환)
                 poi.write(out);
             } finally {
