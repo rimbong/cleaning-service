@@ -18,7 +18,6 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.ClientAnchor;
 import org.apache.poi.ss.usermodel.Drawing;
-import org.apache.poi.ss.usermodel.Picture;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -44,7 +43,6 @@ import com.boot.cleanhub.biz.settlement.repository.TaxInvoiceRepository;
 import com.boot.cleanhub.biz.company.dto.CompanyResponse;
 import com.boot.cleanhub.biz.company.service.CompanyService;
 import com.boot.cleanhub.util.excel.PoiMo;
-import com.boot.cleanhub.util.image.ImageMo;
 
 import lombok.RequiredArgsConstructor;
 
@@ -331,40 +329,36 @@ public class TaxInvoiceService {
         }
     }
 
-    // 도장 목표 크기(px)와 위치(좌상단 셀). 서현푸드처럼 공급자 도장이 영수 도장보다 조금 크다.
-    // 목표 px 로 정규화해 등록한 이미지 해상도와 무관하게 일정한 크기로 찍는다.
-    private static final int STAMP_SUPPLIER_PX = 62; // 공급자 도장(크게)
-    private static final int STAMP_RECEIPT_PX = 46;  // 영수 도장(작게)
-    private static final int STAMP_SUPPLIER_COL = 13; // 공급자 성명/(인) 부근 좌상단 열
-    private static final int STAMP_SUPPLIER_ROW = 5;  // (한 부 내 상대 행)
-    private static final int STAMP_RECEIPT_COL = 29;  // 우하단 "(영수) 함" 부근 좌상단 열
-    private static final int STAMP_RECEIPT_ROW = 20;
+    // 도장 위치·크기 = 셀 영역(col1,row1)~(col2,row2), 한 부 내 상대 좌표(아래 부는 +24행).
+    // 서현푸드처럼 공급자 도장(성명/공급받는자 경계 위)이 영수 도장(우하단)보다 조금 크다.
+    private static final int[] STAMP_SUPPLIER = { 14, 5, 20, 10 }; // 공급자: cols 14~19, rows 5~9
+    private static final int[] STAMP_RECEIPT = { 28, 20, 32, 23 }; // 영수: cols 28~31, rows 20~22
 
     /**
      * 도장 이미지를 각 부(공급받는자용=위, 공급자용=아래)에 2군데씩 찍는다:
-     * (1) 공급자 성명/(인) 자리, (2) 우하단 "이 금액을 (영수) 함" 자리(영수 도장).
-     * 셀에 맞춰 늘리지 않고 목표 px(원본 대비 배율)로 크기를 맞춘다. 이미지 종류는 시그니처로 판별.
+     * (1) 공급자 성명/(인)~공급받는자 경계, (2) 우하단 "이 금액을 (영수) 함"(영수 도장).
+     * 셀 영역(두 셀 앵커)으로 크기·위치를 정한다. 이미지 종류는 바이트 시그니처로 판별.
      */
     private static void insertStamps(Workbook wb, Sheet sheet, byte[] stamp) {
         int picIdx = wb.addPicture(stamp, detectPictureType(stamp));
         Drawing<?> drawing = sheet.createDrawingPatriarch();
-        int nativeW = ImageMo.getWidth(stamp);
-        // 원본 폭을 못 읽으면(희귀) 소형 기본 배율로 폴백
-        double supScale = nativeW > 0 ? STAMP_SUPPLIER_PX / (double) nativeW : 0.5;
-        double recScale = nativeW > 0 ? STAMP_RECEIPT_PX / (double) nativeW : 0.37;
         for (int base : new int[] { 0, 24 }) {
-            placePicture(wb, drawing, picIdx, STAMP_SUPPLIER_COL, base + STAMP_SUPPLIER_ROW, supScale);
-            placePicture(wb, drawing, picIdx, STAMP_RECEIPT_COL, base + STAMP_RECEIPT_ROW, recScale);
+            placePicture(wb, drawing, picIdx, STAMP_SUPPLIER[0], base + STAMP_SUPPLIER[1],
+                    STAMP_SUPPLIER[2], base + STAMP_SUPPLIER[3]);
+            placePicture(wb, drawing, picIdx, STAMP_RECEIPT[0], base + STAMP_RECEIPT[1],
+                    STAMP_RECEIPT[2], base + STAMP_RECEIPT[3]);
         }
     }
 
-    /** 좌상단 셀(col,row)에 그림을 놓고 원본 크기 × scale 로 크기를 맞춘다. */
-    private static void placePicture(Workbook wb, Drawing<?> drawing, int picIdx, int col, int row, double scale) {
+    /** 셀 영역(col1,row1)~(col2,row2)에 그림을 채워 배치. */
+    private static void placePicture(Workbook wb, Drawing<?> drawing, int picIdx,
+            int col1, int row1, int col2, int row2) {
         ClientAnchor anchor = wb.getCreationHelper().createClientAnchor();
-        anchor.setCol1(col);
-        anchor.setRow1(row);
-        Picture pic = drawing.createPicture(anchor, picIdx);
-        pic.resize(scale);
+        anchor.setCol1(col1);
+        anchor.setRow1(row1);
+        anchor.setCol2(col2);
+        anchor.setRow2(row2);
+        drawing.createPicture(anchor, picIdx);
     }
 
     /** 이미지 바이트 시그니처로 POI 그림 종류 판별(PNG/JPEG, 그 외는 PNG 로 가정). */
