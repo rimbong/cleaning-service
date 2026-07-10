@@ -9,6 +9,7 @@ import java.util.List;
 import com.boot.cleanhub.biz.contract.domain.CleaningCycle;
 import com.boot.cleanhub.biz.contract.domain.Contract;
 import com.boot.cleanhub.biz.contract.domain.ContractStatus;
+import com.boot.cleanhub.biz.contract.domain.VatType;
 
 import lombok.Getter;
 
@@ -45,6 +46,8 @@ public class ContractResponse {
     private final List<String> cleaningWeekdays;
     private final CleaningCycle cleaningCycle;
     private final String cleaningCycleLabel;
+    private final VatType vatType;
+    private final String vatTypeLabel;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
 
@@ -66,6 +69,8 @@ public class ContractResponse {
         this.cleaningWeekdays = splitWeekdays(c.getCleaningWeekdays());
         this.cleaningCycle = c.getCleaningCycle();
         this.cleaningCycleLabel = c.getCleaningCycle() != null ? c.getCleaningCycle().getLabel() : null;
+        this.vatType = c.getVatType();
+        this.vatTypeLabel = c.getVatType() != null ? c.getVatType().getLabel() : null;
         this.createdAt = c.getCreatedAt();
         this.updatedAt = c.getUpdatedAt();
     }

@@ -17,6 +17,7 @@ import com.boot.cleanhub.common.dto.PageResponse;
 import com.boot.cleanhub.biz.contract.domain.CleaningCycle;
 import com.boot.cleanhub.biz.contract.domain.Contract;
 import com.boot.cleanhub.biz.contract.domain.ContractStatus;
+import com.boot.cleanhub.biz.contract.domain.VatType;
 import com.boot.cleanhub.biz.contract.dto.ContractRequest;
 import com.boot.cleanhub.biz.contract.dto.ContractResponse;
 import com.boot.cleanhub.biz.contract.dto.ScheduleDay;
@@ -176,6 +177,7 @@ public class ContractService {
         contract.setDoorCode(request.getDoorCode());
         contract.setCleaningWeekdays(joinWeekdays(request.getCleaningWeekdays()));
         contract.setCleaningCycle(request.getCleaningCycle() != null ? request.getCleaningCycle() : CleaningCycle.WEEKLY);
+        contract.setVatType(request.getVatType() != null ? request.getVatType() : VatType.EXCLUSIVE);
     }
 
     /** 유효 요일 코드(월~일). 알 수 없는 값은 버린다. */

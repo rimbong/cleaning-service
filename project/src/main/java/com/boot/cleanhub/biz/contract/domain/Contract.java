@@ -99,6 +99,11 @@ public class Contract {
     @Column(name = "cleaning_cycle", length = 20)
     private CleaningCycle cleaningCycle;
 
+    /** 부가세 기준(별도/포함/면세) — 세금계산서 공급가액·세액 계산에 사용 */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "vat_type", length = 20)
+    private VatType vatType;
+
     /** 등록 시각 */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

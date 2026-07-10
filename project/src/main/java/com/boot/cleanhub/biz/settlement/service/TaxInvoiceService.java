@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.boot.cleanhub.biz.client.domain.Client;
 import com.boot.cleanhub.biz.client.repository.ClientRepository;
+import com.boot.cleanhub.biz.contract.domain.VatType;
 import com.boot.cleanhub.error.BizException;
 import com.boot.cleanhub.error.ErrorCode;
 import com.boot.cleanhub.biz.settlement.domain.Billing;
@@ -77,19 +78,22 @@ public class TaxInvoiceService {
             long amount = BASIS_PAID.equals(b)
                     ? paidMap.getOrDefault(bill.getId(), 0L)
                     : (bill.getAmount() != null ? bill.getAmount() : 0L);
+            // 청구액을 그 계약의 부가세 기준(별도/포함/면세)에 따라 공급가액·세액으로 나눈다.
+            long[] sv = splitVat(amount, vatTypeOf(bill));
             Acc acc = byClient.computeIfAbsent(key, k -> new Acc());
             if (acc.name == null) {
                 acc.name = cl != null ? cl.getName() : "(거래처 미연결)";
                 acc.businessNumber = cl != null ? cl.getBusinessNumber() : null;
             }
-            acc.supply += amount;
+            acc.supply += sv[0];
+            acc.tax += sv[1];
             acc.count += 1;
         }
 
         List<TaxInvoiceAggRow> rows = new ArrayList<>();
         for (Map.Entry<Long, Acc> e : byClient.entrySet()) {
             Acc a = e.getValue();
-            rows.add(new TaxInvoiceAggRow(e.getKey(), a.name, a.businessNumber, a.supply, a.count));
+            rows.add(new TaxInvoiceAggRow(e.getKey(), a.name, a.businessNumber, a.supply, a.tax, a.count));
         }
         rows.sort(Comparator.comparing(TaxInvoiceAggRow::getClientName, Comparator.nullsLast(Comparator.naturalOrder())));
         return new TaxInvoiceAggResponse(year, fromMonth, toMonth, b, rows);
@@ -418,11 +422,43 @@ public class TaxInvoiceService {
         return null;
     }
 
+    /** 청구의 부가세 기준 — 계약의 vatType. 견적 청구/미지정은 기본 EXCLUSIVE(별도). */
+    private static VatType vatTypeOf(Billing b) {
+        if (b.getContract() != null && b.getContract().getVatType() != null) {
+            return b.getContract().getVatType();
+        }
+        return VatType.EXCLUSIVE;
+    }
+
+    /**
+     * 청구 금액을 부가세 기준에 따라 [공급가액, 세액]으로 나눈다.
+     *   EXCLUSIVE(별도): 청구액=공급가액, 세액=공급가액*10%
+     *   INCLUSIVE(포함): 공급가액=청구액/1.1, 세액=청구액-공급가액
+     *   FREE(면세):     공급가액=청구액, 세액=0
+     *
+     * @param amount 청구(또는 수금) 금액
+     * @param vt     부가세 기준
+     * @return {공급가액, 세액}
+     */
+    private static long[] splitVat(long amount, VatType vt) {
+        switch (vt) {
+            case INCLUSIVE:
+                long supply = Math.round(amount / 1.1);
+                return new long[] { supply, amount - supply };
+            case FREE:
+                return new long[] { amount, 0L };
+            case EXCLUSIVE:
+            default:
+                return new long[] { amount, Math.round(amount * 0.1) };
+        }
+    }
+
     /** 거래처별 누적기(집계용) */
     private static final class Acc {
         private String name;
         private String businessNumber;
         private long supply;
+        private long tax;
         private int count;
     }
 }

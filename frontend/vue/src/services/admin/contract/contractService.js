@@ -108,3 +108,10 @@ export const CLEANING_CYCLES = [
     { value: 'BIWEEKLY', label: '격주' },
     { value: 'MONTHLY', label: '매월' },
 ]
+
+/** 부가세 기준 옵션 — 세금계산서 집계에서 공급가액·세액 산출에 사용 */
+export const VAT_TYPES = [
+    { value: 'EXCLUSIVE', label: '부가세 별도' },
+    { value: 'INCLUSIVE', label: '부가세 포함' },
+    { value: 'FREE', label: '면세' },
+]

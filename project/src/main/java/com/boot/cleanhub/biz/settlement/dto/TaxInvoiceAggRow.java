@@ -17,17 +17,17 @@ public class TaxInvoiceAggRow {
     private final Long clientId;        // null = 거래처 미연결(견적 등)
     private final String clientName;
     private final String businessNumber;
-    private final long supplyAmount;    // 공급가액(청구/수금 합)
-    private final long taxAmount;       // 세액(공급가액 * 10%)
+    private final long supplyAmount;    // 공급가액(부가세 기준으로 산출한 합)
+    private final long taxAmount;       // 세액(부가세 기준으로 산출한 합)
     private final int count;            // 청구 건수
 
     public TaxInvoiceAggRow(Long clientId, String clientName, String businessNumber,
-            long supplyAmount, int count) {
+            long supplyAmount, long taxAmount, int count) {
         this.clientId = clientId;
         this.clientName = clientName;
         this.businessNumber = businessNumber;
         this.supplyAmount = supplyAmount;
-        this.taxAmount = Math.round(supplyAmount * 0.1);
+        this.taxAmount = taxAmount;
         this.count = count;
     }
 }

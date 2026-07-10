@@ -222,6 +222,10 @@ async function onRemoveAttachment(a) {
                         <dd>{{ fmt(contract.cleaningCycleLabel) }}</dd>
                     </div>
                     <div class="info-row">
+                        <dt>부가세 기준</dt>
+                        <dd>{{ fmt(contract.vatTypeLabel) }}</dd>
+                    </div>
+                    <div class="info-row">
                         <dt>메모</dt>
                         <dd class="info-multi">{{ fmt(contract.memo) }}</dd>
                     </div>

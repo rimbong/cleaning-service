@@ -13,6 +13,7 @@ import javax.validation.constraints.Size;
 
 import com.boot.cleanhub.biz.contract.domain.CleaningCycle;
 import com.boot.cleanhub.biz.contract.domain.ContractStatus;
+import com.boot.cleanhub.biz.contract.domain.VatType;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -81,6 +82,9 @@ public class ContractRequest {
 
     /** 청소 주기(비우면 매주 WEEKLY) */
     private CleaningCycle cleaningCycle;
+
+    /** 부가세 기준(비우면 부가세 별도 EXCLUSIVE) */
+    private VatType vatType;
 
     /**
      * 종료일-시작일 교차검증 — 둘 다 있을 때만, 종료일이 시작일과 같거나 이후여야 한다.

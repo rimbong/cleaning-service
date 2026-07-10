@@ -6,7 +6,7 @@ import { computed, reactive, ref, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 
-import { contractService, CONTRACT_STATUSES, WEEKDAYS, CLEANING_CYCLES } from '@/services/admin/contract/contractService'
+import { contractService, CONTRACT_STATUSES, WEEKDAYS, CLEANING_CYCLES, VAT_TYPES } from '@/services/admin/contract/contractService'
 import { clientService } from '@/services/admin/client/clientService'
 import { useNotifyStore } from '@/stores/common/notify/notify'
 
@@ -36,6 +36,7 @@ const form = reactive({
     doorCode: '',
     cleaningWeekdays: [],
     cleaningCycle: 'WEEKLY',
+    vatType: 'EXCLUSIVE',
     memo: '',
 })
 
@@ -86,6 +87,7 @@ watch(() => props.id, async (id) => {
         form.doorCode = c.doorCode ?? ''
         form.cleaningWeekdays = Array.isArray(c.cleaningWeekdays) ? [...c.cleaningWeekdays] : []
         form.cleaningCycle = c.cleaningCycle ?? 'WEEKLY'
+        form.vatType = c.vatType ?? 'EXCLUSIVE'
         form.memo = c.memo ?? ''
     } catch (e) {
         notify.bar('계약 정보를 불러오지 못했습니다.', { color: 'red' })
@@ -109,6 +111,7 @@ function buildPayload() {
         doorCode: form.doorCode.trim() || null,
         cleaningWeekdays: form.cleaningWeekdays,
         cleaningCycle: form.cleaningCycle || 'WEEKLY',
+        vatType: form.vatType || 'EXCLUSIVE',
         memo: form.memo.trim() || null,
     }
 }
@@ -248,6 +251,14 @@ function onCancel() {
                         <option v-for="c in CLEANING_CYCLES" :key="c.value" :value="c.value">{{ c.label }}</option>
                     </select>
                 </div>
+            </div>
+
+            <div class="field">
+                <label>부가세 기준</label>
+                <select v-model="form.vatType">
+                    <option v-for="v in VAT_TYPES" :key="v.value" :value="v.value">{{ v.label }}</option>
+                </select>
+                <small class="hint">세금계산서 발행 시 공급가액·세액 계산 기준. 별도=청구액이 공급가액, 포함=청구액에 부가세 포함, 면세=세액 없음.</small>
             </div>
 
             <div class="field">
