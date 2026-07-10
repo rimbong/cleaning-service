@@ -25,10 +25,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 
 import com.boot.cleanhub.common.api.ApiResponse;
+import com.boot.cleanhub.filter.RefreshCookieAutoLoginFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
@@ -87,6 +89,10 @@ public class SessionSecurityConfig {
     @Qualifier("authUserDetailsService")
     private UserDetailsService userDetailsService;
 
+    /** refresh 쿠키로 페이지 요청 시 세션을 재생성하는 자동로그인 필터(로그인 유지) */
+    @Autowired
+    private RefreshCookieAutoLoginFilter refreshCookieAutoLoginFilter;
+
     @Bean
     public SecurityFilterChain sessionFilterChain(HttpSecurity http) throws Exception {
         http
@@ -99,6 +105,10 @@ public class SessionSecurityConfig {
 
             // H2 콘솔이 <frame> 을 쓰므로 frame 차단 해제(개발용)
             .headers(headers -> headers.frameOptions().disable())
+
+            // 자동로그인 필터 — 인가 검사 전에 refresh 쿠키로 세션을 재생성(서버·브라우저 재시작 후
+            // 새로고침해도 관리자 페이지 유지). 로그인 폼 필터보다 앞에 둔다.
+            .addFilterBefore(refreshCookieAutoLoginFilter, UsernamePasswordAuthenticationFilter.class)
 
             // 이 체인이 사용할 인증 총괄 창구/실무자 지정(아래 빈 정의 참고)
             .authenticationManager(sessionAuthenticationManager())
@@ -113,6 +123,7 @@ public class SessionSecurityConfig {
                 // 관리자 전용 "페이지" — ROLE_ADMIN 필요(인가 근거 = 세션에 저장된 권한).
                 //  /admin(정확히) 만 보호. /admin/login·/admin/denied 는 공개(아래 anyRequest permitAll).
                 //  미로그인 → 관리자 로그인 리다이렉트 / 권한 부족 → 403 페이지(아래 예외 처리)
+                //  ※ 자동로그인(POST /api/auth/refresh)이 세션을 함께 재생성하므로, 재시작 후 새로고침도 통과.
                 .antMatchers("/admin").hasRole("ADMIN")
                 // 나머지 전부 허용(테스트 페이지들)
                 .anyRequest().permitAll())
