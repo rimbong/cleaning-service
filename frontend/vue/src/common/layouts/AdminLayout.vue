@@ -97,7 +97,8 @@ async function onLogout() {
 <style scoped>
 .admin {
     display: flex;
-    min-height: 100vh;
+    height: 100vh;      /* 뷰포트 높이에 고정 — 문서 전체가 스크롤되지 않게 */
+    overflow: hidden;   /* 스크롤은 각 영역(사이드바/본문)이 자체적으로 담당 */
 }
 
 /* ── 사이드바 ── */
@@ -109,6 +110,8 @@ async function onLogout() {
     display: flex;
     flex-direction: column;
     padding: 1rem 0.75rem;
+    height: 100vh;      /* 항상 화면 높이만큼 — 본문이 길어도 함께 늘어나지 않음 */
+    overflow-y: auto;   /* 메뉴가 화면보다 길면 사이드바 안에서만 스크롤 */
 }
 
 .admin-brand {
@@ -232,6 +235,8 @@ async function onLogout() {
     flex-direction: column;
     background: var(--muted);
     min-width: 0;
+    height: 100vh;      /* 사이드바와 같은 높이 — 내부에서 헤더 고정 + 본문 스크롤 */
+    overflow: hidden;
 }
 
 .admin-top {
@@ -239,6 +244,7 @@ async function onLogout() {
     border-bottom: 1px solid var(--border);
     padding: 0 1.5rem;
     height: 56px;
+    flex-shrink: 0;     /* 헤더는 항상 고정 높이로 상단에 유지 */
     display: flex;
     align-items: center;
 }
@@ -251,5 +257,7 @@ async function onLogout() {
 .admin-main {
     padding: 1.5rem;
     flex: 1;
+    overflow-y: auto;   /* 본문만 스크롤 — 사이드바/헤더는 제자리에 고정 */
+    min-height: 0;      /* flex 자식이 줄어들 수 있게(스크롤 컨테이너 성립 조건) */
 }
 </style>
