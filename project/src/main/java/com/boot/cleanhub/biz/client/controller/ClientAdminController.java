@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
+import com.boot.cleanhub.biz.client.dto.ClientOption;
 import com.boot.cleanhub.biz.client.dto.ClientRequest;
 import com.boot.cleanhub.biz.client.dto.ClientResponse;
 import com.boot.cleanhub.biz.client.service.ClientService;
@@ -47,6 +50,12 @@ public class ClientAdminController {
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
         return ApiResponse.ok(clientService.list(keyword, PageRequestFactory.of(page, size)));
+    }
+
+    /** 거래처 셀렉트 옵션 전체(페이징 없이 id+건물명) — 계약/견적 폼 드롭다운용 */
+    @GetMapping("/options")
+    public ApiResponse<List<ClientOption>> options() {
+        return ApiResponse.ok(clientService.listOptions());
     }
 
     /** 거래처 단건 조회 */

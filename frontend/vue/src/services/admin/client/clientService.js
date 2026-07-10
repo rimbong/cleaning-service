@@ -29,6 +29,11 @@ export const clientService = {
         return get('/api/admin/clients', { params: query })
     },
 
+    /** 셀렉트 옵션 전체(페이징 없이 id+건물명) → data: ClientOption[]. 계약/견적 폼 드롭다운용 */
+    options() {
+        return get('/api/admin/clients/options')
+    },
+
     /** 단건 조회 → data: ClientResponse */
     get(id) {
         return get(`/api/admin/clients/${id}`)

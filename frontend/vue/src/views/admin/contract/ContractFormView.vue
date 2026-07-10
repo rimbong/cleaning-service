@@ -54,13 +54,13 @@ function toggleWeekday(code) {
     }
 }
 
-// 거래처 셀렉트 옵션 — 목록 API 는 페이징 응답이라, 큰 size 로 한 번에 받아 .content 를 쓴다.
+// 거래처 셀렉트 옵션 — 전용 옵션 API(페이징 없이 전량)로 채운다(거래처가 200곳 넘어도 누락 없음).
 const { data: clientData } = useQuery({
-    queryKey: ['clients', 'options'],
-    queryFn: () => clientService.list({ size: 200 }).then((res) => res.data.data),
+    queryKey: ['client-options'],
+    queryFn: () => clientService.options().then((res) => res.data.data),
     staleTime: 30_000,
 })
-const clientOptions = computed(() => clientData.value?.content ?? [])
+const clientOptions = computed(() => clientData.value ?? [])
 
 // 등록 화면에 ?clientId=... 로 진입하면(거래처 상세의 "계약 추가") 해당 거래처를 미리 선택.
 watchEffect(() => {

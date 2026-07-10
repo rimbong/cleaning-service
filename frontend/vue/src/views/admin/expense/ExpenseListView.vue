@@ -36,6 +36,13 @@ const { data, isLoading, isError, isFetching } = useQuery({
 const expenses = computed(() => data.value?.content ?? [])
 const totalElements = computed(() => data.value?.totalElements ?? 0)
 const totalPages = computed(() => data.value?.totalPages ?? 0)
+
+// 마지막 페이지에서 항목을 모두 지워 페이지 수가 줄면 현재 페이지를 유효 범위로 당긴다(빈 페이지 방지).
+watch(totalPages, (tp) => {
+    if (tp > 0 && page.value > tp) {
+        page.value = tp
+    }
+})
 // 합계는 현재 페이지 기준(전체 합계는 별도 집계가 필요하므로 페이지 합계만 표시)
 const pageSum = computed(() => expenses.value.reduce((s, e) => s + (e.amount ?? 0), 0))
 

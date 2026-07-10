@@ -41,6 +41,13 @@ const contracts = computed(() => data.value?.content ?? [])
 const totalElements = computed(() => data.value?.totalElements ?? 0)
 const totalPages = computed(() => data.value?.totalPages ?? 0)
 
+// 마지막 페이지에서 항목을 모두 지워 페이지 수가 줄면 현재 페이지를 유효 범위로 당긴다(빈 페이지 방지).
+watch(totalPages, (tp) => {
+    if (tp > 0 && page.value > tp) {
+        page.value = tp
+    }
+})
+
 function doSearch() {
     appliedKeyword.value = searchInput.value.trim()
 }

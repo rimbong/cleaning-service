@@ -1,5 +1,7 @@
 package com.boot.cleanhub.biz.client.service;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -7,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.boot.cleanhub.biz.client.domain.Client;
+import com.boot.cleanhub.biz.client.dto.ClientOption;
 import com.boot.cleanhub.biz.client.dto.ClientRequest;
 import com.boot.cleanhub.biz.client.dto.ClientResponse;
 import com.boot.cleanhub.biz.client.repository.ClientRepository;
@@ -50,6 +53,16 @@ public class ClientService {
             clients = clientRepository.findAllByOrderByIdDesc(pageable);
         }
         return PageResponse.from(clients.map(ClientResponse::from));
+    }
+
+    /**
+     * 거래처 셀렉트 옵션 전체 조회(페이징 없이 전량, id+건물명만).
+     * 계약/견적 폼의 거래처 드롭다운용 — 거래처가 많아도 누락 없이 모두 채운다.
+     *
+     * @return 건물명 순 옵션 목록
+     */
+    public List<ClientOption> listOptions() {
+        return clientRepository.findAllOptions();
     }
 
     /**
