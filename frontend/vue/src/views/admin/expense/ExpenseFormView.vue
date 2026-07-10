@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { useQueryClient } from '@tanstack/vue-query'
 
 import { expenseService, EXPENSE_CATEGORIES } from '@/services/admin/expense/expenseService'
+import { useFormErrors } from '@/common/composables/useFormErrors'
 import { useNotifyStore } from '@/stores/common/notify/notify'
 
 const props = defineProps({ id: { type: [String, Number], default: null } })
@@ -17,6 +18,9 @@ const loading = ref(false)
 const saving = ref(false)
 
 const form = reactive({ category: 'FUEL', vendorName: '', businessNumber: '', amount: '', expenseDate: '', memo: '' })
+
+// 필드별 인라인 검증 에러
+const { errors, setError, clearError, reset, hasErrors } = useFormErrors()
 
 watch(() => props.id, async (id) => {
     if (id == null) return
@@ -32,9 +36,22 @@ watch(() => props.id, async (id) => {
     } catch (e) { notify.bar('지출 정보를 불러오지 못했습니다.', { color: 'red' }) } finally { loading.value = false }
 }, { immediate: true })
 
+/** 필드별 검증 — 에러가 있으면 errors 에 담고 false 를 반환한다. */
+function validate() {
+    reset()
+    if (form.amount === '' || Number(form.amount) < 0) {
+        setError('amount', '금액을 0 이상으로 입력하세요.')
+    }
+    if (!form.expenseDate) {
+        setError('expenseDate', '지출일은 필수입니다.')
+    }
+    return !hasErrors()
+}
+
 async function onSubmit() {
-    if (form.amount === '' || Number(form.amount) < 0) { notify.bar('금액을 올바르게 입력하세요.', { color: 'yellow' }); return }
-    if (!form.expenseDate) { notify.bar('지출일은 필수입니다.', { color: 'yellow' }); return }
+    if (!validate()) {
+        return
+    }
     saving.value = true
     try {
         const payload = {
@@ -64,9 +81,10 @@ async function onSubmit() {
                         <option v-for="c in EXPENSE_CATEGORIES" :key="c.value" :value="c.value">{{ c.label }}</option>
                     </select>
                 </div>
-                <div class="field">
+                <div class="field" :class="{ 'has-error': errors.amount }">
                     <label>금액(원) <span class="req">*</span></label>
-                    <input v-model="form.amount" type="number" min="0" step="1" placeholder="예: 50000" />
+                    <input v-model="form.amount" type="number" min="0" step="1" placeholder="예: 50000" @input="clearError('amount')" />
+                    <p v-if="errors.amount" class="err-msg">{{ errors.amount }}</p>
                 </div>
             </div>
             <div class="row">
@@ -79,9 +97,10 @@ async function onSubmit() {
                     <input v-model="form.businessNumber" maxlength="20" />
                 </div>
             </div>
-            <div class="field">
+            <div class="field" :class="{ 'has-error': errors.expenseDate }">
                 <label>지출일 <span class="req">*</span></label>
-                <input v-model="form.expenseDate" type="date" />
+                <input v-model="form.expenseDate" type="date" @input="clearError('expenseDate')" />
+                <p v-if="errors.expenseDate" class="err-msg">{{ errors.expenseDate }}</p>
             </div>
             <div class="field">
                 <label>메모</label>
@@ -105,6 +124,9 @@ async function onSubmit() {
 .req { color: var(--danger); }
 .field input, .field select { padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius); font: inherit; color: var(--text-h); background: #fff; }
 .field input:focus, .field select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.field.has-error input, .field.has-error select { border-color: var(--danger); }
+.field.has-error input:focus, .field.has-error select:focus { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+.err-msg { margin: 0; color: var(--danger); font-size: 0.78rem; }
 .actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
 .btn { padding: 0.55rem 1.2rem; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; color: var(--text-h); cursor: pointer; font: inherit; }
 .btn--ghost { background: transparent; border-color: var(--border); color: var(--text); }

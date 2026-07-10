@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { quoteService, QUOTE_STATUSES } from '@/services/admin/quote/quoteService'
 import { clientService } from '@/services/admin/client/clientService'
+import { useFormErrors } from '@/common/composables/useFormErrors'
 import { useNotifyStore } from '@/stores/common/notify/notify'
 
 const props = defineProps({
@@ -22,6 +23,9 @@ const queryClient = useQueryClient()
 const isEdit = computed(() => props.id != null)
 const loading = ref(false)
 const saving = ref(false)
+
+// 필드별 인라인 검증 에러
+const { errors, setError, clearError, reset, hasErrors } = useFormErrors()
 
 const form = reactive({
     clientId: '',
@@ -92,26 +96,30 @@ function buildPayload() {
     }
 }
 
-async function onSubmit() {
+/** 필드별 검증 — 에러가 있으면 errors 에 담고 false 를 반환한다. */
+function validate() {
+    reset()
     if (!form.title.trim()) {
-        notify.bar('서비스 내용은 필수입니다.', { color: 'yellow' })
-        return
+        setError('title', '서비스 내용은 필수입니다.')
     }
     if (!form.clientId && !form.customerName.trim()) {
-        notify.bar('거래처를 선택하거나 고객명을 입력하세요.', { color: 'yellow' })
-        return
+        setError('customer', '거래처를 선택하거나 고객명을 입력하세요.')
     }
     if (form.amount === '' || Number(form.amount) < 0) {
-        notify.bar('견적 금액을 올바르게 입력하세요.', { color: 'yellow' })
-        return
+        setError('amount', '견적 금액을 0 이상으로 입력하세요.')
     }
     if (!form.quoteDate) {
-        notify.bar('견적일은 필수입니다.', { color: 'yellow' })
-        return
+        setError('quoteDate', '견적일은 필수입니다.')
     }
     // type="date" 값은 YYYY-MM-DD 문자열이라 사전식 비교로 대소 비교 가능
     if (form.validUntil && form.quoteDate && form.validUntil < form.quoteDate) {
-        notify.bar('유효기간은 견적일 이후여야 합니다.', { color: 'yellow' })
+        setError('validUntil', '유효기간은 견적일과 같거나 이후여야 합니다.')
+    }
+    return !hasErrors()
+}
+
+async function onSubmit() {
+    if (!validate()) {
         return
     }
     saving.value = true
@@ -148,7 +156,7 @@ function onCancel() {
         <form v-else class="card" @submit.prevent="onSubmit">
             <div class="field">
                 <label>거래처 (선택)</label>
-                <select v-model="form.clientId">
+                <select v-model="form.clientId" @change="clearError('customer')">
                     <option value="">거래처 미연결(신규 고객)</option>
                     <option v-for="cl in clientOptions" :key="cl.id" :value="cl.id">{{ cl.name }}</option>
                 </select>
@@ -156,9 +164,10 @@ function onCancel() {
             </div>
 
             <div class="row">
-                <div class="field">
+                <div class="field" :class="{ 'has-error': errors.customer }">
                     <label>고객명</label>
-                    <input v-model="form.customerName" placeholder="고객 이름" maxlength="50" />
+                    <input v-model="form.customerName" placeholder="고객 이름" maxlength="50" @input="clearError('customer')" />
+                    <p v-if="errors.customer" class="err-msg">{{ errors.customer }}</p>
                 </div>
                 <div class="field">
                     <label>연락처</label>
@@ -171,15 +180,17 @@ function onCancel() {
                 <input v-model="form.address" placeholder="작업 현장 주소" maxlength="255" />
             </div>
 
-            <div class="field">
+            <div class="field" :class="{ 'has-error': errors.title }">
                 <label>서비스 내용 <span class="req">*</span></label>
-                <input v-model="form.title" placeholder="예: 입주청소, 물탱크청소" maxlength="100" />
+                <input v-model="form.title" placeholder="예: 입주청소, 물탱크청소" maxlength="100" @input="clearError('title')" />
+                <p v-if="errors.title" class="err-msg">{{ errors.title }}</p>
             </div>
 
             <div class="row">
-                <div class="field">
+                <div class="field" :class="{ 'has-error': errors.amount }">
                     <label>견적 금액(원) <span class="req">*</span></label>
-                    <input v-model="form.amount" type="number" min="0" step="1" placeholder="예: 300000" />
+                    <input v-model="form.amount" type="number" min="0" step="1" placeholder="예: 300000" @input="clearError('amount')" />
+                    <p v-if="errors.amount" class="err-msg">{{ errors.amount }}</p>
                 </div>
                 <div class="field">
                     <label>상태</label>
@@ -190,13 +201,15 @@ function onCancel() {
             </div>
 
             <div class="row">
-                <div class="field">
+                <div class="field" :class="{ 'has-error': errors.quoteDate }">
                     <label>견적일 <span class="req">*</span></label>
-                    <input v-model="form.quoteDate" type="date" />
+                    <input v-model="form.quoteDate" type="date" @input="clearError('quoteDate')" />
+                    <p v-if="errors.quoteDate" class="err-msg">{{ errors.quoteDate }}</p>
                 </div>
-                <div class="field">
+                <div class="field" :class="{ 'has-error': errors.validUntil }">
                     <label>유효기간</label>
-                    <input v-model="form.validUntil" type="date" />
+                    <input v-model="form.validUntil" type="date" @input="clearError('validUntil')" />
+                    <p v-if="errors.validUntil" class="err-msg">{{ errors.validUntil }}</p>
                 </div>
             </div>
 
@@ -277,6 +290,26 @@ function onCancel() {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+/* 검증 실패 필드 — 테두리 강조 + 인라인 에러 메시지 */
+.field.has-error input,
+.field.has-error select,
+.field.has-error textarea {
+    border-color: var(--danger);
+}
+
+.field.has-error input:focus,
+.field.has-error select:focus,
+.field.has-error textarea:focus {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
+.err-msg {
+    margin: 0;
+    color: var(--danger);
+    font-size: 0.78rem;
 }
 
 .field textarea {

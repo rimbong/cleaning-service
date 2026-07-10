@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import { contractService, CONTRACT_STATUSES, WEEKDAYS, CLEANING_CYCLES, VAT_TYPES } from '@/services/admin/contract/contractService'
 import { clientService } from '@/services/admin/client/clientService'
+import { useFormErrors } from '@/common/composables/useFormErrors'
 import { useNotifyStore } from '@/stores/common/notify/notify'
 
 const props = defineProps({
@@ -22,6 +23,9 @@ const queryClient = useQueryClient()
 const isEdit = computed(() => props.id != null)
 const loading = ref(false)
 const saving = ref(false)
+
+// 필드별 인라인 검증 에러
+const { errors, setError, clearError, reset, hasErrors } = useFormErrors()
 
 const form = reactive({
     clientId: '',
@@ -116,26 +120,30 @@ function buildPayload() {
     }
 }
 
-async function onSubmit() {
+/** 필드별 검증 — 에러가 있으면 errors 에 담고 false 를 반환한다. */
+function validate() {
+    reset()
     if (!form.clientId) {
-        notify.bar('거래처를 선택하세요.', { color: 'yellow' })
-        return
+        setError('clientId', '거래처를 선택하세요.')
     }
     if (!form.title.trim()) {
-        notify.bar('계약명은 필수입니다.', { color: 'yellow' })
-        return
+        setError('title', '계약명은 필수입니다.')
     }
     if (form.monthlyFee === '' || Number(form.monthlyFee) < 0) {
-        notify.bar('월 청구금액을 올바르게 입력하세요.', { color: 'yellow' })
-        return
+        setError('monthlyFee', '월 청구금액을 0 이상으로 입력하세요.')
     }
     if (!form.startDate) {
-        notify.bar('계약 시작일은 필수입니다.', { color: 'yellow' })
-        return
+        setError('startDate', '계약 시작일은 필수입니다.')
     }
     // type="date" 값은 YYYY-MM-DD 문자열이라 사전식 비교로 대소 비교 가능
     if (form.endDate && form.startDate && form.endDate < form.startDate) {
-        notify.bar('계약 종료일은 시작일 이후여야 합니다.', { color: 'yellow' })
+        setError('endDate', '계약 종료일은 시작일과 같거나 이후여야 합니다.')
+    }
+    return !hasErrors()
+}
+
+async function onSubmit() {
+    if (!validate()) {
         return
     }
     saving.value = true
@@ -170,23 +178,26 @@ function onCancel() {
         <p v-if="loading" class="state">불러오는 중…</p>
 
         <form v-else class="card" @submit.prevent="onSubmit">
-            <div class="field">
+            <div class="field" :class="{ 'has-error': errors.clientId }">
                 <label>거래처 <span class="req">*</span></label>
-                <select v-model="form.clientId">
+                <select v-model="form.clientId" @change="clearError('clientId')">
                     <option value="">거래처 선택</option>
                     <option v-for="cl in clientOptions" :key="cl.id" :value="cl.id">{{ cl.name }}</option>
                 </select>
+                <p v-if="errors.clientId" class="err-msg">{{ errors.clientId }}</p>
             </div>
 
-            <div class="field">
+            <div class="field" :class="{ 'has-error': errors.title }">
                 <label>계약명 <span class="req">*</span></label>
-                <input v-model="form.title" placeholder="예: 2026년 정기 계단청소" maxlength="100" />
+                <input v-model="form.title" placeholder="예: 2026년 정기 계단청소" maxlength="100" @input="clearError('title')" />
+                <p v-if="errors.title" class="err-msg">{{ errors.title }}</p>
             </div>
 
             <div class="row">
-                <div class="field">
+                <div class="field" :class="{ 'has-error': errors.monthlyFee }">
                     <label>월 청구금액(원) <span class="req">*</span></label>
-                    <input v-model="form.monthlyFee" type="number" min="0" step="1" placeholder="예: 150000" />
+                    <input v-model="form.monthlyFee" type="number" min="0" step="1" placeholder="예: 150000" @input="clearError('monthlyFee')" />
+                    <p v-if="errors.monthlyFee" class="err-msg">{{ errors.monthlyFee }}</p>
                 </div>
                 <div class="field">
                     <label>청구일(매월)</label>
@@ -195,13 +206,15 @@ function onCancel() {
             </div>
 
             <div class="row">
-                <div class="field">
+                <div class="field" :class="{ 'has-error': errors.startDate }">
                     <label>계약 시작일 <span class="req">*</span></label>
-                    <input v-model="form.startDate" type="date" />
+                    <input v-model="form.startDate" type="date" @input="clearError('startDate')" />
+                    <p v-if="errors.startDate" class="err-msg">{{ errors.startDate }}</p>
                 </div>
-                <div class="field">
+                <div class="field" :class="{ 'has-error': errors.endDate }">
                     <label>계약 종료일</label>
-                    <input v-model="form.endDate" type="date" />
+                    <input v-model="form.endDate" type="date" @input="clearError('endDate')" />
+                    <p v-if="errors.endDate" class="err-msg">{{ errors.endDate }}</p>
                 </div>
             </div>
 
@@ -338,6 +351,26 @@ function onCancel() {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+/* 검증 실패 필드 — 테두리 강조 + 인라인 에러 메시지 */
+.field.has-error input,
+.field.has-error select,
+.field.has-error textarea {
+    border-color: var(--danger);
+}
+
+.field.has-error input:focus,
+.field.has-error select:focus,
+.field.has-error textarea:focus {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
+.err-msg {
+    margin: 0;
+    color: var(--danger);
+    font-size: 0.78rem;
 }
 
 .field textarea {

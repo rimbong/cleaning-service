@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router'
 import { useQueryClient } from '@tanstack/vue-query'
 
 import { clientService, CLEANING_TYPES, TAX_INVOICE_TYPES } from '@/services/admin/client/clientService'
+import { useFormErrors } from '@/common/composables/useFormErrors'
 import { useNotifyStore } from '@/stores/common/notify/notify'
 
 const props = defineProps({
@@ -19,6 +20,9 @@ const queryClient = useQueryClient()
 const isEdit = computed(() => props.id != null)
 const loading = ref(false)
 const saving = ref(false)
+
+// 필드별 인라인 검증 에러
+const { errors, setError, clearError, reset, hasErrors } = useFormErrors()
 
 const form = reactive({
     name: '',
@@ -82,9 +86,17 @@ function buildPayload() {
     }
 }
 
-async function onSubmit() {
+/** 필드별 검증 — 에러가 있으면 errors 에 담고 false 를 반환한다. */
+function validate() {
+    reset()
     if (!form.name.trim()) {
-        notify.bar('건물명은 필수입니다.', { color: 'yellow' })
+        setError('name', '건물명은 필수입니다.')
+    }
+    return !hasErrors()
+}
+
+async function onSubmit() {
+    if (!validate()) {
         return
     }
     saving.value = true
@@ -119,9 +131,10 @@ function onCancel() {
         <p v-if="loading" class="state">불러오는 중…</p>
 
         <form v-else class="card" @submit.prevent="onSubmit">
-            <div class="field">
+            <div class="field" :class="{ 'has-error': errors.name }">
                 <label>건물명 <span class="req">*</span></label>
-                <input v-model="form.name" placeholder="예: 행복빌라" maxlength="100" />
+                <input v-model="form.name" placeholder="예: 행복빌라" maxlength="100" @input="clearError('name')" />
+                <p v-if="errors.name" class="err-msg">{{ errors.name }}</p>
             </div>
 
             <div class="row">
@@ -269,6 +282,26 @@ function onCancel() {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+/* 검증 실패 필드 — 테두리 강조 + 인라인 에러 메시지 */
+.field.has-error input,
+.field.has-error select,
+.field.has-error textarea {
+    border-color: var(--danger);
+}
+
+.field.has-error input:focus,
+.field.has-error select:focus,
+.field.has-error textarea:focus {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
+.err-msg {
+    margin: 0;
+    color: var(--danger);
+    font-size: 0.78rem;
 }
 
 .field textarea {
