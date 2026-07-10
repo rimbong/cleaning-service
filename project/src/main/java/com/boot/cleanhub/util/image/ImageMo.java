@@ -2,6 +2,7 @@ package com.boot.cleanhub.util.image;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -96,12 +97,37 @@ public final class ImageMo {
 	 * @return 파일의 Height (int)
 	 */
 	public static int getHeight(final File image) throws IOException {
-		
+
 		// 운영 서버 동작시 javax.imageio.ImageIO의 java.lang.NoClassDefFoundError 방지를 위한 SETTING
 		System.setProperty("java.awt.headless", "true");
-		
+
 		BufferedImage bufferedImage = ImageIO.read(image);
 		return bufferedImage.getHeight();
+	}
+
+	/**
+	 * <pre>
+	 * 	이미지 바이트의 Width를 반환(읽기 실패 시 0).
+	 * </pre>
+	 *
+	 * @param bytes
+	 * 			: 이미지 바이트
+	 * @return 이미지의 Width (px). 읽지 못하면 0
+	 */
+	public static int getWidth(final byte[] bytes) {
+
+		// 운영 서버 동작시 javax.imageio.ImageIO의 java.lang.NoClassDefFoundError 방지를 위한 SETTING
+		System.setProperty("java.awt.headless", "true");
+
+		if (bytes == null || bytes.length == 0) {
+			return 0;
+		}
+		try {
+			BufferedImage bufferedImage = ImageIO.read(new ByteArrayInputStream(bytes));
+			return bufferedImage != null ? bufferedImage.getWidth() : 0;
+		} catch (IOException e) {
+			return 0;
+		}
 	}
 
 	/**
