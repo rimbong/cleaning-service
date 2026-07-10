@@ -32,6 +32,18 @@ const { data, isLoading, isError } = useQuery({
 
 const contract = computed(() => data.value)
 
+/**
+ * 목록으로 이동 — 뒤로가기 히스토리가 있으면 그대로 돌아가(목록에서 보던 페이지 유지),
+ * 딥링크로 바로 상세에 들어온 경우엔 목록 route 로 이동한다.
+ */
+function goList() {
+    if (window.history.state?.back) {
+        router.back()
+    } else {
+        router.push({ name: 'admin-contracts' })
+    }
+}
+
 const removeMutation = useMutation({
     mutationFn: () => contractService.remove(props.id),
     onSuccess: () => {
@@ -155,7 +167,7 @@ async function onRemoveAttachment(a) {
 
         <template v-else-if="contract">
             <div class="detail-head">
-                <button class="btn btn--ghost" type="button" @click="router.push({ name: 'admin-contracts' })">
+                <button class="btn btn--ghost" type="button" @click="goList">
                     ← 목록
                 </button>
                 <div class="detail-head__actions">

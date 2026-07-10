@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 
 import { clientService } from '@/services/admin/client/clientService'
 import Pager from '@/common/components/common/Pager.vue'
+import { usePageQuery } from '@/common/composables/usePageQuery'
 import { useNotifyStore } from '@/stores/common/notify/notify'
 
 const router = useRouter()
@@ -16,7 +17,8 @@ const queryClient = useQueryClient()
 // 타이핑마다 요청하지 않고 "검색" 실행 시점에만 반영한다.
 const searchInput = ref('')
 const appliedKeyword = ref('')
-const page = ref(1)
+// 페이지는 URL 쿼리(?page=N)와 동기화 — 상세 왕복/뒤로가기 시 보던 페이지 유지.
+const { page } = usePageQuery()
 
 // 검색어가 바뀌면 1페이지로 되돌린다.
 watch(appliedKeyword, () => {
