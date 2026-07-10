@@ -1,7 +1,7 @@
 <script setup>
 // 관리자 영역 레이아웃 — 좌측 사이드바 + 본문(업무툴 형태).
 // 이 레이아웃 아래 라우트는 라우터 가드로 ROLE_ADMIN 인증을 요구한다.
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/stores/common/auth/auth'
@@ -29,6 +29,22 @@ const menu = [
 // 현재 페이지 제목(라우트 meta.title 우선, 없으면 앱명)
 const pageTitle = computed(() => route.meta.title || '관리자')
 
+// 모바일에서 사이드바(메뉴) 열림 여부 — 좁은 화면에서는 오버레이로 토글한다.
+const sidebarOpen = ref(false)
+
+function toggleSidebar() {
+    sidebarOpen.value = !sidebarOpen.value
+}
+
+function closeSidebar() {
+    sidebarOpen.value = false
+}
+
+// 다른 메뉴로 이동하면 오버레이 사이드바는 닫는다.
+watch(() => route.path, () => {
+    sidebarOpen.value = false
+})
+
 /** 메뉴 활성 판단 — exact 면 정확히, 아니면 경로 프리픽스 매칭 */
 function isActive(item) {
     if (item.exact) {
@@ -49,8 +65,11 @@ async function onLogout() {
 
 <template>
     <div class="admin">
+        <!-- 모바일 오버레이 배경(사이드바 열렸을 때만) -->
+        <div v-if="sidebarOpen" class="admin-backdrop" @click="closeSidebar"></div>
+
         <!-- 사이드바 -->
-        <aside class="admin-side">
+        <aside class="admin-side" :class="{ 'is-open': sidebarOpen }">
             <div class="admin-brand">
                 <span class="admin-brand__logo">🧹</span>
                 <span class="admin-brand__name">CleanHub</span>
@@ -64,6 +83,7 @@ async function onLogout() {
                     :to="item.to"
                     class="admin-menu__item"
                     :class="{ 'is-active': isActive(item) }"
+                    @click="closeSidebar"
                 >
                     <span class="admin-menu__icon">{{ item.icon }}</span>
                     <span>{{ item.label }}</span>
@@ -85,6 +105,7 @@ async function onLogout() {
         <!-- 본문 -->
         <div class="admin-body">
             <header class="admin-top">
+                <button class="admin-hamburger" type="button" aria-label="메뉴 열기" @click="toggleSidebar">☰</button>
                 <h1 class="admin-top__title">{{ pageTitle }}</h1>
             </header>
             <main class="admin-main">
@@ -254,10 +275,61 @@ async function onLogout() {
     margin: 0;
 }
 
+/* 햄버거 — 모바일에서만 노출(데스크톱은 사이드바 상시 표시) */
+.admin-hamburger {
+    display: none;
+    margin-right: 0.75rem;
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text-h);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+/* 모바일 오버레이 배경 — 데스크톱에서는 표시되지 않음 */
+.admin-backdrop {
+    display: none;
+}
+
 .admin-main {
     padding: 1.5rem;
     flex: 1;
     overflow-y: auto;   /* 본문만 스크롤 — 사이드바/헤더는 제자리에 고정 */
     min-height: 0;      /* flex 자식이 줄어들 수 있게(스크롤 컨테이너 성립 조건) */
+}
+
+/* ── 모바일: 사이드바를 오버레이로 접기 ── */
+@media (max-width: 880px) {
+    .admin-hamburger {
+        display: inline-flex;
+        align-items: center;
+    }
+
+    /* 사이드바는 화면 밖에 두고, 열릴 때만 슬라이드 인(오버레이) */
+    .admin-side {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        z-index: 50;
+        transform: translateX(-100%);
+        transition: transform 0.22s ease;
+    }
+
+    .admin-side.is-open {
+        transform: translateX(0);
+        box-shadow: 0 0 24px rgba(0, 0, 0, 0.25);
+    }
+
+    .admin-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        background: rgba(0, 0, 0, 0.4);
+    }
 }
 </style>
