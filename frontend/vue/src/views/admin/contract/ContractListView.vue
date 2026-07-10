@@ -6,6 +6,8 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 
 import { contractService } from '@/services/admin/contract/contractService'
 import Pager from '@/common/components/common/Pager.vue'
+import TableSkeleton from '@/common/components/common/TableSkeleton.vue'
+import EmptyState from '@/common/components/common/EmptyState.vue'
 import { usePageQuery } from '@/common/composables/usePageQuery'
 import { useNotifyStore } from '@/stores/common/notify/notify'
 
@@ -96,7 +98,7 @@ function goDetail(id) {
         </div>
 
         <!-- 상태 -->
-        <p v-if="isLoading" class="state">불러오는 중…</p>
+        <TableSkeleton v-if="isLoading" :rows="5" />
         <p v-else-if="isError" class="state state--err">목록을 불러오지 못했습니다.</p>
 
         <!-- 목록 -->
@@ -141,12 +143,11 @@ function goDetail(id) {
                 </tbody>
             </table>
 
-            <div v-else class="empty">
-                <p>등록된 계약이 없습니다.</p>
+            <EmptyState v-else icon="📄" message="등록된 계약이 없습니다.">
                 <button class="btn btn--primary" type="button" @click="router.push({ name: 'admin-contract-new' })">
                     첫 계약 등록하기
                 </button>
-            </div>
+            </EmptyState>
 
             <Pager v-model:page="page" :total-pages="totalPages" :total-elements="totalElements" />
         </div>
