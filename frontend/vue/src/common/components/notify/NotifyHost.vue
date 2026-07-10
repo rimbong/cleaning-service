@@ -82,9 +82,10 @@ function iconFor(type) {
                 v-for="item in notify.toasts"
                 :key="item.id"
                 class="nf-toast"
+                :class="'nf-toast--' + item.type"
                 @click="notify.removeToast(item.id)"
             >
-                <span class="nf-toast__icon" :class="'nf-toast__icon--' + item.type">{{ iconFor(item.type) }}</span>
+                <span class="nf-toast__icon">{{ iconFor(item.type) }}</span>
                 <span class="nf-toast__text">{{ item.text }}</span>
             </div>
         </TransitionGroup>
@@ -251,40 +252,56 @@ function iconFor(type) {
 .nf-toast {
     display: flex;
     align-items: center;
-    padding: 12px 20px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.85);
-    box-shadow: 0 0 7px 0 rgba(0, 0, 0, 0.25);
-    color: #000;
-    font-size: 14px;
-    font-weight: 100;
+    max-width: 640px;
+    margin: 0 auto; /* 상단 중앙 정렬 */
+    padding: 14px 20px;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    color: #fff; /* 진한 색 배경 위 흰 글씨 */
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
     cursor: pointer;
     pointer-events: auto; /* 클릭해서 닫기 가능 */
+}
+
+/* 타입별 진한 배경색 — 본체 전체에 색을 입혀 눈에 잘 띄게 */
+.nf-toast--success {
+    background: #16a34a;
+}
+
+.nf-toast--error {
+    background: #dc2626;
+}
+
+.nf-toast--info {
+    background: #0284c7;
 }
 
 .nf-toast__icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
-    margin-right: 8px;
+    width: 24px;
+    height: 24px;
+    margin-right: 10px;
     border-radius: 50%;
-    color: #fff;
-    font-size: 12px;
+    background: #fff; /* 흰 원 + 타입 색 글리프로 대비 강조 */
+    font-size: 13px;
+    font-weight: 700;
     flex-shrink: 0;
 }
 
-.nf-toast__icon--success {
-    background: #33be62;
+.nf-toast--success .nf-toast__icon {
+    color: #16a34a;
 }
 
-.nf-toast__icon--error {
-    background: #ff2c30;
+.nf-toast--error .nf-toast__icon {
+    color: #dc2626;
 }
 
-.nf-toast__icon--info {
-    background: #3dd5f3;
+.nf-toast--info .nf-toast__icon {
+    color: #0284c7;
 }
 
 /* 토스트 등장/퇴장: 위(-100px)에서 내려오고, 사라질 때 다시 위로(레거시 top:-100px→80px 재현) */
