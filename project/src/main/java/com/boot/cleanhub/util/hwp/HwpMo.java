@@ -315,7 +315,7 @@ public class HwpMo {
     /**
      * 문서의 첫 번째 그림(도장 자리)의 이미지 내용을 바꾼다.
      * 그림의 위치·크기는 양식에 지정된 대로 유지되고 그림 내용만 바뀐다.
-     * 도장이 글자를 밀어내지 않도록 배치는 "글 앞으로"로 맞춘다.
+     * 도장이 글자를 밀어내지 않도록 본문과의 배치를 InFrontOfText(글자 위에 겹쳐 그림)로 맞춘다.
      *
      * @param imageBytes 새 이미지 바이트(PNG 등). 비어 있으면 아무것도 하지 않는다.
      * @return 바꿨으면 true
@@ -334,7 +334,8 @@ public class HwpMo {
             return false;
         }
         target.setData(imageBytes);
-        // 양식의 그림 배치가 "어울림"이면 글자가 도장을 피해가며 줄이 밀린다. 도장은 글자 위에 겹쳐 찍혀야 한다.
+        // 배치가 FitWithText 면 글자가 그림을 피해 흐르면서 줄이 밀린다(도장 자리에서 글자 간격이 벌어짐).
+        // 도장은 글자를 밀지 않고 그 위에 겹쳐 찍혀야 하므로 InFrontOfText 로 바꾼다.
         picture.getHeader().getProperty().setTextFlowMethod(TextFlowMethod.InFrontOfText);
         picture.getHeader().getProperty().setLikeWord(false);
         picture.getHeader().getProperty().setAllowOverlap(true);
