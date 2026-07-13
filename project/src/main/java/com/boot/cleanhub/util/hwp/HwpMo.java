@@ -3,6 +3,7 @@ package com.boot.cleanhub.util.hwp;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -25,10 +26,15 @@ import kr.dogfoot.hwplib.object.bodytext.control.gso.GsoControlType;
 import kr.dogfoot.hwplib.object.bodytext.control.table.Cell;
 import kr.dogfoot.hwplib.object.bodytext.control.table.Row;
 import kr.dogfoot.hwplib.object.bodytext.paragraph.Paragraph;
+import kr.dogfoot.hwplib.object.bodytext.paragraph.charshape.CharPositionShapeIdPair;
+import kr.dogfoot.hwplib.object.bodytext.paragraph.text.HWPChar;
+import kr.dogfoot.hwplib.object.bodytext.paragraph.text.HWPCharType;
 import kr.dogfoot.hwplib.object.docinfo.BinData;
 import kr.dogfoot.hwplib.reader.HWPReader;
+import kr.dogfoot.hwplib.tool.objectfinder.CellFinder;
 import kr.dogfoot.hwplib.tool.objectfinder.FieldFinder;
 import kr.dogfoot.hwplib.tool.objectfinder.SetFieldResult;
+import kr.dogfoot.hwplib.tool.paragraphadder.ParaTextSetter;
 import kr.dogfoot.hwplib.writer.HWPWriter;
 
 /**
@@ -37,14 +43,19 @@ import kr.dogfoot.hwplib.writer.HWPWriter;
  *   PoiMo(엑셀)와 같은 역할을 HWP 에서 한다.
  *
  *   [쓰는 방식]
- *     빈 양식(.hwp)에 한글에서 미리 넣어 둔 누름틀(필드)에 이름으로 값을 넣는다.
+ *     빈 양식(.hwp)에 한글에서 미리 만들어 둔 "값 자리"를 이름으로 찾아 값을 넣는다.
  *     문서를 코드로 새로 그리지 않으므로 표·선·글꼴 등 양식의 서식이 그대로 보존되고,
- *     양식의 표 구조가 바뀌어도 누름틀 이름만 그대로면 코드를 고칠 필요가 없다.
+ *     양식의 표 구조가 바뀌어도 이름만 그대로면 코드를 고칠 필요가 없다.
+ *
+ *   [값 자리 만드는 방법 — 둘 다 지원한다]
+ *     1) 누름틀   : 한글의 "입력 > 누름틀". 표 안이든 밖이든 넣을 수 있다.
+ *     2) 셀 필드명 : 표 셀 속성의 "필드 이름". 표 안에서만 쓸 수 있다.
+ *     양식 만드는 쪽이 어느 방법을 썼든 같은 이름으로 값이 들어간다.
  *
  *   [무엇을 해 주나]
  *     - open(InputStream)                  : 양식 열기
- *     - setField(name, value) / setFields  : 누름틀에 값 넣기(이름으로 찾음)
- *     - fieldNames()                       : 양식에 들어 있는 누름틀 이름 목록
+ *     - setField(name, value) / setFields  : 값 넣기(누름틀·셀 필드명 모두)
+ *     - fieldNames()                       : 양식에 들어 있는 값 자리 이름 목록
  *     - setPictureImage / clearPictureImage: 도장 그림의 이미지 교체 / 안 보이게
  *     - removeOrphanImages()               : 아무 그림도 안 쓰는 이미지 정리
  *     - write(OutputStream)                : 저장
@@ -101,19 +112,29 @@ public class HwpMo {
      *
      * 값이 null 이거나 비어 있어도 빈 문자열로 넣는다 — 그래야 양식의 안내문이 지워진다.
      *
-     * @param name  누름틀 이름
+     * @param name  필드 이름
      * @param value 넣을 값
-     * @return 넣었으면 true, 그 이름의 누름틀이 없으면 false
+     * @return 넣었으면 true, 그 이름의 자리가 없으면 false
      * @throws IOException 문자열 처리 실패
      */
     public boolean setField(String name, String value) throws IOException {
+        String text = (value == null) ? "" : value;
+        boolean filled = setClickHereFields(name, text);
+        // 한글에서 값 자리를 만드는 방법이 두 가지다(누름틀 / 표 셀에 필드 이름).
+        // 양식 만드는 쪽이 어느 쪽을 썼든 동작하도록 둘 다 채운다.
+        filled |= setCellFields(name, text);
+        return filled;
+    }
+
+    /** 누름틀에 값 넣기. 같은 이름이 여러 개면 모두 채운다. */
+    private boolean setClickHereFields(String name, String text) throws IOException {
         int count = countFields(name);
         if (count == 0) {
             return false;
         }
         List<String> values = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
-            values.add(value == null ? "" : value);
+            values.add(text);
         }
         try {
             SetFieldResult result = FieldFinder.setClickHereText(hwpFile, name, new ArrayList<>(values));
@@ -123,11 +144,80 @@ public class HwpMo {
         }
     }
 
+    /** 표 셀에 붙인 필드 이름으로 찾아 그 칸의 글자를 값으로 바꾼다. */
+    private boolean setCellFields(String name, String text) throws IOException {
+        List<Cell> cells = CellFinder.findAll(hwpFile, name);
+        if (cells.isEmpty()) {
+            return false;
+        }
+        for (Cell cell : cells) {
+            setCellText(cell, text);
+        }
+        return true;
+    }
+
+    /** 칸의 첫 문단 글자를 통째로 값으로 바꾼다. 문단끝 같은 제어문자와 원래 글자모양은 유지한다. */
+    private void setCellText(Cell cell, String text) throws IOException {
+        Paragraph paragraph = cell.getParagraphList().getParagraph(0);
+        if (paragraph.getText() == null) {
+            paragraph.createText();
+        }
+        if (paragraph.getCharShape() == null) {
+            paragraph.createCharShape();
+        }
+        if (paragraph.getCharShape().getPositonShapeIdPairList().isEmpty()) {
+            paragraph.getCharShape().addParaCharShape(0, 0);
+        }
+
+        int lastNormal = -1;
+        List<HWPChar> chars = paragraph.getText().getCharList();
+        for (int i = 0; i < chars.size(); i++) {
+            if (chars.get(i).getType() == HWPCharType.Normal) {
+                lastNormal = i;
+            }
+        }
+
+        if (lastNormal < 0) {
+            // 원래 글자가 없던 칸 — 맨 앞에 넣는다.
+            try {
+                paragraph.getText().insertString(0, text);
+            } catch (UnsupportedEncodingException e) {
+                throw new IOException("셀 필드 '" + text + "' 처리에 실패했습니다.", e);
+            }
+            paragraph.deleteLineSeg();
+            return;
+        }
+
+        int shapeId = shapeIdAt(paragraph, 0);
+        ParaTextSetter.changeText(paragraph, 0, lastNormal, text);
+        // changeText 는 바꾼 구간의 글자모양 지정을 지운다. 값이 원래 글꼴을 잃지 않도록 다시 심는다.
+        // 글자모양 목록은 위치 오름차순이어야 하므로 맨 앞에 끼워 넣는다(addParaCharShape 는 뒤에 붙인다).
+        if (!text.isEmpty() && shapeId >= 0) {
+            CharPositionShapeIdPair pair = new CharPositionShapeIdPair();
+            pair.setPosition(0);
+            pair.setShapeId(shapeId);
+            paragraph.getCharShape().getPositonShapeIdPairList().add(0, pair);
+        }
+    }
+
+    /** position 위치에 적용되는 글자모양 ID(그 위치 이하의 마지막 지정값). 없으면 -1 */
+    private int shapeIdAt(Paragraph paragraph, int position) {
+        int shapeId = -1;
+        for (CharPositionShapeIdPair pair : paragraph.getCharShape().getPositonShapeIdPairList()) {
+            if (pair.getPosition() <= position) {
+                shapeId = (int) pair.getShapeId();
+            } else {
+                break;
+            }
+        }
+        return shapeId;
+    }
+
     /**
-     * 여러 누름틀에 값을 한 번에 넣는다.
+     * 여러 필드에 값을 한 번에 넣는다.
      *
-     * @param values 누름틀 이름 → 값
-     * @return 양식에서 찾지 못한 누름틀 이름들(전부 채웠으면 빈 목록)
+     * @param values 필드 이름 → 값
+     * @return 양식에서 찾지 못한 이름들(전부 채웠으면 빈 목록)
      * @throws IOException 문자열 처리 실패
      */
     public List<String> setFields(Map<String, String> values) throws IOException {
@@ -141,10 +231,10 @@ public class HwpMo {
     }
 
     /**
-     * 양식에 들어 있는 누름틀 이름 목록(중복 포함, 나온 순서대로).
+     * 양식에 들어 있는 값 자리(누름틀 + 표 셀 필드) 이름 목록(중복 포함, 나온 순서대로).
      * 양식과 코드가 어긋났을 때 원인을 찾는 용도.
      *
-     * @return 누름틀 이름 목록
+     * @return 필드 이름 목록
      */
     public List<String> fieldNames() {
         List<String> names = new ArrayList<>();
@@ -157,16 +247,26 @@ public class HwpMo {
     /** 같은 이름의 누름틀이 몇 개인지 */
     private int countFields(String name) {
         int count = 0;
-        for (String each : fieldNames()) {
-            if (each.equals(name)) {
-                count++;
+        for (Section section : hwpFile.getBodyText().getSectionList()) {
+            List<String> names = new ArrayList<>();
+            collectClickHereNames(section, names);
+            for (String each : names) {
+                if (each.equals(name)) {
+                    count++;
+                }
             }
         }
         return count;
     }
 
-    /** 문단 목록(표 셀 포함)을 훑어 누름틀 이름을 모은다. */
+    /** 문단 목록(표 셀 포함)을 훑어 누름틀 이름 + 셀에 붙은 필드 이름을 모두 모은다. */
     private void collectFieldNames(ParagraphListInterface list, List<String> names) {
+        collectClickHereNames(list, names);
+        collectCellFieldNames(list, names);
+    }
+
+    /** 누름틀 이름만 모은다. */
+    private void collectClickHereNames(ParagraphListInterface list, List<String> names) {
         for (Paragraph paragraph : list.getParagraphs()) {
             if (paragraph.getControlList() == null) {
                 continue;
@@ -180,7 +280,30 @@ public class HwpMo {
                 }
                 for (Row row : ((ControlTable) control).getRowList()) {
                     for (Cell cell : row.getCellList()) {
-                        collectFieldNames(cell.getParagraphList(), names);
+                        collectClickHereNames(cell.getParagraphList(), names);
+                    }
+                }
+            }
+        }
+    }
+
+    /** 표 셀에 붙은 필드 이름을 모은다. */
+    private void collectCellFieldNames(ParagraphListInterface list, List<String> names) {
+        for (Paragraph paragraph : list.getParagraphs()) {
+            if (paragraph.getControlList() == null) {
+                continue;
+            }
+            for (Control control : paragraph.getControlList()) {
+                if (control.getType() != ControlType.Table) {
+                    continue;
+                }
+                for (Row row : ((ControlTable) control).getRowList()) {
+                    for (Cell cell : row.getCellList()) {
+                        String name = cell.getListHeader().getFieldName();
+                        if (name != null && !name.isEmpty()) {
+                            names.add(name);
+                        }
+                        collectCellFieldNames(cell.getParagraphList(), names);
                     }
                 }
             }
