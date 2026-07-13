@@ -2,6 +2,7 @@ package com.boot.cleanhub.biz.contract.controller;
 
 import javax.validation.Valid;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,7 +18,9 @@ import com.boot.cleanhub.common.dto.PageRequestFactory;
 import com.boot.cleanhub.common.dto.PageResponse;
 import com.boot.cleanhub.biz.contract.dto.ContractRequest;
 import com.boot.cleanhub.biz.contract.dto.ContractResponse;
+import com.boot.cleanhub.biz.contract.service.ContractDocumentService;
 import com.boot.cleanhub.biz.contract.service.ContractService;
+import com.boot.cleanhub.util.file.FileUtillMo;
 
 import lombok.RequiredArgsConstructor;
 
@@ -38,7 +41,11 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ContractAdminController {
 
+    /** 계약서(HWP) MIME 타입 — 한글 문서 */
+    private static final String HWP_CONTENT_TYPE = "application/x-hwp";
+
     private final ContractService contractService;
+    private final ContractDocumentService contractDocumentService;
 
     /** 계약 목록(계약명 검색 또는 거래처 필터 지원, 페이징) */
     @GetMapping
@@ -66,6 +73,14 @@ public class ContractAdminController {
     @PutMapping("/{id}")
     public ApiResponse<ContractResponse> update(@PathVariable Long id, @Valid @RequestBody ContractRequest request) {
         return ApiResponse.ok(contractService.update(id, request), "계약이 수정되었습니다.");
+    }
+
+    /** 계약서(HWP) 다운로드 — 빈 양식을 계약/거래처/회사정보로 채워 생성. withStamp=true 면 회사 도장 포함 */
+    @GetMapping("/{id}/document")
+    public ResponseEntity<byte[]> document(@PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "false") boolean withStamp) {
+        byte[] bytes = contractDocumentService.buildContractDocument(id, withStamp);
+        return FileUtillMo.downloadResponse(bytes, contractDocumentService.buildFileName(id), HWP_CONTENT_TYPE);
     }
 
     /** 계약 삭제 */

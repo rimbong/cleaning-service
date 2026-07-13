@@ -52,6 +52,16 @@ export const contractService = {
         return del(`/api/admin/contracts/${id}`)
     },
 
+    /**
+     * 계약서(HWP) 다운로드 — 빈 양식을 계약/거래처/회사정보로 채워 받는다.
+     * @param {number} id 계약 ID
+     * @param {string} fallbackName 서버가 파일명을 안 줄 때 쓸 이름
+     * @param {boolean} [withStamp] true 면 회사정보에 등록된 도장을 찍는다
+     */
+    downloadDocument(id, fallbackName, withStamp = false) {
+        return downloadGet(`/api/admin/contracts/${id}/document`, { params: { withStamp }, fallbackName })
+    },
+
     // ===== 계약서 첨부 파일 =====
 
     /** 첨부 목록(메타데이터) → data: ContractAttachmentResponse[] */

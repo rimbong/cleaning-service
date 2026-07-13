@@ -92,6 +92,23 @@ function fmtSize(bytes) {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
+// ===== 계약서(HWP) 양식 =====
+const withStamp = ref(false) // 양식 다운로드 시 회사 도장 포함 여부
+const downloadingDoc = ref(false)
+
+/** 빈 양식에 계약/거래처/회사정보를 채운 계약서 HWP 를 내려받는다. */
+async function onDownloadDocument() {
+    downloadingDoc.value = true
+    try {
+        const fallbackName = `계약서_${contract.value?.clientName ?? props.id}.hwp`
+        await contractService.downloadDocument(props.id, fallbackName, withStamp.value)
+    } catch (e) {
+        notify.bar(e.response?.data?.message ?? '계약서를 만들지 못했습니다.', { color: 'red' })
+    } finally {
+        downloadingDoc.value = false
+    }
+}
+
 // ===== 계약서 첨부 파일 =====
 const fileInput = ref(null)
 const uploading = ref(false)
@@ -264,6 +281,29 @@ async function onRemoveAttachment(a) {
                 </dl>
             </div>
 
+            <!-- 계약서(HWP) 양식 출력 -->
+            <div class="card doc-card">
+                <div class="doc-head">
+                    <h3 class="doc-title">계약서 양식</h3>
+                    <label class="stamp-toggle">
+                        <input v-model="withStamp" type="checkbox" />
+                        도장 포함
+                    </label>
+                    <button
+                        class="btn btn--primary btn--sm"
+                        type="button"
+                        :disabled="downloadingDoc"
+                        @click="onDownloadDocument"
+                    >
+                        {{ downloadingDoc ? '만드는 중…' : '계약서(HWP) 다운로드' }}
+                    </button>
+                </div>
+                <p class="doc-hint">
+                    계단청소 용역 계약서 양식에 이 계약의 내용과 회사정보를 채워 내려받습니다.
+                    도장은 회사정보에 등록된 이미지를 사용합니다.
+                </p>
+            </div>
+
             <!-- 계약서 첨부 파일 -->
             <div class="card attach-card">
                 <div class="attach-head">
@@ -403,6 +443,39 @@ async function onRemoveAttachment(a) {
 }
 
 /* 계약서 첨부 파일 섹션 */
+/* 계약서(HWP) 양식 출력 섹션 */
+.doc-card {
+    margin-top: 1.25rem;
+}
+
+.doc-head {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.doc-title {
+    margin: 0;
+    font-size: 1.05rem;
+    flex: 1;
+}
+
+.stamp-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.doc-hint {
+    margin: 0.75rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-muted, var(--text));
+    line-height: 1.5;
+}
+
 .attach-card {
     margin-top: 1.25rem;
 }

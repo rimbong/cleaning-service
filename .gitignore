@@ -23,6 +23,9 @@ uploads/
 .claude/docs/private/
 # 예외: 세금계산서 빈 양식 템플릿(실제 사업자 데이터 없음, 앱이 런타임에 채움) — 앱 리소스라 커밋 필요.
 !project/src/main/resources/templates/tax_resource.xls
+# 예외: 계약서 빈 양식 템플릿. 원본의 거래처/회사 정보는 전부 {{token}} 으로 치환했고
+#   도장 그림은 1x1 투명 이미지로, 미리보기 스트림(PrvText/PrvImage)은 제거된 상태다.
+!project/src/main/resources/templates/contract_resource.hwp
 
 # 프론트(SPA) 빌드 산출물 — `npm run build` 로 생성되는 생성물이라 커밋하지 않는다.
 #   SPA 를 루트(/)로 서빙하므로 산출물이 static/ 루트(index.html·assets·favicon)에 나온다.
