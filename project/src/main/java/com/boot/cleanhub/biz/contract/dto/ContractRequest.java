@@ -98,6 +98,14 @@ public class ContractRequest {
     @Size(max = 255, message = "서비스 항목은 255자 이하로 입력하세요.")
     private String serviceItems;
 
+    /** 추가 서비스 항목(선택) — 기본 서비스 외에 따로 합의한 작업 */
+    @Size(max = 255, message = "추가 서비스는 255자 이하로 입력하세요.")
+    private String extraServices;
+
+    /** 계약서에 적을 추가사항(선택) — 내부 메모와 달리 계약서에 인쇄된다 */
+    @Size(max = 255, message = "추가사항은 255자 이하로 입력하세요.")
+    private String extraNotes;
+
     /**
      * 종료일-시작일 교차검증 — 둘 다 있을 때만, 종료일이 시작일과 같거나 이후여야 한다.
      * (무기한 계약은 종료일을 비우므로 통과) @AssertTrue 는 isXxx() getter 형태로 인식된다.

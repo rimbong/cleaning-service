@@ -181,6 +181,8 @@ public class ContractService {
         contract.setInitialFee(request.getInitialFee());
         contract.setCleaningScope(request.getCleaningScope());
         contract.setServiceItems(request.getServiceItems());
+        contract.setExtraServices(request.getExtraServices());
+        contract.setExtraNotes(request.getExtraNotes());
     }
 
     /** 유효 요일 코드(월~일). 알 수 없는 값은 버린다. */

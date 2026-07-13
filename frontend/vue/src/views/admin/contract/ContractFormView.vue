@@ -44,6 +44,8 @@ const form = reactive({
     initialFee: '',
     cleaningScope: '',
     serviceItems: '',
+    extraServices: '',
+    extraNotes: '',
     memo: '',
 })
 
@@ -90,6 +92,8 @@ watch(() => props.id, async (id) => {
         form.initialFee = c.initialFee ?? ''
         form.cleaningScope = c.cleaningScope ?? ''
         form.serviceItems = c.serviceItems ?? ''
+        form.extraServices = c.extraServices ?? ''
+        form.extraNotes = c.extraNotes ?? ''
         form.memo = c.memo ?? ''
     } catch (e) {
         notify.bar('계약 정보를 불러오지 못했습니다.', { color: 'red' })
@@ -117,6 +121,8 @@ function buildPayload() {
         initialFee: form.initialFee !== '' ? Number(form.initialFee) : null,
         cleaningScope: form.cleaningScope.trim() || null,
         serviceItems: form.serviceItems.trim() || null,
+        extraServices: form.extraServices.trim() || null,
+        extraNotes: form.extraNotes.trim() || null,
         memo: form.memo.trim() || null,
     }
 }
@@ -293,8 +299,19 @@ function onCancel() {
             </div>
 
             <div class="field">
+                <label>추가 서비스 항목</label>
+                <input v-model="form.extraServices" placeholder="기본 서비스 외에 따로 합의한 작업(선택)" maxlength="255" />
+            </div>
+
+            <div class="field">
+                <label>계약서 추가사항</label>
+                <input v-model="form.extraNotes" placeholder="특약 등, 계약서에 인쇄될 내용(선택)" maxlength="255" />
+                <small class="hint">계약서(HWP)의 "추가사항" 칸에 그대로 인쇄됩니다. 내부용 내용은 아래 메모에 적으세요.</small>
+            </div>
+
+            <div class="field">
                 <label>메모</label>
-                <textarea v-model="form.memo" rows="4" placeholder="특이사항, 요청 내용 등"></textarea>
+                <textarea v-model="form.memo" rows="4" placeholder="내부용 메모(계약서에는 인쇄되지 않습니다)"></textarea>
             </div>
 
             <div class="actions">

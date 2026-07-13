@@ -51,6 +51,8 @@ public class ContractResponse {
     private final Long initialFee;
     private final String cleaningScope;
     private final String serviceItems;
+    private final String extraServices;
+    private final String extraNotes;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
 
@@ -77,6 +79,8 @@ public class ContractResponse {
         this.initialFee = c.getInitialFee();
         this.cleaningScope = c.getCleaningScope();
         this.serviceItems = c.getServiceItems();
+        this.extraServices = c.getExtraServices();
+        this.extraNotes = c.getExtraNotes();
         this.createdAt = c.getCreatedAt();
         this.updatedAt = c.getUpdatedAt();
     }

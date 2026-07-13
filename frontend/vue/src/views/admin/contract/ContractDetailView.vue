@@ -267,7 +267,15 @@ async function onRemoveAttachment(a) {
                         <dd>{{ fmt(contract.serviceItems) }}</dd>
                     </div>
                     <div class="info-row">
-                        <dt>메모</dt>
+                        <dt>추가 서비스 항목</dt>
+                        <dd>{{ fmt(contract.extraServices) }}</dd>
+                    </div>
+                    <div class="info-row">
+                        <dt>계약서 추가사항</dt>
+                        <dd>{{ fmt(contract.extraNotes) }}</dd>
+                    </div>
+                    <div class="info-row">
+                        <dt>메모(내부용)</dt>
                         <dd class="info-multi">{{ fmt(contract.memo) }}</dd>
                     </div>
                     <div class="info-row">

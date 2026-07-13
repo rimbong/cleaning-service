@@ -116,6 +116,14 @@ public class Contract {
     @Column(name = "service_items", length = 255)
     private String serviceItems;
 
+    /** 추가 서비스 항목(선택) — 기본 서비스 외에 따로 합의한 작업. 계약서의 "추가서비스" */
+    @Column(name = "extra_services", length = 255)
+    private String extraServices;
+
+    /** 계약서에 적을 추가사항(선택) — 특약 등. 내부용 memo 와 달리 고객에게 나가는 문서에 인쇄된다. */
+    @Column(name = "extra_notes", length = 255)
+    private String extraNotes;
+
     /** 등록 시각 */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -142,8 +142,9 @@ public class ContractDocumentService {
         // 청소 내역
         values.put("cleaningScope", cleaningScopeText(contract));
         values.put("serviceItems", contract.getServiceItems());
-        values.put("extraServices", "");
-        values.put("extraNotes", contract.getMemo());
+        values.put("extraServices", contract.getExtraServices());
+        // 계약의 memo 는 관리자 내부용이라 고객에게 나가는 계약서에 넣지 않는다. 계약서에 적을 내용은 extraNotes.
+        values.put("extraNotes", contract.getExtraNotes());
 
         // 고객 부담
         values.put("contractPeriod", periodText(contract));
