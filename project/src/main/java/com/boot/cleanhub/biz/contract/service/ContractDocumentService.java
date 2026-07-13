@@ -69,6 +69,9 @@ public class ContractDocumentService {
     /** 계약기간 표기의 종료일 — "2027 년 7월 12일까지" */
     private static final DateTimeFormatter PERIOD_TO = DateTimeFormatter.ofPattern("yyyy 년 M월 d일까지");
 
+    /** 금액이 없거나 0 일 때의 표기 — 칸을 비워 두지 않고 0원임을 명시한다 */
+    private static final String ZERO_FEE = "0 원정, (0 원)";
+
     private final ContractRepository contractRepository;
     private final CompanyService companyService;
 
@@ -144,7 +147,7 @@ public class ContractDocumentService {
 
         // 고객 부담
         values.put("contractPeriod", periodText(contract));
-        values.put("initialFee", moneyText(contract.getInitialFee()));
+        values.put("initialFee", initialFeeText(contract));
         values.put("monthlyFee", monthlyFeeText(contract));
         values.put("paymentMethod", contract.getPaymentMethod());
 
@@ -207,6 +210,18 @@ public class ContractDocumentService {
             return from + " (무기한)";
         }
         return from + "  " + formatOrEmpty(end, PERIOD_TO);
+    }
+
+    /**
+     * 초도청소비 — 안 받는 계약이 많아 값이 비는데, 그렇다고 칸을 비워 두면 계약서가 허전하다.
+     * 값이 없거나 0 이면 원본 양식처럼 0원으로 명시한다("일금 영 원정" 은 어색해서 쓰지 않는다).
+     */
+    private String initialFeeText(Contract contract) {
+        Long fee = contract.getInitialFee();
+        if (fee == null || fee == 0L) {
+            return ZERO_FEE;
+        }
+        return moneyText(fee);
     }
 
     /** 금액 — "일금 삼십만 원정, (300,000 원)". 금액이 없으면 빈 문자열 */
