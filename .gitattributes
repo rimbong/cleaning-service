@@ -1,0 +1,10 @@
+# 윈도우 배치 파일(.bat)은 CRLF + CP949(한글 Windows 기본 코드페이지)로 저장한다.
+#   - LF 로 저장되면 cmd.exe 가 여러 줄 블록( if (...) 등 )을 잘못 읽어 스크립트가 깨진다.
+#   - UTF-8 로 저장하고 배치 안에서 chcp 65001 을 하면 cmd 가 이후 줄을 잘못 읽어
+#     "call" 같은 단어가 통째로 사라지는 일이 생긴다.
+# git 이 인코딩을 건드리지 않도록 binary 로 취급하되, CRLF 는 보장한다.
+*.bat -text
+*.cmd -text
+
+# PowerShell 스크립트는 UTF-8 이라 텍스트로 두되 줄바꿈만 CRLF 로 맞춘다.
+*.ps1 text eol=crlf
