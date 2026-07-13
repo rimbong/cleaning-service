@@ -13,6 +13,10 @@ uploads/
 # 빌드 스킬 머신 전용 설정 (절대경로·SSL 우회 — 커밋 금지)
 .claude/scripts/build.env.ps1
 
+# 배포 PC 전용 설정 — DB 비밀번호·JWT 시크릿이 들어간다. 절대 커밋 금지.
+#   (템플릿인 deploy/cleanhub-env.example.bat 만 커밋한다)
+deploy/cleanhub-env.bat
+
 # 업무 자료(거래처명·금액 등 민감정보) — 절대 커밋 금지.
 #   엑셀/한글 등 원본 자료 전반 + 민감자료 전용 드롭 폴더(.claude/docs/private/).
 *.xls
@@ -21,10 +25,12 @@ uploads/
 *.hwp
 *.hwpx
 .claude/docs/private/
+# 화면 캡처 — 계약서 내용·도장·거래처명이 찍혀 있어 민감자료로 취급한다.
+.claude/screenshot/
 # 예외: 세금계산서 빈 양식 템플릿(실제 사업자 데이터 없음, 앱이 런타임에 채움) — 앱 리소스라 커밋 필요.
 !project/src/main/resources/templates/tax_resource.xls
-# 예외: 계약서 빈 양식 템플릿. 원본의 거래처/회사 정보는 전부 {{token}} 으로 치환했고
-#   도장 그림은 1x1 투명 이미지로, 미리보기 스트림(PrvText/PrvImage)은 제거된 상태다.
+# 예외: 계약서 빈 양식 템플릿. 값 자리는 누름틀(필드)만 있고 거래처/회사 정보는 들어 있지 않다.
+#   도장 자리의 그림도 실제 인감이 아니라 SAMPLE 이미지다(앱이 다운로드 시 진짜 도장으로 바꾸거나 투명 처리).
 !project/src/main/resources/templates/contract_resource.hwp
 
 # 프론트(SPA) 빌드 산출물 — `npm run build` 로 생성되는 생성물이라 커밋하지 않는다.
