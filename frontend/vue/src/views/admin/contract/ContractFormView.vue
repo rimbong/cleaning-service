@@ -93,26 +93,25 @@ const scheduleSummary = computed(() => {
     return `${cycleLabel} ${picked.join('·')} → 월 ${suggestedVisits.value}회`
 })
 
-// 사용자가 직접 고쳤는지 추적한다. 고친 값을 요일 하나 바꿨다고 덮어쓰면 안 되기 때문이다.
-const visitsTouched = ref(false)
+/**
+ * 월 방문 횟수를 직접 지정할지.
+ *
+ * 대부분의 계약은 요일·주기로 떨어지므로 평소에는 신경 쓸 필요가 없다.
+ * 월 3회처럼 요일·주기로 표현할 수 없는 예외 계약만 체크해서 숫자를 넣는다.
+ * 체크를 안 하면 서버가 요일·주기로 환산하므로 값이 한 곳에서만 관리된다.
+ */
+const visitsOverride = ref(false)
 
-/** 자동값과 다른 값을 넣었는지 — 다르면 화면에 알려준다(실수로 남은 값 방지) */
-const visitsOverridden = computed(
-    () => form.visitsPerMonth !== '' && Number(form.visitsPerMonth) !== suggestedVisits.value,
-)
-
-// 요일·주기가 바뀌면 자동값을 다시 넣는다. 단, 직접 고친 뒤에는 건드리지 않는다.
-watch(suggestedVisits, (v) => {
-    if (!visitsTouched.value) {
-        form.visitsPerMonth = v
+/** 체크를 켜면 자동값을 시작값으로 넣어준다(빈칸에서 시작하면 불편하다). */
+watch(visitsOverride, (on) => {
+    if (on) {
+        if (form.visitsPerMonth === '') {
+            form.visitsPerMonth = suggestedVisits.value
+        }
+    } else {
+        form.visitsPerMonth = ''
     }
 })
-
-/** 자동 계산값으로 되돌린다 */
-function resetVisits() {
-    form.visitsPerMonth = suggestedVisits.value
-    visitsTouched.value = false
-}
 
 // 등록 화면에 ?clientId=... 로 진입하면(거래처 상세의 "계약 추가") 해당 거래처를 미리 선택.
 watchEffect(() => {
@@ -143,9 +142,11 @@ watch(() => props.id, async (id) => {
         form.doorCode = c.doorCode ?? ''
         form.cleaningWeekdays = Array.isArray(c.cleaningWeekdays) ? [...c.cleaningWeekdays] : []
         form.cleaningCycle = c.cleaningCycle ?? 'WEEKLY'
-        form.visitsPerMonth = c.visitsPerMonth ?? ''
-        // 저장된 값이 자동값과 다르면 예전에 직접 고친 것이므로 그대로 존중한다.
-        visitsTouched.value = c.visitsPerMonth != null && c.visitsPerMonth !== suggestedVisits.value
+        // 저장된 값이 요일·주기로 나오는 값과 다르면 예외로 직접 지정한 계약이다.
+        // 같으면 자동으로 떨어지는 계약이므로 체크를 꺼 둔다(굳이 예외로 표시할 이유가 없다).
+        const isException = c.visitsPerMonth != null && c.visitsPerMonth !== suggestedVisits.value
+        visitsOverride.value = isException
+        form.visitsPerMonth = isException ? c.visitsPerMonth : ''
         form.vatType = c.vatType ?? 'EXCLUSIVE'
         form.initialFee = c.initialFee ?? ''
         form.cleaningScope = c.cleaningScope ?? ''
@@ -175,7 +176,11 @@ function buildPayload() {
         doorCode: form.doorCode.trim() || null,
         cleaningWeekdays: form.cleaningWeekdays,
         cleaningCycle: form.cleaningCycle || 'WEEKLY',
-        visitsPerMonth: form.visitsPerMonth === '' ? null : Number(form.visitsPerMonth),
+        // 예외 지정이 아니면 null 을 보낸다. 서버가 요일·주기로 환산하므로
+        // 같은 값을 두 곳에 저장해 두고 나중에 어긋나는 일이 없다.
+        visitsPerMonth: visitsOverride.value && form.visitsPerMonth !== ''
+            ? Number(form.visitsPerMonth)
+            : null,
         vatType: form.vatType || 'EXCLUSIVE',
         initialFee: form.initialFee !== '' ? Number(form.initialFee) : null,
         cleaningScope: form.cleaningScope.trim() || null,
@@ -334,30 +339,30 @@ function onCancel() {
             </div>
 
             <!-- 요일·주기는 "언제 가는지"라 월 3회 같은 패턴을 담지 못한다.
-                 가격 산정에 쓰는 "한 달에 몇 번"은 따로 두고, 자동으로 채우되 고칠 수 있게 한다. -->
+                 대부분은 요일·주기로 떨어지므로 자동으로 두고, 예외만 체크해서 직접 넣는다. -->
             <div class="field">
                 <label>월 방문 횟수 <small class="hint">(권장가 산정에 사용)</small></label>
-                <div class="visits">
-                    <input
-                        v-model="form.visitsPerMonth"
-                        type="number"
-                        min="1"
-                        max="31"
-                        step="1"
-                        @input="visitsTouched = true"
-                    />
-                    <span class="visits__unit">회 / 월</span>
-                    <button v-if="visitsOverridden" class="btn btn--sm" type="button" @click="resetVisits">
-                        자동값({{ suggestedVisits }}회)으로
-                    </button>
-                </div>
                 <p class="summary">{{ scheduleSummary }}</p>
-                <p v-if="visitsOverridden" class="warn-msg">
-                    요일·주기로 계산하면 {{ suggestedVisits }}회입니다. 직접 넣은 값을 그대로 씁니다.
+
+                <label class="check">
+                    <input v-model="visitsOverride" type="checkbox" />
+                    <span>월 방문 횟수를 직접 지정 (예외 계약)</span>
+                </label>
+
+                <div v-if="visitsOverride" class="visits">
+                    <input v-model="form.visitsPerMonth" type="number" min="1" max="31" step="1" />
+                    <span class="visits__unit">회 / 월</span>
+                    <span v-if="Number(form.visitsPerMonth) !== suggestedVisits" class="visits__auto">
+                        요일·주기로는 {{ suggestedVisits }}회
+                    </span>
+                </div>
+
+                <p v-if="visitsOverride" class="warn-msg">
+                    예외 계약입니다. 어떤 사정인지 아래 메모에도 남겨두세요.
                 </p>
                 <p v-else class="hint">
-                    요일을 여러 개 고르면 그만큼 늘어납니다(매주 월·목 = 월 8회, 매월 월·목 = 월 2회).
-                    이 규칙으로 표현할 수 없는 경우에는 횟수를 직접 넣으세요.
+                    보통은 그대로 두면 됩니다. 요일을 여러 개 고르면 그만큼 늘어납니다
+                    (매주 월·목 = 월 8회). 월 3회처럼 요일·주기로 표현할 수 없을 때만 체크하세요.
                 </p>
             </div>
 
@@ -520,6 +525,30 @@ function onCancel() {
     font-size: 0.85rem;
     color: var(--text);
     white-space: nowrap;
+}
+
+/* 예외 값이 자동값과 다를 때 원래 값이 얼마인지 같이 보여준다 */
+.visits__auto {
+    font-size: 0.78rem;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+/* 예외 지정 체크박스 — 라벨과 가로로 붙인다 */
+.check {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0.5rem 0 0;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-h);
+    cursor: pointer;
+}
+
+.check input {
+    width: auto;
+    margin: 0;
 }
 
 .visits .btn {
