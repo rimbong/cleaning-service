@@ -65,6 +65,9 @@ function toggleWeekday(code) {
 // 요일로 떨어지지 않는 계약은 곧 매월(비정기)이므로, 그때만 숫자를 직접 받는다.
 // 별도의 "직접 지정" 스위치는 두지 않는다 — 매주 월요일인데 월 3회 같은 조합은
 // 애초에 성립하지 않아서, 스위치가 있으면 서로 모순되는 값이 저장될 수 있다.
+//
+// 자동으로 계산하더라도 <b>결과는 반드시 저장한다</b>. 저장하지 않고 매번 환산하면
+// 계약을 수정할 때마다 값이 지워지고, DB 에서 "월 몇 회 계약인지" 바로 볼 수 없다.
 
 /** 한 달을 몇 주로 보는지 — 서버(VisitFrequency.WEEKS_PER_MONTH)와 같아야 한다. */
 const WEEKS_PER_MONTH = 4
@@ -179,11 +182,13 @@ function buildPayload() {
         doorCode: form.doorCode.trim() || null,
         cleaningWeekdays: form.cleaningWeekdays,
         cleaningCycle: form.cleaningCycle || 'WEEKLY',
-        // 매월 계약만 횟수를 보낸다. 매주·격주는 null 을 보내 서버가 요일로 환산하게 한다.
-        // 같은 값을 두 곳에 저장해 두면 나중에 한쪽만 고쳐져 어긋난다.
-        visitsPerMonth: isMonthly.value && form.visitsPerMonth !== ''
-            ? Number(form.visitsPerMonth)
-            : null,
+        // 계산해서 넘기지 않고 <b>항상 값을 저장</b>한다.
+        //   - null 로 두면 계약을 수정할 때마다 값이 지워져 DB 에서 조회할 수 없다
+        //   - 나중에 환산 규칙이 바뀌면 과거 계약 금액까지 소급해서 달라진다
+        // 매주·격주는 요일에서 계산한 값을 그대로 넣는다(화면에서 고칠 수 없으니 어긋날 일이 없다).
+        visitsPerMonth: isMonthly.value
+            ? (form.visitsPerMonth === '' ? null : Number(form.visitsPerMonth))
+            : suggestedVisits.value,
         vatType: form.vatType || 'EXCLUSIVE',
         initialFee: form.initialFee !== '' ? Number(form.initialFee) : null,
         cleaningScope: form.cleaningScope.trim() || null,
