@@ -40,6 +40,7 @@ import com.boot.cleanhub.biz.settlement.repository.PaymentRepository;
 import com.boot.cleanhub.util.excel.PoiMo;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * <pre>
@@ -51,6 +52,7 @@ import lombok.RequiredArgsConstructor;
  * @since 2026.07.09
  * @version 1.0
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -313,7 +315,8 @@ public class SettlementService {
             }
             return out.toByteArray();
         } catch (IOException e) {
-            throw new BizException(ErrorCode.FILE_UPLOAD_FAILED);
+            log.error("엑셀 생성 실패", e);
+            throw new BizException(ErrorCode.EXCEL_GENERATION_FAILED);
         }
     }
 

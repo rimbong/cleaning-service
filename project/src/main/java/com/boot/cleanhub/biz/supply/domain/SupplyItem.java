@@ -23,6 +23,9 @@ import lombok.Setter;
  *   현재 재고 수량은 이 테이블에 두지 않는다. 입출고 이력(SupplyTransaction)의 합계로 도출한다.
  *   수량을 컬럼에 두고 직접 갱신하면 숫자가 틀어졌을 때 원인을 추적할 수 없다.
  *
+ *   ※ 이름+규격은 유니크하다(V21 의 uk_supply_item_name_spec, COALESCE(spec,'') 함수 인덱스).
+ *     함수 인덱스라 @Table 로 표현할 수 없고 ddl-auto=validate 도 인덱스는 검사하지 않으므로
+ *     여기 명시한다. 서비스도 저장 전에 중복을 검사한다(SupplyService.checkDuplicate).
  *   ※ 스키마는 Flyway(V21)가 소스이며, 엔티티와 일치해야 한다(ddl-auto=validate).
  * </pre>
  *

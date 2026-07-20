@@ -585,23 +585,6 @@ function onCancel() {
     cursor: not-allowed;
 }
 
-.visits .btn {
-    padding: 0.32rem 0.6rem;
-    font-size: 0.78rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: #fff;
-    color: var(--text-h);
-    cursor: pointer;
-    font-family: inherit;
-    white-space: nowrap;
-}
-
-.visits .btn:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-}
-
 /* 고른 요일·주기가 무슨 뜻인지 한 문장으로 */
 .summary {
     margin: 0.35rem 0 0;

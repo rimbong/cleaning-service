@@ -84,8 +84,11 @@ public class ContractRequest {
     private CleaningCycle cleaningCycle;
 
     /**
-     * 월 방문 횟수 — 권장가 산정용. 비우면 요일·주기로 환산해서 쓴다.
-     * 요일·주기로 표현 못 하는 패턴(월 3회 등)은 여기에 직접 넣는다.
+     * 월 방문 횟수 — 권장가 산정용.
+     *
+     * 매주·격주는 서버가 요일에서 계산해 저장하므로 이 값을 보내도 무시된다.
+     * 매월처럼 요일로 계산할 수 없는 주기에서만 이 값을 쓰며, 그때는 비우면 저장이 거부된다
+     * (ContractService.applyVisitsPerMonth).
      */
     @Min(value = 1, message = "월 방문 횟수는 1 이상이어야 합니다.")
     @Max(value = 31, message = "월 방문 횟수가 너무 큽니다. 값을 확인하세요.")

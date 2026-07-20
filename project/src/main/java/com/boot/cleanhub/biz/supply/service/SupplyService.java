@@ -38,6 +38,7 @@ import com.boot.cleanhub.error.ErrorCode;
 import com.boot.cleanhub.util.excel.PoiMo;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * <pre>
@@ -56,6 +57,7 @@ import lombok.RequiredArgsConstructor;
  * @since 2026.07.20
  * @version 1.0
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -238,15 +240,21 @@ public class SupplyService {
                 int no = 1;
                 for (SupplyItem item : list) {
                     int stock = stockOf(stocks, item);
-                    long unitPrice = item.getUnitPrice() != null ? item.getUnitPrice() : 0L;
                     poi.setData(body, r, 0, no++ + "$c");
                     poi.setData(body, r, 1, item.getName() != null ? item.getName() : "");
                     poi.setData(body, r, 2, item.getSpec() != null ? item.getSpec() : "");
                     poi.setData(body, r, 3, item.getUnit() != null ? item.getUnit() + "$c" : "");
                     poi.setNumber(num, r, 4, stock);
                     poi.setNumber(num, r, 5, item.getSafetyQty() != null ? item.getSafetyQty() : 0);
-                    poi.setNumber(num, r, 6, unitPrice);
-                    poi.setNumber(num, r, amountCol, unitPrice * stock);
+                    // 단가 미입력은 0 이 아니라 빈칸으로 둔다 — "0원"과 "안 넣음"이 구분되게.
+                    // 재고금액도 단가를 모르면 낼 수 없으므로 함께 비운다(SUM 수식은 텍스트 칸을 건너뛴다).
+                    if (item.getUnitPrice() != null) {
+                        poi.setNumber(num, r, 6, item.getUnitPrice());
+                        poi.setNumber(num, r, amountCol, item.getUnitPrice() * stock);
+                    } else {
+                        poi.setData(body, r, 6, "");
+                        poi.setData(body, r, amountCol, "");
+                    }
                     poi.setData(body, r, 8, item.getMemo() != null ? item.getMemo() : "");
                     r++;
                 }
@@ -273,7 +281,8 @@ public class SupplyService {
             }
             return out.toByteArray();
         } catch (IOException ex) {
-            throw new BizException(ErrorCode.FILE_UPLOAD_FAILED);
+            log.error("엑셀 생성 실패", ex);
+            throw new BizException(ErrorCode.EXCEL_GENERATION_FAILED);
         }
     }
 

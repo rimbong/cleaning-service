@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -15,7 +16,6 @@ import com.boot.cleanhub.biz.contract.domain.CleaningCycle;
 import com.boot.cleanhub.biz.contract.domain.Contract;
 import com.boot.cleanhub.biz.contract.repository.ContractRepository;
 import com.boot.cleanhub.biz.pricing.domain.PricingPolicy;
-import com.boot.cleanhub.biz.pricing.domain.VisitFrequency;
 import com.boot.cleanhub.biz.pricing.dto.PriceEstimateLine;
 import com.boot.cleanhub.biz.pricing.dto.PriceEstimateRequest;
 import com.boot.cleanhub.biz.pricing.dto.PriceEstimateResponse;
@@ -294,7 +294,8 @@ public class PricingService {
 
     /** "5개층 x 6,000원" 형태의 근거 문구 */
     private String describe(int count, String unitName, long unitPrice) {
-        return count + unitName + " x " + String.format("%,d", unitPrice) + "원";
+        // 로케일을 고정한다. 기본 로케일에 따라 천단위 구분 기호가 달라질 수 있다.
+        return count + unitName + " x " + String.format(Locale.KOREA, "%,d", unitPrice) + "원";
     }
 
     private int nullToZero(Integer value) {

@@ -85,7 +85,7 @@ async function load() {
         updatedAt.value = p.updatedAt
         unsaved.value = p.saved === false
     } catch (e) {
-        notify.bar('단가 정책을 불러오지 못했습니다.', { color: 'red' })
+        notify.bar(e.response?.data?.message ?? '단가 정책을 불러오지 못했습니다.', { color: 'red' })
     } finally {
         loading.value = false
     }

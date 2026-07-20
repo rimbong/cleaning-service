@@ -53,6 +53,7 @@ public enum ErrorCode {
     INVALID_FILE_FORMAT      ("010001", HttpStatus.BAD_REQUEST),
     FILE_UPLOAD_FAILED       ("010002", HttpStatus.INTERNAL_SERVER_ERROR),
     FILE_TOO_LARGE           ("010003", HttpStatus.PAYLOAD_TOO_LARGE),
+    EXCEL_GENERATION_FAILED  ("010004", HttpStatus.INTERNAL_SERVER_ERROR),
 
     // ===== 거래처 (10-00) =====
     CLIENT_NOT_FOUND         ("100001", HttpStatus.NOT_FOUND),

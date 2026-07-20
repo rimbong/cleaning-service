@@ -33,6 +33,16 @@ const { data, isLoading, isError } = useQuery({
 const contract = computed(() => data.value)
 
 /**
+ * 월 방문 횟수 표시.
+ * 저장된 값을 그대로 보여준다(매주·격주는 서버가 요일에서 계산해 저장한 값이다).
+ * DB 실제값과 화면이 어긋나는지 여기서 바로 확인할 수 있게 한다.
+ */
+const visitsText = computed(() => {
+    const v = contract.value?.visitsPerMonth
+    return v != null ? `월 ${v}회` : '-'
+})
+
+/**
  * 목록으로 이동 — 뒤로가기 히스토리가 있으면 그대로 돌아가(목록에서 보던 페이지 유지),
  * 딥링크로 바로 상세에 들어온 경우엔 목록 route 로 이동한다.
  */
@@ -250,6 +260,10 @@ async function onRemoveAttachment(a) {
                     <div class="info-row">
                         <dt>청소 주기</dt>
                         <dd>{{ fmt(contract.cleaningCycleLabel) }}</dd>
+                    </div>
+                    <div class="info-row">
+                        <dt>월 방문 횟수</dt>
+                        <dd>{{ visitsText }}</dd>
                     </div>
                     <div class="info-row">
                         <dt>부가세 기준</dt>

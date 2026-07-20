@@ -26,7 +26,7 @@ public class ScheduleItem {
     private final String phone;           // 연락처
     private final String doorCode;        // 현관 비번(현장 필요)
     private final String cleaningCycleLabel; // 주기(매주/격주/매월)
-    /** 월 방문 횟수 — 직접 지정한 예외 계약만 값이 있다(요일로 떨어지는 계약은 null) */
+    /** 월 방문 횟수 — 진행중 계약은 항상 값이 있다(매주·격주는 요일에서 계산, 매월은 직접 입력) */
     private final Integer visitsPerMonth;
     private final String memo;
 

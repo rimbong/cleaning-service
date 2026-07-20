@@ -29,7 +29,7 @@ function goContract(id) {
 <template>
     <section class="schedule">
         <p class="hint">진행 중 계약을 <strong>청소 요일</strong>별로 모았습니다. 계약 수정에서 요일을 지정하면 여기에 나타납니다. 오늘 요일은 강조됩니다.</p>
-        <p class="hint hint--note">※ <span class="dot"></span> 표시(점선)는 <strong>격주·매월</strong> 계약입니다. 매주는 아니므로 해당 주 실행 여부는 확인하세요.</p>
+        <p class="hint hint--note">※ <span class="dot"></span> 표시(점선)는 <strong>격주</strong> 계약입니다. 매주는 아니므로 해당 주 실행 여부는 확인하세요. (매월 계약은 아래 예외 목록에 있습니다)</p>
 
         <p v-if="isLoading" class="state">불러오는 중…</p>
         <p v-else-if="isError" class="state state--err">불러오지 못했습니다.</p>
@@ -159,7 +159,7 @@ function goContract(id) {
     cursor: pointer;
 }
 .item:hover { border-color: var(--primary); background: var(--muted); }
-/* 격주·매월 계약 — 매주가 아님을 점선 테두리로 구분 */
+/* 격주 계약 — 매주가 아님을 점선 테두리로 구분(매월은 요일 칸에 없고 예외 목록에 있다) */
 .item--nonweekly { border-style: dashed; background: var(--muted); }
 .item-name { font-weight: 600; color: var(--text-h); font-size: 0.9rem; }
 .item-sub { font-size: 0.75rem; color: var(--text); margin-top: 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

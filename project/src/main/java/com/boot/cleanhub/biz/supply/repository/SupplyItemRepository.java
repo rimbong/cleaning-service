@@ -39,13 +39,17 @@ public interface SupplyItemRepository extends JpaRepository<SupplyItem, Long> {
      * 같은 품목이 두 행으로 등록되면 재고가 조용히 쪼개지므로 등록/수정 시 막는다.
      * 저장된 spec 은 NULL 허용이라 SQL 의 `= NULL` 함정을 피하려고 COALESCE 로 빈 문자열 취급한다.
      *
+     * 대소문자는 무시한다(LOWER). 목록 검색이 IgnoreCase 인데 중복 검사만 정확히 일치하면
+     * "Lox" 와 "lox" 가 별개로 등록돼 검색에서는 같이 잡히는 어긋남이 생긴다.
+     *
      * @param name      품목명
      * @param spec      규격 — <b>null 이 아닌 값</b>을 넘긴다(규격 없음은 빈 문자열)
      * @param excludeId 검사에서 제외할 id — 신규 등록이면 존재하지 않는 값(-1)을 넘긴다
      * @return 중복이면 true
      */
     @Query("SELECT COUNT(i) > 0 FROM SupplyItem i "
-            + "WHERE i.name = :name AND COALESCE(i.spec, '') = :spec AND i.id <> :excludeId")
+            + "WHERE LOWER(i.name) = LOWER(:name) "
+            + "AND LOWER(COALESCE(i.spec, '')) = LOWER(:spec) AND i.id <> :excludeId")
     boolean existsDuplicate(@Param("name") String name, @Param("spec") String spec, @Param("excludeId") Long excludeId);
 
     /**

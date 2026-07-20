@@ -22,6 +22,7 @@ import com.boot.cleanhub.biz.expense.repository.ExpenseRepository;
 import com.boot.cleanhub.util.excel.PoiMo;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * <pre>
@@ -32,6 +33,7 @@ import lombok.RequiredArgsConstructor;
  * @since 2026.07.09
  * @version 1.0
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -136,7 +138,8 @@ public class ExpenseService {
             }
             return out.toByteArray();
         } catch (IOException ex) {
-            throw new BizException(ErrorCode.FILE_UPLOAD_FAILED);
+            log.error("엑셀 생성 실패", ex);
+            throw new BizException(ErrorCode.EXCEL_GENERATION_FAILED);
         }
     }
 

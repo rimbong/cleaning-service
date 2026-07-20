@@ -32,7 +32,7 @@ public class PriceEstimateResponse {
     private final long perVisitAmount;
     /** 월 방문 횟수 */
     private final int visitsPerMonth;
-    /** 표시용 주기 문구(예: "주 4회 (월 16회)") */
+    /** 표시용 주기 문구(예: "월 16회") — 견적 화면은 요일 정보가 없어 "월 N회"로만 적는다 */
     private final String cycleLabel;
     /** 적용된 주기 계수 */
     private final BigDecimal coefficient;

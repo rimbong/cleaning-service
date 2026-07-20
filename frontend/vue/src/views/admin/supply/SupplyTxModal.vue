@@ -67,7 +67,10 @@ const saveMut = useMutation({
 
 function submit() {
     form.error = ''
-    if (form.quantity === '' || Number(form.quantity) < minQuantity.value) {
+    // Number.isFinite 로 먼저 거른다. 빈 값·숫자가 아닌 값은 Number(...) 가 NaN 이 되는데,
+    // NaN < min 은 false 라 그것만으로는 검증을 통과해 버린다.
+    const qty = Number(form.quantity)
+    if (!Number.isFinite(qty) || qty < minQuantity.value) {
         form.error = `수량을 ${minQuantity.value} 이상으로 입력하세요.`
         return
     }
