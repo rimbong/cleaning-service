@@ -3,7 +3,7 @@ package com.boot.cleanhub.biz.pricing.dto;
 import java.math.BigDecimal;
 import java.util.List;
 
-import com.boot.cleanhub.biz.pricing.domain.PricingCycle;
+import com.boot.cleanhub.biz.pricing.domain.VisitFrequency;
 
 import lombok.Getter;
 
@@ -30,25 +30,23 @@ public class PriceEstimateResponse {
     private final long subtotal;
     /** 1회 방문 환산 금액 */
     private final long perVisitAmount;
-    /** 산정에 쓴 주기 */
-    private final PricingCycle cycle;
+    /** 월 방문 횟수 */
+    private final int visitsPerMonth;
+    /** 표시용 주기 문구(예: "주 4회 (월 16회)") */
     private final String cycleLabel;
     /** 적용된 주기 계수 */
     private final BigDecimal coefficient;
-    /** 월 방문 횟수(1회 환산에 쓴 값) */
-    private final int visitsPerMonth;
     /** 산출 근거 — 항목별 금액 */
     private final List<PriceEstimateLine> breakdown;
 
     public PriceEstimateResponse(long recommendedAmount, long subtotal, long perVisitAmount,
-            PricingCycle cycle, BigDecimal coefficient, List<PriceEstimateLine> breakdown) {
+            int visitsPerMonth, BigDecimal coefficient, List<PriceEstimateLine> breakdown) {
         this.recommendedAmount = recommendedAmount;
         this.subtotal = subtotal;
         this.perVisitAmount = perVisitAmount;
-        this.cycle = cycle;
-        this.cycleLabel = cycle.getLabel();
+        this.visitsPerMonth = visitsPerMonth;
+        this.cycleLabel = VisitFrequency.label(visitsPerMonth);
         this.coefficient = coefficient;
-        this.visitsPerMonth = cycle.getVisitsPerMonth();
         this.breakdown = breakdown;
     }
 }

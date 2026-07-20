@@ -5,7 +5,7 @@
 // '이 금액 적용'을 눌렀을 때만 부모에게 넘긴다(가격 흥정 여지를 남겨야 하므로).
 import { onBeforeUnmount, reactive, ref, watch } from 'vue'
 
-import { pricingService, PRICING_CYCLES } from '@/services/admin/pricing/pricingService'
+import { pricingService, VISIT_PRESETS } from '@/services/admin/pricing/pricingService'
 
 const props = defineProps({
     /** 거래처에 저장된 건물 규모(있으면 자동으로 채운다) */
@@ -25,7 +25,7 @@ const form = reactive({
     sharedToilets: 0,
     extraFloors: 0,
     hasElevator: false,
-    cycle: 'MONTHLY_2',
+    visitsPerMonth: 2,
 })
 
 const result = ref(null)
@@ -48,7 +48,12 @@ watch(() => props.spec, (spec) => {
 
 /** 층수·세대수가 채워졌을 때만 계산한다(둘이 단가의 뼈대라 없으면 의미 없는 금액이 나온다). */
 function canCalculate() {
-    return form.floors !== '' && form.householdCount !== ''
+    return form.floors !== '' && form.householdCount !== '' && Number(form.visitsPerMonth) >= 1
+}
+
+/** 바로가기 버튼 — 방문 횟수를 채워 넣는다(직접 입력도 그대로 가능하다). */
+function applyPreset(visits) {
+    form.visitsPerMonth = visits
 }
 
 async function calculate() {
@@ -65,7 +70,7 @@ async function calculate() {
             sharedToilets: Number(form.sharedToilets) || 0,
             extraFloors: Number(form.extraFloors) || 0,
             hasElevator: form.hasElevator,
-            cycle: form.cycle,
+            visitsPerMonth: Number(form.visitsPerMonth),
         })
         result.value = res.data.data
     } catch (e) {
@@ -132,10 +137,8 @@ function gap() {
                 <input v-model="form.extraFloors" type="number" min="0" max="20" step="1" />
             </div>
             <div class="fld">
-                <label>청소 주기</label>
-                <select v-model="form.cycle">
-                    <option v-for="c in PRICING_CYCLES" :key="c.value" :value="c.value">{{ c.label }}</option>
-                </select>
+                <label>월 방문 횟수</label>
+                <input v-model="form.visitsPerMonth" type="number" min="1" max="31" step="1" />
             </div>
             <div class="fld fld--check">
                 <label class="check">
@@ -143,6 +146,19 @@ function gap() {
                     <span>엘리베이터</span>
                 </label>
             </div>
+        </div>
+
+        <!-- 자주 쓰는 횟수 바로가기. 여기 없는 횟수도 위에 직접 넣으면 계산된다. -->
+        <div class="presets">
+            <span class="presets__label">자주 쓰는 주기</span>
+            <button
+                v-for="p in VISIT_PRESETS"
+                :key="p.visits"
+                class="chip"
+                :class="{ 'chip--on': Number(form.visitsPerMonth) === p.visits }"
+                type="button"
+                @click="applyPreset(p.visits)"
+            >{{ p.label }}</button>
         </div>
 
         <p v-if="!canCalculate()" class="hint">
@@ -198,6 +214,11 @@ function gap() {
 .fld--check { justify-content: flex-end; }
 .check { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 500; cursor: pointer; }
 .check input { width: auto; }
+.presets { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.7rem; }
+.presets__label { font-size: 0.74rem; font-weight: 700; color: #334; margin-right: 0.15rem; }
+.chip { padding: 0.22rem 0.55rem; border: 1px solid #c3cfe0; border-radius: 999px; background: #fff; color: var(--text); font: inherit; font-size: 0.76rem; cursor: pointer; }
+.chip:hover { border-color: var(--primary); color: var(--primary); }
+.chip--on { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); font-weight: 600; }
 .hint { margin: 0.8rem 0 0; font-size: 0.8rem; color: var(--text); line-height: 1.5; }
 .err { margin: 0.8rem 0 0; font-size: 0.82rem; color: var(--danger); }
 .result { margin-top: 0.9rem; background: #fff; border: 2px solid var(--primary); border-radius: 12px; padding: 0.9rem 1rem; }

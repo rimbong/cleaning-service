@@ -1,6 +1,7 @@
 package com.boot.cleanhub.biz.pricing.dto;
 
-import com.boot.cleanhub.biz.pricing.domain.PricingCycle;
+import java.math.BigDecimal;
+import java.util.List;
 
 import lombok.Getter;
 
@@ -26,8 +27,9 @@ public class PriceReviewRow {
 
     /** 건물 규모 요약(예: 5층 10세대) */
     private final String buildingSummary;
-    /** 산정에 쓴 주기 */
-    private final PricingCycle cycle;
+    /** 산정에 쓴 월 방문 횟수 */
+    private final int visitsPerMonth;
+    /** 표시용 주기 문구 */
     private final String cycleLabel;
 
     /** 현재 계약 월정액 */
@@ -39,18 +41,31 @@ public class PriceReviewRow {
     /** 인상률(%). 소수 첫째 자리까지 */
     private final double differenceRate;
 
+    /** 주기 계수 적용 전 소계 */
+    private final long subtotal;
+    /** 적용된 주기 계수 */
+    private final BigDecimal coefficient;
+    /**
+     * 산출 근거 — 항목별 금액.
+     * 거래처에 인상을 요청할 때 "왜 이 금액인지"를 그대로 읽어줄 수 있어야 해서 같이 내려준다.
+     */
+    private final List<PriceEstimateLine> breakdown;
+
     public PriceReviewRow(Long contractId, Long clientId, String clientName, String contractTitle,
-            String buildingSummary, PricingCycle cycle, long currentAmount, long recommendedAmount) {
+            String buildingSummary, long currentAmount, PriceEstimateResponse estimate) {
         this.contractId = contractId;
         this.clientId = clientId;
         this.clientName = clientName;
         this.contractTitle = contractTitle;
         this.buildingSummary = buildingSummary;
-        this.cycle = cycle;
-        this.cycleLabel = cycle != null ? cycle.getLabel() : null;
+        this.visitsPerMonth = estimate.getVisitsPerMonth();
+        this.cycleLabel = estimate.getCycleLabel();
         this.currentAmount = currentAmount;
-        this.recommendedAmount = recommendedAmount;
-        this.difference = recommendedAmount - currentAmount;
+        this.recommendedAmount = estimate.getRecommendedAmount();
+        this.subtotal = estimate.getSubtotal();
+        this.coefficient = estimate.getCoefficient();
+        this.breakdown = estimate.getBreakdown();
+        this.difference = estimate.getRecommendedAmount() - currentAmount;
         // 현재액이 0 이면 인상률을 낼 수 없다(0 으로 나눔). 그때는 0 으로 두고 화면에서 금액만 본다.
         this.differenceRate = currentAmount > 0
                 ? Math.round(((double) this.difference / currentAmount) * 1000d) / 10d

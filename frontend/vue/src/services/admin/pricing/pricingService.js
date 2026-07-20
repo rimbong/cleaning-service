@@ -25,7 +25,7 @@ export const pricingService = {
      * @param {number} [spec.sharedToilets] 공용 화장실 수
      * @param {number} [spec.extraFloors]   지하·옥상 추가층
      * @param {boolean} [spec.hasElevator]  엘리베이터 유무
-     * @param {string} spec.cycle           PricingCycle (MONTHLY_1 등)
+     * @param {number} spec.visitsPerMonth  월 방문 횟수(주1회=4, 주2회=8, ...)
      */
     estimate(spec) {
         return post('/api/admin/pricing/estimate', spec)
@@ -40,12 +40,18 @@ export const pricingService = {
     },
 }
 
-/** 산정용 청소 주기 — 서버 PricingCycle 과 값이 일치해야 한다 */
-export const PRICING_CYCLES = [
-    { value: 'MONTHLY_1', label: '월 1회' },
-    { value: 'MONTHLY_2', label: '월 2회 (격주)' },
-    { value: 'MONTHLY_3', label: '월 3회' },
-    { value: 'WEEKLY_1', label: '주 1회 (월 4회)' },
-    { value: 'WEEKLY_2', label: '주 2회' },
-    { value: 'WEEKLY_3', label: '주 3회' },
+/**
+ * 자주 쓰는 방문 횟수 — 입력 편의를 위한 <b>바로가기</b>일 뿐이다.
+ * 산정은 월 방문 횟수(숫자) 하나로만 하므로 여기 없는 횟수도 직접 넣으면 계산된다.
+ * (주 단위는 한 달 4주 기준)
+ */
+export const VISIT_PRESETS = [
+    { visits: 1, label: '월 1회' },
+    { visits: 2, label: '월 2회 (격주)' },
+    { visits: 3, label: '월 3회' },
+    { visits: 4, label: '주 1회' },
+    { visits: 8, label: '주 2회' },
+    { visits: 12, label: '주 3회' },
+    { visits: 16, label: '주 4회' },
+    { visits: 20, label: '주 5회' },
 ]

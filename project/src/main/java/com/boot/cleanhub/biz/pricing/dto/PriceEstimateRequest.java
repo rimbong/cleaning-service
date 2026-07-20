@@ -1,10 +1,9 @@
 package com.boot.cleanhub.biz.pricing.dto;
 
 import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.PositiveOrZero;
-
-import com.boot.cleanhub.biz.pricing.domain.PricingCycle;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -45,6 +44,12 @@ public class PriceEstimateRequest {
 
     private Boolean hasElevator;
 
-    @NotNull(message = "청소 주기는 필수입니다.")
-    private PricingCycle cycle;
+    /**
+     * 월 방문 횟수. 주 단위로 생각하면 주1회=4, 주2회=8, 주3회=12, 주4회=16 이다.
+     * 예전처럼 정해진 몇 단계 중에서만 고르지 않으므로 어떤 횟수든 산정된다.
+     */
+    @NotNull(message = "월 방문 횟수는 필수입니다.")
+    @Min(value = 1, message = "월 방문 횟수는 1 이상이어야 합니다.")
+    @Max(value = 31, message = "월 방문 횟수가 너무 큽니다. 값을 확인하세요.")
+    private Integer visitsPerMonth;
 }

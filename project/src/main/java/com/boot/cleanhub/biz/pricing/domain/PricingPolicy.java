@@ -1,6 +1,7 @@
 package com.boot.cleanhub.biz.pricing.domain;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
 import javax.persistence.Column;
@@ -62,29 +63,16 @@ public class PricingPolicy {
     @Column(name = "elevator_fee", nullable = false)
     private Long elevatorFee;
 
-    /** 주기 계수 — 월 1회 */
-    @Column(name = "coef_monthly_1", nullable = false)
-    private BigDecimal coefMonthly1;
+    /** 주기 계수 공식의 기준값 — 월 1회일 때의 계수 */
+    @Column(name = "coef_base", nullable = false)
+    private BigDecimal coefBase;
 
-    /** 주기 계수 — 월 2회(격주). 기준값 1.00 */
-    @Column(name = "coef_monthly_2", nullable = false)
-    private BigDecimal coefMonthly2;
-
-    /** 주기 계수 — 월 3회 */
-    @Column(name = "coef_monthly_3", nullable = false)
-    private BigDecimal coefMonthly3;
-
-    /** 주기 계수 — 주 1회(월 4회) */
-    @Column(name = "coef_weekly_1", nullable = false)
-    private BigDecimal coefWeekly1;
-
-    /** 주기 계수 — 주 2회 */
-    @Column(name = "coef_weekly_2", nullable = false)
-    private BigDecimal coefWeekly2;
-
-    /** 주기 계수 — 주 3회 */
-    @Column(name = "coef_weekly_3", nullable = false)
-    private BigDecimal coefWeekly3;
+    /**
+     * 주기 계수 공식의 할인 지수.
+     * 1 이면 방문 횟수에 정비례(할인 없음), 1 보다 작을수록 자주 갈 때 1회당 단가가 더 내려간다.
+     */
+    @Column(name = "coef_exponent", nullable = false)
+    private BigDecimal coefExponent;
 
     /** 최종 금액 반올림 단위(원). 1000 이면 천원 단위로 맞춘다 */
     @Column(name = "rounding_unit", nullable = false)
@@ -101,29 +89,26 @@ public class PricingPolicy {
     private LocalDateTime updatedAt;
 
     /**
-     * 주기에 해당하는 계수를 돌려준다.
+     * 월 방문 횟수에 해당하는 주기 계수를 계산한다.
      *
-     * @param cycle 산정 주기
-     * @return 계수
+     * <pre>
+     *   계수 = coefBase x 방문횟수 ^ coefExponent
+     * </pre>
+     *
+     * 표(6단계)를 쓰지 않는 이유: 표에 없는 횟수(주 4회 등)를 계산할 수 없어
+     * 조용히 낮은 금액이 나오기 때문이다. 공식은 어떤 횟수든 받으면서
+     * 자주 갈수록 1회당 단가가 내려가는 볼륨 할인도 유지한다.
+     *
+     * @param visitsPerMonth 월 방문 횟수(1 이상)
+     * @return 주기 계수(소수 넷째 자리)
      */
-    public BigDecimal coefficientOf(PricingCycle cycle) {
-        switch (cycle) {
-            case MONTHLY_1:
-                return coefMonthly1;
-            case MONTHLY_2:
-                return coefMonthly2;
-            case MONTHLY_3:
-                return coefMonthly3;
-            case WEEKLY_1:
-                return coefWeekly1;
-            case WEEKLY_2:
-                return coefWeekly2;
-            case WEEKLY_3:
-                return coefWeekly3;
-            default:
-                // enum 에 값을 추가하고 여기를 빠뜨리면 조용히 틀린 금액이 나온다. 그래서 예외로 알린다.
-                throw new IllegalArgumentException("주기 계수가 정의되지 않았습니다: " + cycle);
+    public BigDecimal coefficientFor(int visitsPerMonth) {
+        if (visitsPerMonth < 1) {
+            // 0 이하가 들어오면 금액이 0 이나 음수가 된다. 조용히 넘기지 않는다.
+            throw new IllegalArgumentException("월 방문 횟수는 1 이상이어야 합니다: " + visitsPerMonth);
         }
+        double value = coefBase.doubleValue() * Math.pow(visitsPerMonth, coefExponent.doubleValue());
+        return BigDecimal.valueOf(value).setScale(4, RoundingMode.HALF_UP);
     }
 
     @PrePersist

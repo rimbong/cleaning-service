@@ -3,7 +3,7 @@
 //
 // 이 화면이 있는 이유: 단가를 코드에 박아두면 최저임금이 오를 때마다 소스 수정·재빌드·
 // 재배포가 필요해서 이미 설치된 PC 에서는 손을 댈 수가 없다. 여기서 숫자만 바꾸면 된다.
-import { reactive, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 
 import { pricingService } from '@/services/admin/pricing/pricingService'
 import { useNotifyStore } from '@/stores/common/notify/notify'
@@ -19,12 +19,8 @@ const form = reactive({
     perHousehold: 0,
     perToilet: 0,
     elevatorFee: 0,
-    coefMonthly1: '0.60',
-    coefMonthly2: '1.00',
-    coefMonthly3: '1.40',
-    coefWeekly1: '1.70',
-    coefWeekly2: '2.60',
-    coefWeekly3: '3.40',
+    coefBase: '0.6224',
+    coefExponent: '0.6949',
     roundingUnit: 1000,
     memo: '',
 })
@@ -37,14 +33,32 @@ const AMOUNT_FIELDS = [
     { key: 'elevatorFee', label: '엘리베이터 가산', unit: '원', hint: '내부 바닥·거울·버튼판 청소 포함 시' },
 ]
 
-const COEF_FIELDS = [
-    { key: 'coefMonthly1', label: '월 1회' },
-    { key: 'coefMonthly2', label: '월 2회 (격주) — 기준' },
-    { key: 'coefMonthly3', label: '월 3회' },
-    { key: 'coefWeekly1', label: '주 1회 (월 4회)' },
-    { key: 'coefWeekly2', label: '주 2회' },
-    { key: 'coefWeekly3', label: '주 3회' },
+/** 미리보기에 보여줄 대표 주기 — 숫자를 바꿨을 때 실제 계수가 어떻게 되는지 바로 확인용 */
+const PREVIEW_VISITS = [
+    { visits: 1, label: '월 1회' },
+    { visits: 2, label: '월 2회' },
+    { visits: 3, label: '월 3회' },
+    { visits: 4, label: '주 1회' },
+    { visits: 8, label: '주 2회' },
+    { visits: 12, label: '주 3회' },
+    { visits: 16, label: '주 4회' },
 ]
+
+/**
+ * 입력한 기준값·지수로 대표 주기의 계수를 미리 계산한다.
+ * 서버와 같은 공식(기준값 x 방문횟수^지수)을 쓰므로 저장 전에 결과를 확인할 수 있다.
+ */
+const preview = computed(() => {
+    const base = Number(form.coefBase)
+    const exp = Number(form.coefExponent)
+    if (!(base > 0) || !(exp > 0)) {
+        return []
+    }
+    return PREVIEW_VISITS.map((p) => ({
+        ...p,
+        coef: (base * Math.pow(p.visits, exp)).toFixed(2),
+    }))
+})
 
 onMounted(load)
 
@@ -75,12 +89,8 @@ async function onSubmit() {
             perHousehold: Number(form.perHousehold),
             perToilet: Number(form.perToilet),
             elevatorFee: Number(form.elevatorFee),
-            coefMonthly1: Number(form.coefMonthly1),
-            coefMonthly2: Number(form.coefMonthly2),
-            coefMonthly3: Number(form.coefMonthly3),
-            coefWeekly1: Number(form.coefWeekly1),
-            coefWeekly2: Number(form.coefWeekly2),
-            coefWeekly3: Number(form.coefWeekly3),
+            coefBase: Number(form.coefBase),
+            coefExponent: Number(form.coefExponent),
             roundingUnit: Number(form.roundingUnit),
             memo: form.memo.trim() || null,
         }
@@ -122,14 +132,33 @@ function fmtDateTime(v) {
 
             <div class="section-label">청소 주기 계수</div>
             <p class="section-hint">
-                횟수를 늘려도 단순 배수가 아닙니다. 한 번 갈 때 몰아 하는 동선·준비 시간의 효율을 반영한 값입니다.
-                위 단가는 <b>월 2회(격주) = 1.00</b> 을 기준으로 맞춰져 있으니, 기준을 바꾸려면 단가도 함께 조정하세요.
+                계수 = <b>기준값 x (월 방문횟수) 의 할인지수 제곱</b>.
+                횟수를 늘려도 단순 배수가 아닌 이유는 한 번 갈 때 몰아 하는 동선·준비 시간의 효율 때문입니다.
+                할인지수가 <b>1 이면 할인 없이 정비례</b>하고, <b>작을수록</b> 자주 갈 때 1회당 단가가 더 내려갑니다.
             </p>
             <div class="grid">
-                <div v-for="f in COEF_FIELDS" :key="f.key" class="field">
-                    <label>{{ f.label }}</label>
-                    <input v-model="form[f.key]" type="number" min="0.1" max="99.99" step="0.05" />
+                <div class="field">
+                    <label>기준값</label>
+                    <input v-model="form.coefBase" type="number" min="0.01" max="99.99" step="0.01" />
+                    <p class="hint">월 1회일 때의 계수입니다.</p>
                 </div>
+                <div class="field">
+                    <label>할인 지수</label>
+                    <input v-model="form.coefExponent" type="number" min="0.1" max="1" step="0.01" />
+                    <p class="hint">0.1 ~ 1.0. 낮출수록 자주 가는 계약이 싸집니다.</p>
+                </div>
+            </div>
+            <div v-if="preview.length" class="preview">
+                <div class="preview__title">지금 값으로 계산한 계수</div>
+                <div class="preview__cells">
+                    <div v-for="p in preview" :key="p.visits" class="preview__cell">
+                        <div class="preview__lbl">{{ p.label }}</div>
+                        <div class="preview__val">{{ p.coef }}</div>
+                    </div>
+                </div>
+                <p class="preview__note">
+                    저장 전에 여기서 확인하세요. 표에 없는 횟수(예: 월 5회, 주 6회)도 같은 공식으로 계산됩니다.
+                </p>
             </div>
 
             <div class="section-label">기타</div>
@@ -173,6 +202,13 @@ function fmtDateTime(v) {
 .input-unit { display: flex; align-items: center; gap: 0.4rem; }
 .unit { font-size: 0.8rem; color: var(--text); white-space: nowrap; }
 .hint { margin: 0; font-size: 0.76rem; color: var(--text); line-height: 1.45; }
+.preview { background: #eef2fb; border: 1px solid #cfe0fb; border-radius: var(--radius); padding: 0.8rem 1rem; }
+.preview__title { font-size: 0.8rem; font-weight: 700; color: #1e40af; margin-bottom: 0.5rem; }
+.preview__cells { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.preview__cell { background: #fff; border: 1px solid #cfe0fb; border-radius: 8px; padding: 0.4rem 0.7rem; text-align: center; min-width: 4.2rem; }
+.preview__lbl { font-size: 0.72rem; color: var(--text); }
+.preview__val { font-size: 0.95rem; font-weight: 700; color: #1e40af; font-variant-numeric: tabular-nums; }
+.preview__note { margin: 0.55rem 0 0; font-size: 0.75rem; color: #33507f; line-height: 1.5; }
 .actions { display: flex; justify-content: flex-end; align-items: center; gap: 0.8rem; margin-top: 0.5rem; }
 .updated { font-size: 0.78rem; color: var(--text); }
 .btn { padding: 0.5rem 0.9rem; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; color: var(--text-h); cursor: pointer; font: inherit; }

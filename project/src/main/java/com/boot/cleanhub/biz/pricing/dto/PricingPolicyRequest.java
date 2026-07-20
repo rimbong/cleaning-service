@@ -46,35 +46,20 @@ public class PricingPolicyRequest {
     @PositiveOrZero(message = "엘리베이터 가산은 0 이상이어야 합니다.")
     private Long elevatorFee;
 
-    @NotNull(message = "월 1회 계수는 필수입니다.")
-    @DecimalMin(value = "0.1", message = "주기 계수는 0.1 이상이어야 합니다.")
-    @DecimalMax(value = "99.99", message = "주기 계수가 너무 큽니다.")
-    private BigDecimal coefMonthly1;
+    /** 주기 계수 공식의 기준값 — 월 1회일 때의 계수 */
+    @NotNull(message = "계수 기준값은 필수입니다.")
+    @DecimalMin(value = "0.01", message = "계수 기준값은 0.01 이상이어야 합니다.")
+    @DecimalMax(value = "99.99", message = "계수 기준값이 너무 큽니다.")
+    private BigDecimal coefBase;
 
-    @NotNull(message = "월 2회 계수는 필수입니다.")
-    @DecimalMin(value = "0.1", message = "주기 계수는 0.1 이상이어야 합니다.")
-    @DecimalMax(value = "99.99", message = "주기 계수가 너무 큽니다.")
-    private BigDecimal coefMonthly2;
-
-    @NotNull(message = "월 3회 계수는 필수입니다.")
-    @DecimalMin(value = "0.1", message = "주기 계수는 0.1 이상이어야 합니다.")
-    @DecimalMax(value = "99.99", message = "주기 계수가 너무 큽니다.")
-    private BigDecimal coefMonthly3;
-
-    @NotNull(message = "주 1회 계수는 필수입니다.")
-    @DecimalMin(value = "0.1", message = "주기 계수는 0.1 이상이어야 합니다.")
-    @DecimalMax(value = "99.99", message = "주기 계수가 너무 큽니다.")
-    private BigDecimal coefWeekly1;
-
-    @NotNull(message = "주 2회 계수는 필수입니다.")
-    @DecimalMin(value = "0.1", message = "주기 계수는 0.1 이상이어야 합니다.")
-    @DecimalMax(value = "99.99", message = "주기 계수가 너무 큽니다.")
-    private BigDecimal coefWeekly2;
-
-    @NotNull(message = "주 3회 계수는 필수입니다.")
-    @DecimalMin(value = "0.1", message = "주기 계수는 0.1 이상이어야 합니다.")
-    @DecimalMax(value = "99.99", message = "주기 계수가 너무 큽니다.")
-    private BigDecimal coefWeekly3;
+    /**
+     * 할인 지수. 1 이면 방문 횟수에 정비례(할인 없음), 작을수록 자주 갈 때 1회당 단가가 더 내려간다.
+     * 1 을 넘으면 자주 갈수록 1회당 단가가 <b>올라가</b> 상식과 반대가 되므로 막는다.
+     */
+    @NotNull(message = "할인 지수는 필수입니다.")
+    @DecimalMin(value = "0.1", message = "할인 지수는 0.1 이상이어야 합니다.")
+    @DecimalMax(value = "1.0", message = "할인 지수는 1.0 을 넘을 수 없습니다(자주 갈수록 1회당 단가가 올라갑니다).")
+    private BigDecimal coefExponent;
 
     @NotNull(message = "반올림 단위는 필수입니다.")
     @Positive(message = "반올림 단위는 1 이상이어야 합니다.")

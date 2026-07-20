@@ -14,8 +14,8 @@ import com.boot.cleanhub.biz.client.domain.Client;
 import com.boot.cleanhub.biz.contract.domain.CleaningCycle;
 import com.boot.cleanhub.biz.contract.domain.Contract;
 import com.boot.cleanhub.biz.contract.repository.ContractRepository;
-import com.boot.cleanhub.biz.pricing.domain.PricingCycle;
 import com.boot.cleanhub.biz.pricing.domain.PricingPolicy;
+import com.boot.cleanhub.biz.pricing.domain.VisitFrequency;
 import com.boot.cleanhub.biz.pricing.dto.PriceEstimateLine;
 import com.boot.cleanhub.biz.pricing.dto.PriceEstimateRequest;
 import com.boot.cleanhub.biz.pricing.dto.PriceEstimateResponse;
@@ -60,6 +60,9 @@ public class PricingService {
     private static final long DEFAULT_PER_TOILET = 15000L;
     private static final long DEFAULT_ELEVATOR_FEE = 5000L;
     private static final long DEFAULT_ROUNDING_UNIT = 1000L;
+    /** 원 단가표 6단계에 곡선을 맞춘 값(오차 5% 이내) — V25 의 초기값과 같아야 한다. */
+    private static final BigDecimal DEFAULT_COEF_BASE = new BigDecimal("0.6224");
+    private static final BigDecimal DEFAULT_COEF_EXPONENT = new BigDecimal("0.6949");
 
     private final PricingPolicyRepository pricingPolicyRepository;
     private final ContractRepository contractRepository;
@@ -78,12 +81,8 @@ public class PricingService {
         policy.setPerHousehold(request.getPerHousehold());
         policy.setPerToilet(request.getPerToilet());
         policy.setElevatorFee(request.getElevatorFee());
-        policy.setCoefMonthly1(request.getCoefMonthly1());
-        policy.setCoefMonthly2(request.getCoefMonthly2());
-        policy.setCoefMonthly3(request.getCoefMonthly3());
-        policy.setCoefWeekly1(request.getCoefWeekly1());
-        policy.setCoefWeekly2(request.getCoefWeekly2());
-        policy.setCoefWeekly3(request.getCoefWeekly3());
+        policy.setCoefBase(request.getCoefBase());
+        policy.setCoefExponent(request.getCoefExponent());
         policy.setRoundingUnit(request.getRoundingUnit());
         policy.setMemo(request.getMemo());
         return PricingPolicyResponse.from(pricingPolicyRepository.saveAndFlush(policy));
@@ -104,7 +103,7 @@ public class PricingService {
                 nullToZero(request.getSharedToilets()),
                 nullToZero(request.getExtraFloors()),
                 Boolean.TRUE.equals(request.getHasElevator()),
-                request.getCycle());
+                request.getVisitsPerMonth());
     }
 
     /**
@@ -115,12 +114,12 @@ public class PricingService {
      * @param households   세대수
      * @param toilets      공용 화장실 수
      * @param extraFloors  지하·옥상 추가 층
-     * @param hasElevator  엘리베이터 유무
-     * @param cycle        청소 주기
+     * @param hasElevator    엘리베이터 유무
+     * @param visitsPerMonth 월 방문 횟수
      * @return 권장가와 산출 근거
      */
     public PriceEstimateResponse calculate(PricingPolicy policy, int floors, int households,
-            int toilets, int extraFloors, boolean hasElevator, PricingCycle cycle) {
+            int toilets, int extraFloors, boolean hasElevator, int visitsPerMonth) {
 
         int totalFloors = floors + extraFloors;
         long floorAmount = totalFloors * policy.getPerFloor();
@@ -130,12 +129,12 @@ public class PricingService {
 
         long subtotal = policy.getBaseFee() + floorAmount + householdAmount + toiletAmount + elevatorAmount;
 
-        BigDecimal coefficient = policy.coefficientOf(cycle);
+        BigDecimal coefficient = policy.coefficientFor(visitsPerMonth);
         long total = roundTo(BigDecimal.valueOf(subtotal).multiply(coefficient), policy.getRoundingUnit());
 
         // 1회 방문 환산 — 고객이 "한 번 올 때 얼마냐"고 물을 때 바로 답할 수 있게.
         long perVisit = BigDecimal.valueOf(total)
-                .divide(BigDecimal.valueOf(cycle.getVisitsPerMonth()), 0, RoundingMode.HALF_UP)
+                .divide(BigDecimal.valueOf(visitsPerMonth), 0, RoundingMode.HALF_UP)
                 .longValue();
 
         List<PriceEstimateLine> breakdown = new ArrayList<>();
@@ -153,46 +152,46 @@ public class PricingService {
         }
         breakdown.add(new PriceEstimateLine("소계", "", subtotal));
 
-        return new PriceEstimateResponse(total, subtotal, perVisit, cycle, coefficient, breakdown);
+        return new PriceEstimateResponse(total, subtotal, perVisit, visitsPerMonth, coefficient, breakdown);
     }
 
     /**
-     * 계약의 청소 주기를 산정용 주기로 환산한다.
+     * 계약의 청소 주기를 월 방문 횟수로 환산한다.
      *
      * 계약의 CleaningCycle 은 매주/격주/매월 3단계라 "주 몇 회"까지는 담지 못한다.
      * 다만 계약에 청소 요일(cleaningWeekdays, 예 "MON,THU")이 있으므로,
-     * 매주인 경우에는 <b>요일 개수</b>를 주당 횟수로 본다. 요일이 비어 있으면 주 1회로 본다.
+     * 매주인 경우에는 <b>요일 개수 x 4주</b>를 월 방문 횟수로 본다.
+     * 요일이 비어 있으면 주 1회로 본다.
      *
-     * @param cycle           계약의 청소 주기
+     * 예전에는 이 값을 6단계 표에 끼워 맞추느라 주 4회가 주 3회로 깎였다.
+     * 지금은 계수를 공식으로 구하므로 요일이 몇 개든 그대로 반영된다.
+     *
+     * @param cycle            계약의 청소 주기
      * @param cleaningWeekdays 계약의 청소 요일(쉼표 구분, 비어 있을 수 있음)
-     * @return 산정용 주기(판단할 수 없으면 null)
+     * @return 월 방문 횟수(판단할 수 없으면 null)
      */
-    public PricingCycle toPricingCycle(CleaningCycle cycle, String cleaningWeekdays) {
+    public Integer toVisitsPerMonth(CleaningCycle cycle, String cleaningWeekdays) {
         if (cycle == null) {
             return null;
         }
         switch (cycle) {
             case MONTHLY:
-                return PricingCycle.MONTHLY_1;
+                return 1;
             case BIWEEKLY:
-                return PricingCycle.MONTHLY_2;
+                return 2;
             case WEEKLY:
-                return weeklyByWeekdayCount(cleaningWeekdays);
+                return weekdayCount(cleaningWeekdays) * VisitFrequency.WEEKS_PER_MONTH;
             default:
                 return null;
         }
     }
 
-    /** 매주 계약의 주당 횟수를 청소 요일 개수로 판단한다(비어 있으면 주 1회). */
-    private PricingCycle weeklyByWeekdayCount(String cleaningWeekdays) {
+    /** 청소 요일 문자열("MON,THU")의 요일 개수. 비어 있으면 1(주 1회로 본다). */
+    private int weekdayCount(String cleaningWeekdays) {
         if (!StringUtils.hasText(cleaningWeekdays)) {
-            return PricingCycle.WEEKLY_1;
+            return 1;
         }
-        int days = cleaningWeekdays.split(",").length;
-        if (days >= 3) {
-            return PricingCycle.WEEKLY_3;
-        }
-        return days == 2 ? PricingCycle.WEEKLY_2 : PricingCycle.WEEKLY_1;
+        return cleaningWeekdays.split(",").length;
     }
 
     // ===================== 적정가 재산정 =====================
@@ -220,8 +219,8 @@ public class PricingService {
                 skippedNoBuilding++;
                 continue;
             }
-            PricingCycle cycle = toPricingCycle(contract.getCleaningCycle(), contract.getCleaningWeekdays());
-            if (cycle == null) {
+            Integer visitsPerMonth = toVisitsPerMonth(contract.getCleaningCycle(), contract.getCleaningWeekdays());
+            if (visitsPerMonth == null) {
                 skippedNoCycle++;
                 continue;
             }
@@ -232,7 +231,7 @@ public class PricingService {
                     nullToZero(client.getSharedToilets()),
                     nullToZero(client.getExtraFloors()),
                     Boolean.TRUE.equals(client.getHasElevator()),
-                    cycle);
+                    visitsPerMonth);
 
             rows.add(new PriceReviewRow(
                     contract.getId(),
@@ -240,9 +239,8 @@ public class PricingService {
                     client.getName(),
                     contract.getTitle(),
                     buildingSummary(client),
-                    cycle,
                     contract.getMonthlyFee() != null ? contract.getMonthlyFee() : 0L,
-                    estimate.getRecommendedAmount()));
+                    estimate));
         }
 
         // 올려야 할 금액이 큰 순 — 먼저 손볼 거래처가 위로 온다.
@@ -306,12 +304,8 @@ public class PricingService {
             p.setPerHousehold(DEFAULT_PER_HOUSEHOLD);
             p.setPerToilet(DEFAULT_PER_TOILET);
             p.setElevatorFee(DEFAULT_ELEVATOR_FEE);
-            p.setCoefMonthly1(new BigDecimal("0.60"));
-            p.setCoefMonthly2(new BigDecimal("1.00"));
-            p.setCoefMonthly3(new BigDecimal("1.40"));
-            p.setCoefWeekly1(new BigDecimal("1.70"));
-            p.setCoefWeekly2(new BigDecimal("2.60"));
-            p.setCoefWeekly3(new BigDecimal("3.40"));
+            p.setCoefBase(DEFAULT_COEF_BASE);
+            p.setCoefExponent(DEFAULT_COEF_EXPONENT);
             p.setRoundingUnit(DEFAULT_ROUNDING_UNIT);
             return pricingPolicyRepository.save(p);
         });
