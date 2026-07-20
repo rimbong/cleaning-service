@@ -28,7 +28,6 @@ const queryClient = useQueryClient()
 const { data, isLoading, isError } = useQuery({
     queryKey: ['contract', computed(() => String(props.id))],
     queryFn: () => contractService.get(props.id).then((res) => res.data.data),
-    staleTime: 30_000,
 })
 
 const contract = computed(() => data.value)
@@ -120,7 +119,6 @@ const attachmentsKey = computed(() => ['contract-attachments', String(props.id)]
 const { data: attachmentData } = useQuery({
     queryKey: attachmentsKey,
     queryFn: () => contractService.listAttachments(props.id).then((res) => res.data.data),
-    staleTime: 30_000,
 })
 const attachments = computed(() => attachmentData.value ?? [])
 

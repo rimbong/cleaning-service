@@ -24,14 +24,12 @@ const { page } = usePageQuery()
 const { data: itemData } = useQuery({
     queryKey: ['supply', computed(() => String(props.id))],
     queryFn: () => supplyService.get(props.id).then((r) => r.data.data),
-    staleTime: 30_000,
 })
 const item = computed(() => itemData.value ?? null)
 
 const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: ['supply-history', computed(() => String(props.id)), page],
     queryFn: () => supplyService.history(props.id, { page: page.value }).then((r) => r.data.data),
-    staleTime: 30_000,
     placeholderData: keepPreviousData,
 })
 const rows = computed(() => data.value?.content ?? [])

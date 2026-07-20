@@ -54,8 +54,10 @@ const hint = computed(() => {
 /**
  * 재고와 얽힌 캐시를 한꺼번에 지운다.
  * 목록·단건·이력의 queryKey 가 서로 달라서('supplies' / 'supply' / 'supply-history')
- * 하나만 지우면 나머지는 옛 값으로 남는다. 특히 이력은 staleTime 안에서는
- * 서버에 다시 묻지 않으므로 반드시 같이 지워야 한다.
+ * 하나만 지우면 나머지 화면은 이미 떠 있는 동안 옛 값을 그대로 보여준다.
+ *
+ * (전역 staleTime 이 0 이라 화면을 나갔다 들어오면 어차피 갱신되지만,
+ *  등록 직후 같은 화면에서 바로 반영되게 하려면 여기서 지워야 한다)
  */
 function invalidateSupplyCaches() {
     queryClient.invalidateQueries({ queryKey: ['supplies'] })

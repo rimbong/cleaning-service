@@ -18,7 +18,6 @@ const statusFilter = ref('') // '' | UNPAID | PARTIAL | PAID
 const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: ['settlement', computed(() => year.value), computed(() => month.value)],
     queryFn: () => settlementService.getMonth(year.value, month.value).then((res) => res.data.data),
-    staleTime: 15_000,
 })
 
 const monthData = computed(() => data.value)

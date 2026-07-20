@@ -30,7 +30,6 @@ const { data, isLoading, isError, isFetching } = useQuery({
     queryFn: () => expenseService
         .list({ keyword: appliedKeyword.value, page: page.value })
         .then((r) => r.data.data),
-    staleTime: 30_000,
     placeholderData: keepPreviousData,
 })
 const expenses = computed(() => data.value?.content ?? [])

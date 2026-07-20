@@ -21,7 +21,6 @@ const queryClient = useQueryClient()
 const { data, isLoading, isError } = useQuery({
     queryKey: ['client', computed(() => String(props.id))],
     queryFn: () => clientService.get(props.id).then((res) => res.data.data),
-    staleTime: 30_000,
 })
 
 const client = computed(() => data.value)
@@ -32,7 +31,6 @@ const client = computed(() => data.value)
 const { data: contractData } = useQuery({
     queryKey: ['contracts', 'byClient', computed(() => String(props.id))],
     queryFn: () => contractService.list({ clientId: props.id, size: 200 }).then((res) => res.data.data),
-    staleTime: 30_000,
 })
 const contracts = computed(() => contractData.value?.content ?? [])
 

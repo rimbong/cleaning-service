@@ -24,7 +24,6 @@ const emit = defineEmits(['update:modelValue'])
 const { data } = useQuery({
     queryKey: ['client-options'],
     queryFn: () => clientService.options().then((res) => res.data.data),
-    staleTime: 30_000,
 })
 const options = computed(() => data.value ?? [])
 

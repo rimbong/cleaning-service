@@ -18,7 +18,6 @@ const queryClient = useQueryClient()
 const { data, isLoading, isError } = useQuery({
     queryKey: ['quote', computed(() => String(props.id))],
     queryFn: () => quoteService.get(props.id).then((res) => res.data.data),
-    staleTime: 30_000,
 })
 
 const quote = computed(() => data.value)

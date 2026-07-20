@@ -24,7 +24,6 @@ const aggKey = computed(() => ['tax-agg', params.value.fromYear, params.value.fr
 const { data: aggData, isFetching } = useQuery({
     queryKey: aggKey,
     queryFn: () => taxInvoiceService.aggregate(params.value).then((r) => r.data.data),
-    staleTime: 15_000,
 })
 const agg = computed(() => aggData.value)
 
@@ -38,7 +37,6 @@ function periodLabel(p) {
 const { data: recordsData } = useQuery({
     queryKey: ['tax-records'],
     queryFn: () => taxInvoiceService.list().then((r) => r.data.data),
-    staleTime: 15_000,
 })
 const records = computed(() => recordsData.value ?? [])
 

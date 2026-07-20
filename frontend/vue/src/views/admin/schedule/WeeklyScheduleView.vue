@@ -12,7 +12,6 @@ const router = useRouter()
 const { data, isLoading, isError } = useQuery({
     queryKey: ['schedule'],
     queryFn: () => contractService.getSchedule().then((res) => res.data.data),
-    staleTime: 30_000,
 })
 
 const days = computed(() => data.value?.days ?? [])

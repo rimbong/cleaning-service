@@ -35,7 +35,6 @@ const { data, isLoading, isError, isFetching } = useQuery({
     queryFn: () => clientService
         .list({ keyword: appliedKeyword.value, page: page.value })
         .then((res) => res.data.data),
-    staleTime: 30_000, // 30초 이내 재방문은 캐시 사용(목록 왕복 시 즉시 표시)
     placeholderData: keepPreviousData,
 })
 

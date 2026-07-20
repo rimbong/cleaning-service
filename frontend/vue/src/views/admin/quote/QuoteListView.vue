@@ -30,7 +30,6 @@ const { data, isLoading, isError, isFetching } = useQuery({
     queryFn: () => quoteService
         .list({ keyword: appliedKeyword.value, page: page.value })
         .then((res) => res.data.data),
-    staleTime: 30_000,
     placeholderData: keepPreviousData,
 })
 

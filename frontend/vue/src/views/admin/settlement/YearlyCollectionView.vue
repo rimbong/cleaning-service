@@ -16,7 +16,6 @@ const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: ['settlement-yearly', computed(() => year.value)],
     queryFn: () => settlementService.getYearly(year.value).then((res) => res.data.data),
-    staleTime: 15_000,
 })
 
 const groups = computed(() => data.value?.groups ?? [])

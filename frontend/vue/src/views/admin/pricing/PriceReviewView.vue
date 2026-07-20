@@ -13,7 +13,6 @@ import EmptyState from '@/common/components/common/EmptyState.vue'
 const { data, isLoading, isError } = useQuery({
     queryKey: ['pricing-review'],
     queryFn: () => pricingService.review().then((r) => r.data.data),
-    staleTime: 30_000,
 })
 
 const rows = computed(() => data.value?.rows ?? [])

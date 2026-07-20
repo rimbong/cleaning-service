@@ -34,7 +34,6 @@ const { data, isLoading, isError, isFetching } = useQuery({
     queryFn: () => contractService
         .list({ keyword: appliedKeyword.value, page: page.value })
         .then((res) => res.data.data),
-    staleTime: 30_000, // 30초 이내 재방문은 캐시 사용
     placeholderData: keepPreviousData,
 })
 
