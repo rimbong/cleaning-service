@@ -61,8 +61,10 @@ function toggleWeekday(code) {
 }
 
 // ===== 월 방문 횟수 =====
-// 요일·주기는 "언제 가는지"라서 "한 달에 몇 번"을 항상 담지는 못한다(월 3회 등).
-// 그래서 값을 따로 두되, 요일·주기로 자동 계산해 채워주고 필요하면 직접 고치게 한다.
+// 요일로 떨어지는 계약(매주·격주)은 자동으로 계산된다.
+// 요일로 떨어지지 않는 계약은 곧 매월(비정기)이므로, 그때만 숫자를 직접 받는다.
+// 별도의 "직접 지정" 스위치는 두지 않는다 — 매주 월요일인데 월 3회 같은 조합은
+// 애초에 성립하지 않아서, 스위치가 있으면 서로 모순되는 값이 저장될 수 있다.
 
 /** 한 달을 몇 주로 보는지 — 서버(VisitFrequency.WEEKS_PER_MONTH)와 같아야 한다. */
 const WEEKS_PER_MONTH = 4
@@ -103,29 +105,14 @@ const scheduleSummary = computed(() => {
     return `${cycleLabel} ${picked.join('·')} → 월 ${suggestedVisits.value}회`
 })
 
-// 매월로 바꾸면 요일 선택을 비우고 예외 입력을 켠다.
-// 요일이 남아 있으면 스케줄 화면에서 매주 가는 것처럼 보인다.
+// 주기가 바뀌면 그에 맞게 정리한다.
+//   매월  : 요일은 의미가 없으므로 비우고, 횟수 입력을 1회부터 시작
+//   매주/격주 : 요일로 자동 계산되므로 직접 넣었던 횟수는 버린다
 watch(isMonthly, (monthly) => {
     if (monthly) {
         form.cleaningWeekdays = []
-        visitsOverride.value = true
-    }
-})
-
-/**
- * 월 방문 횟수를 직접 지정할지.
- *
- * 대부분의 계약은 요일·주기로 떨어지므로 평소에는 신경 쓸 필요가 없다.
- * 월 3회처럼 요일·주기로 표현할 수 없는 예외 계약만 체크해서 숫자를 넣는다.
- * 체크를 안 하면 서버가 요일·주기로 환산하므로 값이 한 곳에서만 관리된다.
- */
-const visitsOverride = ref(false)
-
-/** 체크를 켜면 자동값을 시작값으로 넣어준다(빈칸에서 시작하면 불편하다). */
-watch(visitsOverride, (on) => {
-    if (on) {
         if (form.visitsPerMonth === '') {
-            form.visitsPerMonth = suggestedVisits.value
+            form.visitsPerMonth = 1
         }
     } else {
         form.visitsPerMonth = ''
@@ -161,11 +148,8 @@ watch(() => props.id, async (id) => {
         form.doorCode = c.doorCode ?? ''
         form.cleaningWeekdays = Array.isArray(c.cleaningWeekdays) ? [...c.cleaningWeekdays] : []
         form.cleaningCycle = c.cleaningCycle ?? 'WEEKLY'
-        // 저장된 값이 요일·주기로 나오는 값과 다르면 예외로 직접 지정한 계약이다.
-        // 같으면 자동으로 떨어지는 계약이므로 체크를 꺼 둔다(굳이 예외로 표시할 이유가 없다).
-        const isException = c.visitsPerMonth != null && c.visitsPerMonth !== suggestedVisits.value
-        visitsOverride.value = isException
-        form.visitsPerMonth = isException ? c.visitsPerMonth : ''
+        // 횟수는 매월 계약에서만 쓴다. 매주·격주는 요일로 계산되므로 화면에 담아두지 않는다.
+        form.visitsPerMonth = c.cleaningCycle === 'MONTHLY' ? (c.visitsPerMonth ?? 1) : ''
         form.vatType = c.vatType ?? 'EXCLUSIVE'
         form.initialFee = c.initialFee ?? ''
         form.cleaningScope = c.cleaningScope ?? ''
@@ -195,9 +179,9 @@ function buildPayload() {
         doorCode: form.doorCode.trim() || null,
         cleaningWeekdays: form.cleaningWeekdays,
         cleaningCycle: form.cleaningCycle || 'WEEKLY',
-        // 예외 지정이 아니면 null 을 보낸다. 서버가 요일·주기로 환산하므로
-        // 같은 값을 두 곳에 저장해 두고 나중에 어긋나는 일이 없다.
-        visitsPerMonth: visitsOverride.value && form.visitsPerMonth !== ''
+        // 매월 계약만 횟수를 보낸다. 매주·격주는 null 을 보내 서버가 요일로 환산하게 한다.
+        // 같은 값을 두 곳에 저장해 두면 나중에 한쪽만 고쳐져 어긋난다.
+        visitsPerMonth: isMonthly.value && form.visitsPerMonth !== ''
             ? Number(form.visitsPerMonth)
             : null,
         vatType: form.vatType || 'EXCLUSIVE',
@@ -228,6 +212,10 @@ function validate() {
     // type="date" 값은 YYYY-MM-DD 문자열이라 사전식 비교로 대소 비교 가능
     if (form.endDate && form.startDate && form.endDate < form.startDate) {
         setError('endDate', '계약 종료일은 시작일과 같거나 이후여야 합니다.')
+    }
+    // 매월 계약은 요일로 계산할 수 없으므로 횟수가 없으면 권장가를 낼 수 없다.
+    if (isMonthly.value && (form.visitsPerMonth === '' || Number(form.visitsPerMonth) < 1)) {
+        setError('visitsPerMonth', '매월 계약은 월 방문 횟수를 1 이상 입력하세요.')
     }
     return !hasErrors()
 }
@@ -362,37 +350,33 @@ function onCancel() {
                 </div>
             </div>
 
-            <!-- 요일·주기는 "언제 가는지"라 월 3회 같은 패턴을 담지 못한다.
-                 대부분은 요일·주기로 떨어지므로 자동으로 두고, 예외만 체크해서 직접 넣는다. -->
+            <!-- 매주·격주는 요일로 계산되므로 결과만 보여준다.
+                 매월은 요일로 적을 수 없으므로 그때만 횟수를 직접 받는다. -->
             <div class="field">
                 <label>월 방문 횟수 <small class="hint">(권장가 산정에 사용)</small></label>
-                <p class="summary">{{ scheduleSummary }}</p>
 
-                <!-- 매월은 요일로 못 적으므로 직접 지정이 필수다. 체크박스를 끌 수 없게 한다. -->
-                <label class="check" :class="{ 'check--locked': isMonthly }">
-                    <input v-model="visitsOverride" type="checkbox" :disabled="isMonthly" />
-                    <span>월 방문 횟수를 직접 지정 (예외 계약)</span>
-                </label>
-
-                <div v-if="visitsOverride" class="visits">
-                    <input v-model="form.visitsPerMonth" type="number" min="1" max="31" step="1" />
+                <div v-if="isMonthly" class="visits" :class="{ 'has-error': errors.visitsPerMonth }">
+                    <input
+                        v-model="form.visitsPerMonth"
+                        type="number"
+                        min="1"
+                        max="31"
+                        step="1"
+                        @input="clearError('visitsPerMonth')"
+                    />
                     <span class="visits__unit">회 / 월</span>
-                    <span v-if="!isMonthly && Number(form.visitsPerMonth) !== suggestedVisits" class="visits__auto">
-                        요일·주기로는 {{ suggestedVisits }}회
-                    </span>
                 </div>
+                <p v-else class="summary">{{ scheduleSummary }}</p>
 
-                <p v-if="isMonthly" class="warn-msg">
+                <p v-if="errors.visitsPerMonth" class="err-msg">{{ errors.visitsPerMonth }}</p>
+                <p v-else-if="isMonthly" class="warn-msg">
                     매월 계약은 요일로 적을 수 없어 횟수를 직접 넣습니다.
                     메모에 <b>매월 첫째주 수요일, 넷째주 금요일</b> 처럼 실제 일정을 적어두세요.
                     청소 스케줄 화면에서는 요일 칸이 아니라 별도 목록에 표시됩니다.
                 </p>
-                <p v-else-if="visitsOverride" class="warn-msg">
-                    예외 계약입니다. 어떤 사정인지 아래 메모에도 남겨두세요.
-                </p>
                 <p v-else class="hint">
-                    보통은 그대로 두면 됩니다. 요일을 여러 개 고르면 그만큼 늘어납니다
-                    (매주 월·목 = 월 8회). 월 3회처럼 요일·주기로 표현할 수 없을 때만 체크하세요.
+                    요일과 주기로 자동 계산됩니다. 요일을 여러 개 고르면 그만큼 늘어납니다(매주 월·목 = 월 8회).
+                    요일로 떨어지지 않는 계약은 주기를 <b>매월</b>로 바꾸고 횟수를 직접 넣으세요.
                 </p>
             </div>
 
@@ -557,36 +541,17 @@ function onCancel() {
     white-space: nowrap;
 }
 
-/* 예외 값이 자동값과 다를 때 원래 값이 얼마인지 같이 보여준다 */
-.visits__auto {
-    font-size: 0.78rem;
-    color: var(--text);
-    white-space: nowrap;
+/* 검증 실패 표시 — .field.has-error 는 .field 를 겨냥하므로 여기서 따로 잡아준다 */
+.visits.has-error input {
+    border-color: var(--danger);
 }
 
-/* 예외 지정 체크박스 — 라벨과 가로로 붙인다 */
-.check {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    margin: 0.5rem 0 0;
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--text-h);
-    cursor: pointer;
+.visits.has-error input:focus {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px var(--danger-soft);
 }
 
-.check input {
-    width: auto;
-    margin: 0;
-}
-
-/* 매월 계약은 직접 지정이 필수라 끌 수 없다 — 눌러도 안 된다는 걸 보이게 */
-.check--locked {
-    opacity: 0.75;
-    cursor: not-allowed;
-}
-
+/* 매월 계약은 요일이 의미 없으므로 버튼을 잠근다 */
 .wd:disabled {
     opacity: 0.4;
     cursor: not-allowed;
