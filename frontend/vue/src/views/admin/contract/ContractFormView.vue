@@ -8,6 +8,7 @@ import { useQueryClient } from '@tanstack/vue-query'
 
 import { contractService, CONTRACT_STATUSES, WEEKDAYS, CLEANING_CYCLES, VAT_TYPES } from '@/services/admin/contract/contractService'
 import ClientPickerField from '@/views/admin/client/ClientPickerField.vue'
+import { invalidatePricingReview } from '@/services/admin/pricing/pricingCache'
 import { useFormErrors } from '@/common/composables/useFormErrors'
 import { useNotifyStore } from '@/stores/common/notify/notify'
 
@@ -241,6 +242,8 @@ async function onSubmit() {
         }
         queryClient.invalidateQueries({ queryKey: ['contracts'] }) // 목록 캐시
         queryClient.invalidateQueries({ queryKey: ['contract'] })  // 상세 캐시(단건) — 수정분 즉시 반영
+        // 월정액·주기·요일·방문횟수가 바뀌면 적정가 재산정 결과도 달라진다.
+        invalidatePricingReview(queryClient)
         const id = saved.data.data.id
         router.replace({ name: 'admin-contract-detail', params: { id } })
     } catch (e) {

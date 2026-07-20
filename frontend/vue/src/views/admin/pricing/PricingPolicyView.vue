@@ -5,10 +5,14 @@
 // 재배포가 필요해서 이미 설치된 PC 에서는 손을 댈 수가 없다. 여기서 숫자만 바꾸면 된다.
 import { computed, reactive, ref, onMounted } from 'vue'
 
+import { useQueryClient } from '@tanstack/vue-query'
+
 import { pricingService } from '@/services/admin/pricing/pricingService'
+import { invalidatePricingReview } from '@/services/admin/pricing/pricingCache'
 import { useNotifyStore } from '@/stores/common/notify/notify'
 
 const notify = useNotifyStore()
+const queryClient = useQueryClient()
 const loading = ref(true)
 const saving = ref(false)
 const updatedAt = ref(null)
@@ -96,6 +100,8 @@ async function onSubmit() {
         }
         const p = (await pricingService.updatePolicy(payload)).data.data
         updatedAt.value = p.updatedAt
+        // 단가가 바뀌면 모든 계약의 권장가가 한꺼번에 달라진다. 재산정 화면을 옛 금액으로 두면 안 된다.
+        invalidatePricingReview(queryClient)
         notify.toast('저장되었습니다.', { type: 'success' })
     } catch (e) {
         notify.bar(e.response?.data?.message ?? '저장 실패', { color: 'red' })

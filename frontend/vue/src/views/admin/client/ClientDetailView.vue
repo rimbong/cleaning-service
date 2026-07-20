@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { clientService } from '@/services/admin/client/clientService'
 import { contractService } from '@/services/admin/contract/contractService'
 import { useNotifyStore } from '@/stores/common/notify/notify'
+import { invalidatePricingReview } from '@/services/admin/pricing/pricingCache'
 
 const props = defineProps({
     id: { type: [String, Number], required: true },
@@ -64,6 +65,8 @@ const removeMutation = useMutation({
     onSuccess: () => {
         notify.toast('삭제되었습니다.', { type: 'info' })
         queryClient.invalidateQueries({ queryKey: ['clients'] })
+        // 거래처가 사라지면 그 계약도 재산정에서 빠진다.
+        invalidatePricingReview(queryClient)
         router.replace({ name: 'admin-clients' })
     },
     onError: (e) => {

@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router'
 import { useQueryClient } from '@tanstack/vue-query'
 
 import { clientService, CLEANING_TYPES, TAX_INVOICE_TYPES } from '@/services/admin/client/clientService'
+import { invalidatePricingReview } from '@/services/admin/pricing/pricingCache'
 import { useFormErrors } from '@/common/composables/useFormErrors'
 import { useNotifyStore } from '@/stores/common/notify/notify'
 
@@ -144,6 +145,8 @@ async function onSubmit() {
         }
         queryClient.invalidateQueries({ queryKey: ['clients'] }) // 목록 캐시
         queryClient.invalidateQueries({ queryKey: ['client'] })  // 상세 캐시(단건) — 수정분 즉시 반영
+        // 건물 규모가 바뀌면 권장가뿐 아니라 재산정 검토 대상 여부까지 달라진다.
+        invalidatePricingReview(queryClient)
         const id = saved.data.data.id
         router.replace({ name: 'admin-client-detail', params: { id } })
     } catch (e) {

@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 
 import { contractService, WEEKDAYS } from '@/services/admin/contract/contractService'
 import { useNotifyStore } from '@/stores/common/notify/notify'
+import { invalidatePricingReview } from '@/services/admin/pricing/pricingCache'
 
 /** 요일 코드 배열 → "월·수·금" 라벨. 비면 '-'. */
 function weekdayLabels(codes) {
@@ -49,6 +50,8 @@ const removeMutation = useMutation({
     onSuccess: () => {
         notify.toast('삭제되었습니다.', { type: 'info' })
         queryClient.invalidateQueries({ queryKey: ['contracts'] })
+        // 계약이 사라지면 재산정 대상에서도 빠진다.
+        invalidatePricingReview(queryClient)
         router.replace({ name: 'admin-contracts' })
     },
     onError: (e) => {

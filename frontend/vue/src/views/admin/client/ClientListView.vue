@@ -10,6 +10,7 @@ import TableSkeleton from '@/common/components/common/TableSkeleton.vue'
 import EmptyState from '@/common/components/common/EmptyState.vue'
 import { usePageQuery } from '@/common/composables/usePageQuery'
 import { useNotifyStore } from '@/stores/common/notify/notify'
+import { invalidatePricingReview } from '@/services/admin/pricing/pricingCache'
 
 const router = useRouter()
 const notify = useNotifyStore()
@@ -64,6 +65,8 @@ const removeMutation = useMutation({
     onSuccess: () => {
         notify.toast('삭제되었습니다.', { type: 'info' })
         queryClient.invalidateQueries({ queryKey: ['clients'] })
+        // 거래처가 사라지면 그 계약도 재산정에서 빠진다.
+        invalidatePricingReview(queryClient)
     },
     onError: (e) => {
         notify.bar(e.response?.data?.message ?? '삭제에 실패했습니다.', { color: 'red' })
