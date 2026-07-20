@@ -162,8 +162,13 @@ public class PricingService {
      * 요일·주기는 "언제 가는지"라서 "한 달에 몇 번"을 항상 정확히 담지는 못하기 때문이다
      * (월 3회 같은 패턴은 요일·주기 조합으로 표현할 수 없다).
      *
-     * 격주도 요일 개수를 곱한다. 격주 + 월·목이면 2주에 2번씩 = 월 4회다.
-     * 예전에는 격주를 무조건 월 2회로 봐서 요일이 여럿인 계약이 낮게 잡혔다.
+     * 세 주기 모두 요일 개수를 곱한다. 요일은 "무슨 요일에 가는가"이고 주기는
+     * "그 요일들을 얼마나 자주 반복하는가"라서, 배수만 다르고 규칙은 같다.
+     *   매주 = 요일수 x 4 / 격주 = 요일수 x 2 / 매월 = 요일수 x 1
+     * 예) 격주 + 월·목 = 2주에 2번씩 = 월 4회, 매월 + 월·목 = 매달 각 요일 1번 = 월 2회
+     *
+     * 예전에는 격주와 매월이 요일 개수를 무시하고 각각 2, 1 로 고정돼 있어
+     * 요일이 여럿인 계약이 낮게 잡혔다.
      *
      * @param cycle            계약의 청소 주기
      * @param cleaningWeekdays 계약의 청소 요일(쉼표 구분, 비어 있을 수 있음)
@@ -176,7 +181,7 @@ public class PricingService {
         int days = weekdayCount(cleaningWeekdays);
         switch (cycle) {
             case MONTHLY:
-                return 1;
+                return days;
             case BIWEEKLY:
                 return days * (VisitFrequency.WEEKS_PER_MONTH / 2);
             case WEEKLY:

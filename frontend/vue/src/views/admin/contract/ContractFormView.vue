@@ -67,16 +67,30 @@ function toggleWeekday(code) {
 /** 한 달을 몇 주로 보는지 — 서버(VisitFrequency.WEEKS_PER_MONTH)와 같아야 한다. */
 const WEEKS_PER_MONTH = 4
 
-/** 요일·주기로 계산한 월 방문 횟수 */
+/**
+ * 요일·주기로 계산한 월 방문 횟수.
+ * 요일은 "무슨 요일에 가는가", 주기는 "그 요일들을 얼마나 자주 반복하는가"이므로
+ * 세 주기 모두 요일 개수를 곱하고 배수만 다르다(매주 4 / 격주 2 / 매월 1).
+ */
 const suggestedVisits = computed(() => {
     const days = form.cleaningWeekdays.length || 1
     if (form.cleaningCycle === 'MONTHLY') {
-        return 1
+        return days
     }
     if (form.cleaningCycle === 'BIWEEKLY') {
         return days * (WEEKS_PER_MONTH / 2)
     }
     return days * WEEKS_PER_MONTH
+})
+
+/** 지금 고른 요일·주기가 무슨 뜻인지 한 문장으로 — "매주 월·목이면 월 8회" 처럼 바로 확인되게 */
+const scheduleSummary = computed(() => {
+    const picked = WEEKDAYS.filter((d) => form.cleaningWeekdays.includes(d.value)).map((d) => d.label)
+    const cycleLabel = CLEANING_CYCLES.find((c) => c.value === form.cleaningCycle)?.label ?? ''
+    if (picked.length === 0) {
+        return `${cycleLabel} (요일 미선택) → 월 ${suggestedVisits.value}회`
+    }
+    return `${cycleLabel} ${picked.join('·')} → 월 ${suggestedVisits.value}회`
 })
 
 // 사용자가 직접 고쳤는지 추적한다. 고친 값을 요일 하나 바꿨다고 덮어쓰면 안 되기 때문이다.
@@ -337,12 +351,13 @@ function onCancel() {
                         자동값({{ suggestedVisits }}회)으로
                     </button>
                 </div>
+                <p class="summary">{{ scheduleSummary }}</p>
                 <p v-if="visitsOverridden" class="warn-msg">
                     요일·주기로 계산하면 {{ suggestedVisits }}회입니다. 직접 넣은 값을 그대로 씁니다.
                 </p>
                 <p v-else class="hint">
-                    요일과 주기를 고르면 자동으로 채워집니다.
-                    월 3회처럼 요일·주기로 표현할 수 없는 경우에는 직접 넣으세요.
+                    요일을 여러 개 고르면 그만큼 늘어납니다(매주 월·목 = 월 8회, 매월 월·목 = 월 2회).
+                    이 규칙으로 표현할 수 없는 경우에는 횟수를 직접 넣으세요.
                 </p>
             </div>
 
@@ -521,6 +536,14 @@ function onCancel() {
 
 .visits .btn:hover {
     border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* 고른 요일·주기가 무슨 뜻인지 한 문장으로 */
+.summary {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
+    font-weight: 600;
     color: var(--primary);
 }
 
