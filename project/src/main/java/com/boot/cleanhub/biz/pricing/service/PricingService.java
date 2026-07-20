@@ -20,6 +20,7 @@ import com.boot.cleanhub.biz.pricing.dto.PriceEstimateRequest;
 import com.boot.cleanhub.biz.pricing.dto.PriceEstimateResponse;
 import com.boot.cleanhub.biz.pricing.dto.PriceReviewResponse;
 import com.boot.cleanhub.biz.pricing.dto.PriceReviewRow;
+import com.boot.cleanhub.biz.pricing.dto.PriceReviewSkipped;
 import com.boot.cleanhub.biz.pricing.dto.PricingPolicyRequest;
 import com.boot.cleanhub.biz.pricing.dto.PricingPolicyResponse;
 import com.boot.cleanhub.biz.pricing.repository.PricingPolicyRepository;
@@ -189,18 +190,17 @@ public class PricingService {
     public PriceReviewResponse review() {
         PricingPolicy policy = getSingleton();
         List<PriceReviewRow> rows = new ArrayList<>();
-        int skippedNoBuilding = 0;
-        int skippedNoCycle = 0;
+        List<PriceReviewSkipped> skipped = new ArrayList<>();
 
         for (Contract contract : contractRepository.findActiveWithClient()) {
             Client client = contract.getClient();
             if (client == null || client.getFloors() == null || client.getHouseholdCount() == null) {
-                skippedNoBuilding++;
+                skipped.add(toSkipped(contract, client, PriceReviewSkipped.Reason.NO_BUILDING));
                 continue;
             }
             Integer visitsPerMonth = resolveVisitsPerMonth(contract);
             if (visitsPerMonth == null) {
-                skippedNoCycle++;
+                skipped.add(toSkipped(contract, client, PriceReviewSkipped.Reason.NO_VISITS));
                 continue;
             }
 
@@ -225,7 +225,20 @@ public class PricingService {
 
         // 올려야 할 금액이 큰 순 — 먼저 손볼 거래처가 위로 온다.
         rows.sort(Comparator.comparingLong(PriceReviewRow::getDifference).reversed());
-        return new PriceReviewResponse(rows, skippedNoBuilding, skippedNoCycle);
+        // 빠진 것은 거래처명 순 — 고치러 다닐 때 찾기 쉽게.
+        skipped.sort(Comparator.comparing(
+                s -> s.getClientName() != null ? s.getClientName() : ""));
+        return new PriceReviewResponse(rows, skipped);
+    }
+
+    /** 재산정에서 빠진 계약을 이유와 함께 담는다 */
+    private PriceReviewSkipped toSkipped(Contract contract, Client client, PriceReviewSkipped.Reason reason) {
+        return new PriceReviewSkipped(
+                contract.getId(),
+                client != null ? client.getId() : null,
+                client != null ? client.getName() : null,
+                contract.getTitle(),
+                reason);
     }
 
     /** "5층 10세대 · 공용화장실 2" 형태의 건물 요약 */

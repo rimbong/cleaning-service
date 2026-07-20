@@ -18,6 +18,9 @@ const { data, isLoading, isError } = useQuery({
 
 const rows = computed(() => data.value?.rows ?? [])
 const summary = computed(() => data.value ?? null)
+// 빠진 계약은 기본으로 접어 둔다 — 목록이 길면 본 표가 밀린다.
+const skipped = computed(() => data.value?.skipped ?? [])
+const showSkipped = ref(false)
 
 function money(v) {
     return v != null ? Number(v).toLocaleString('ko-KR') : '-'
@@ -88,19 +91,54 @@ function toggleAll() {
                 </div>
             </div>
 
-            <!-- 제외된 계약을 밝힌다. 조용히 빼면 전체를 검토한 것으로 오해한다. -->
-            <div v-if="summary && (summary.skippedNoBuilding || summary.skippedNoCycle)" class="skipped">
-                <b>검토에서 빠진 계약이 있습니다.</b>
-                <ul>
-                    <li v-if="summary.skippedNoBuilding">
-                        건물 규모 미입력 <b>{{ summary.skippedNoBuilding }}건</b> —
-                        거래처 수정에서 층수·세대수를 넣으면 대상이 됩니다.
-                    </li>
-                    <li v-if="summary.skippedNoCycle">
-                        청소 주기 미입력 <b>{{ summary.skippedNoCycle }}건</b> —
-                        계약 수정에서 청소 주기를 지정하세요.
-                    </li>
-                </ul>
+            <!-- 제외된 계약을 밝힌다. 조용히 빼면 전체를 검토한 것으로 오해하고,
+                 건수만 알려주면 어디를 고쳐야 할지 찾을 수 없어 손을 못 댄다. -->
+            <div v-if="skipped.length" class="skipped">
+                <div class="skipped__head">
+                    <b>검토에서 빠진 계약 {{ skipped.length }}건</b>
+                    <button class="btn btn--sm" type="button" @click="showSkipped = !showSkipped">
+                        {{ showSkipped ? '접기' : '어떤 계약인지 보기' }}
+                    </button>
+                </div>
+                <p class="skipped__sum">
+                    <span v-if="summary.skippedNoBuilding">건물 규모 미입력 {{ summary.skippedNoBuilding }}건</span>
+                    <span v-if="summary.skippedNoBuilding && summary.skippedNoCycle"> · </span>
+                    <span v-if="summary.skippedNoCycle">방문 횟수 미확인 {{ summary.skippedNoCycle }}건</span>
+                </p>
+
+                <table v-if="showSkipped" class="table table--skipped">
+                    <thead>
+                        <tr><th>거래처</th><th>빠진 이유</th><th>고치는 법</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="s in skipped" :key="s.contractId">
+                            <td>
+                                <RouterLink :to="{ name: 'admin-contract-detail', params: { id: s.contractId } }">
+                                    {{ s.clientName || '(거래처 없음)' }}
+                                </RouterLink>
+                                <div class="sub">{{ s.contractTitle }}</div>
+                            </td>
+                            <td>
+                                <span class="tag" :class="'tag--' + s.reason.toLowerCase().replace('_', '-')">
+                                    {{ s.reasonLabel }}
+                                </span>
+                            </td>
+                            <td class="muted">
+                                {{ s.howToFix }}
+                                <RouterLink
+                                    v-if="s.reason === 'NO_BUILDING' && s.clientId"
+                                    class="fix-link"
+                                    :to="{ name: 'admin-client-edit', params: { id: s.clientId } }"
+                                >거래처 수정</RouterLink>
+                                <RouterLink
+                                    v-else-if="s.reason === 'NO_VISITS'"
+                                    class="fix-link"
+                                    :to="{ name: 'admin-contract-edit', params: { id: s.contractId } }"
+                                >계약 수정</RouterLink>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
             <div v-if="rows.length" class="table-wrap">
@@ -196,7 +234,15 @@ function toggleAll() {
 .sum-card--accent .sum-big { color: var(--primary); }
 .sum-lbl { font-size: 0.76rem; color: var(--text); margin-top: 0.15rem; }
 .skipped { background: #fff8e6; border: 1px solid #f0e0a8; border-radius: var(--radius); padding: 0.8rem 1rem; font-size: 0.82rem; color: #6b5900; margin-bottom: 1rem; line-height: 1.6; }
-.skipped ul { margin: 0.35rem 0 0; padding-left: 1.1rem; }
+.skipped__head { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; flex-wrap: wrap; }
+.skipped__sum { margin: 0.15rem 0 0; font-size: 0.78rem; }
+.table--skipped { margin-top: 0.7rem; background: #fff; border-radius: 10px; overflow: hidden; }
+.table--skipped th { background: #f7efd4; color: #6b5900; }
+.table--skipped td { color: var(--text-h); }
+.tag { display: inline-block; padding: 0.13rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+.tag--no-building { background: #fde8e8; color: #a33; }
+.tag--no-visits { background: #e8eefd; color: #33a; }
+.fix-link { margin-left: 0.4rem; font-weight: 600; color: var(--primary); white-space: nowrap; }
 .table-wrap { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow-x: auto; }
 .table-tools { padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--border); }
 .btn { padding: 0.5rem 0.9rem; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; color: var(--text-h); cursor: pointer; font: inherit; }
