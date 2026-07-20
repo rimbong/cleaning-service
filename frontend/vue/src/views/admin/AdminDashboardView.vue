@@ -3,18 +3,13 @@
 import { RouterLink } from 'vue-router'
 
 import { useAuthStore } from '@/stores/common/auth/auth'
+import { ADMIN_SHORTCUTS } from '@/common/layouts/adminMenu'
 
 const auth = useAuthStore()
 
-// 바로가기 카드 (기능이 늘면 여기에 추가)
-const shortcuts = [
-    { to: '/admin/clients', icon: '🏢', title: '거래처 관리', desc: '건물·거래처 등록 및 조회' },
-    { to: '/admin/contracts', icon: '📄', title: '계약 관리', desc: '정기 청소 월정액 계약 관리' },
-    { to: '/admin/quotes', icon: '🧾', title: '견적 관리', desc: '일회성 특수청소 견적 관리' },
-    { to: '/admin/settlements', icon: '💰', title: '정산(수금) 관리', desc: '월 청구·입금(수금) 관리' },
-    { to: '/admin/tax-invoices', icon: '📑', title: '세금계산서', desc: '기간 집계·엑셀 출력·발행 기록' },
-    { to: '/admin/expenses', icon: '⛽', title: '지출 관리', desc: '주유 등 경비 관리' },
-]
+// 바로가기 카드 — 사이드바와 같은 정의를 쓴다(adminMenu.js).
+// 여기에 목록을 따로 두면 도메인을 추가할 때 사이드바만 고치고 대시보드를 잊게 된다.
+const shortcuts = ADMIN_SHORTCUTS
 </script>
 
 <template>
@@ -28,7 +23,7 @@ const shortcuts = [
             <RouterLink v-for="s in shortcuts" :key="s.to" :to="s.to" class="dash-card">
                 <span class="dash-card__icon">{{ s.icon }}</span>
                 <div>
-                    <div class="dash-card__title">{{ s.title }}</div>
+                    <div class="dash-card__title">{{ s.label }}</div>
                     <div class="dash-card__desc">{{ s.desc }}</div>
                 </div>
             </RouterLink>

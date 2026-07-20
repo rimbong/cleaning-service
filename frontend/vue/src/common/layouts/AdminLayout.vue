@@ -6,26 +6,15 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/stores/common/auth/auth'
 import { useNotifyStore } from '@/stores/common/notify/notify'
+import { ADMIN_MENU } from './adminMenu'
 
 const auth = useAuthStore()
 const notify = useNotifyStore()
 const route = useRoute()
 const router = useRouter()
 
-// 사이드바 메뉴 정의 (icon 은 이모지로 간단히)
-const menu = [
-    { to: '/admin', label: '대시보드', icon: '🏠', exact: true },
-    { to: '/admin/clients', label: '거래처 관리', icon: '🏢', exact: false },
-    { to: '/admin/contracts', label: '계약 관리', icon: '📄', exact: false },
-    { to: '/admin/schedule', label: '청소 스케줄', icon: '🗓️', exact: false },
-    { to: '/admin/quotes', label: '견적 관리', icon: '🧾', exact: false },
-    { to: '/admin/settlements', label: '정산(수금) 관리', icon: '💰', exact: true },
-    { to: '/admin/settlements/yearly', label: '연간 수금현황', icon: '📅', exact: false },
-    { to: '/admin/tax-invoices', label: '세금계산서', icon: '📑', exact: false },
-    { to: '/admin/expenses', label: '지출 관리', icon: '⛽', exact: false },
-    { to: '/admin/supplies', label: '약품 재고', icon: '🧴', exact: false },
-    { to: '/admin/company', label: '회사 정보', icon: '🏛️', exact: false },
-]
+// 사이드바 메뉴 — 대시보드 카드와 같은 정의를 쓴다(adminMenu.js).
+const menu = ADMIN_MENU
 
 // 현재 페이지 제목(라우트 meta.title 우선, 없으면 앱명)
 const pageTitle = computed(() => route.meta.title || '관리자')
