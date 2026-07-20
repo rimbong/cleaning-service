@@ -79,6 +79,13 @@ public enum ErrorCode {
     // ===== 지출 (10-04) =====
     EXPENSE_NOT_FOUND        ("100401", HttpStatus.NOT_FOUND),
 
+    // ===== 약품/소모품 재고 (10-05) =====
+    SUPPLY_ITEM_NOT_FOUND    ("100501", HttpStatus.NOT_FOUND),
+    SUPPLY_ITEM_DUPLICATE    ("100502", HttpStatus.CONFLICT),
+    SUPPLY_ITEM_HAS_HISTORY  ("100503", HttpStatus.CONFLICT),
+    SUPPLY_TRANSACTION_NOT_FOUND("100504", HttpStatus.NOT_FOUND),
+    SUPPLY_QUANTITY_REQUIRED ("100505", HttpStatus.BAD_REQUEST),
+
     // ===== 공통 / 프레임워크 (99) =====
     VALIDATION_ERROR         ("999001", HttpStatus.BAD_REQUEST),
     // 최후 안전망: properties 조회 실패에 대비해 default 를 명시적으로 선언한 예외 케이스.

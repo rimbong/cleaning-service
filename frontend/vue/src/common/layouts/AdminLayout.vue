@@ -23,6 +23,7 @@ const menu = [
     { to: '/admin/settlements/yearly', label: '연간 수금현황', icon: '📅', exact: false },
     { to: '/admin/tax-invoices', label: '세금계산서', icon: '📑', exact: false },
     { to: '/admin/expenses', label: '지출 관리', icon: '⛽', exact: false },
+    { to: '/admin/supplies', label: '약품 재고', icon: '🧴', exact: false },
     { to: '/admin/company', label: '회사 정보', icon: '🏛️', exact: false },
 ]
 
