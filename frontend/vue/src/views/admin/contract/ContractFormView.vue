@@ -40,6 +40,7 @@ const form = reactive({
     doorCode: '',
     cleaningWeekdays: [],
     cleaningCycle: 'WEEKLY',
+    visitsPerMonth: '',
     vatType: 'EXCLUSIVE',
     initialFee: '',
     cleaningScope: '',
@@ -57,6 +58,46 @@ function toggleWeekday(code) {
     } else {
         form.cleaningWeekdays.push(code)
     }
+}
+
+// ===== 월 방문 횟수 =====
+// 요일·주기는 "언제 가는지"라서 "한 달에 몇 번"을 항상 담지는 못한다(월 3회 등).
+// 그래서 값을 따로 두되, 요일·주기로 자동 계산해 채워주고 필요하면 직접 고치게 한다.
+
+/** 한 달을 몇 주로 보는지 — 서버(VisitFrequency.WEEKS_PER_MONTH)와 같아야 한다. */
+const WEEKS_PER_MONTH = 4
+
+/** 요일·주기로 계산한 월 방문 횟수 */
+const suggestedVisits = computed(() => {
+    const days = form.cleaningWeekdays.length || 1
+    if (form.cleaningCycle === 'MONTHLY') {
+        return 1
+    }
+    if (form.cleaningCycle === 'BIWEEKLY') {
+        return days * (WEEKS_PER_MONTH / 2)
+    }
+    return days * WEEKS_PER_MONTH
+})
+
+// 사용자가 직접 고쳤는지 추적한다. 고친 값을 요일 하나 바꿨다고 덮어쓰면 안 되기 때문이다.
+const visitsTouched = ref(false)
+
+/** 자동값과 다른 값을 넣었는지 — 다르면 화면에 알려준다(실수로 남은 값 방지) */
+const visitsOverridden = computed(
+    () => form.visitsPerMonth !== '' && Number(form.visitsPerMonth) !== suggestedVisits.value,
+)
+
+// 요일·주기가 바뀌면 자동값을 다시 넣는다. 단, 직접 고친 뒤에는 건드리지 않는다.
+watch(suggestedVisits, (v) => {
+    if (!visitsTouched.value) {
+        form.visitsPerMonth = v
+    }
+})
+
+/** 자동 계산값으로 되돌린다 */
+function resetVisits() {
+    form.visitsPerMonth = suggestedVisits.value
+    visitsTouched.value = false
 }
 
 // 등록 화면에 ?clientId=... 로 진입하면(거래처 상세의 "계약 추가") 해당 거래처를 미리 선택.
@@ -88,6 +129,9 @@ watch(() => props.id, async (id) => {
         form.doorCode = c.doorCode ?? ''
         form.cleaningWeekdays = Array.isArray(c.cleaningWeekdays) ? [...c.cleaningWeekdays] : []
         form.cleaningCycle = c.cleaningCycle ?? 'WEEKLY'
+        form.visitsPerMonth = c.visitsPerMonth ?? ''
+        // 저장된 값이 자동값과 다르면 예전에 직접 고친 것이므로 그대로 존중한다.
+        visitsTouched.value = c.visitsPerMonth != null && c.visitsPerMonth !== suggestedVisits.value
         form.vatType = c.vatType ?? 'EXCLUSIVE'
         form.initialFee = c.initialFee ?? ''
         form.cleaningScope = c.cleaningScope ?? ''
@@ -117,6 +161,7 @@ function buildPayload() {
         doorCode: form.doorCode.trim() || null,
         cleaningWeekdays: form.cleaningWeekdays,
         cleaningCycle: form.cleaningCycle || 'WEEKLY',
+        visitsPerMonth: form.visitsPerMonth === '' ? null : Number(form.visitsPerMonth),
         vatType: form.vatType || 'EXCLUSIVE',
         initialFee: form.initialFee !== '' ? Number(form.initialFee) : null,
         cleaningScope: form.cleaningScope.trim() || null,
@@ -274,6 +319,33 @@ function onCancel() {
                 </div>
             </div>
 
+            <!-- 요일·주기는 "언제 가는지"라 월 3회 같은 패턴을 담지 못한다.
+                 가격 산정에 쓰는 "한 달에 몇 번"은 따로 두고, 자동으로 채우되 고칠 수 있게 한다. -->
+            <div class="field">
+                <label>월 방문 횟수 <small class="hint">(권장가 산정에 사용)</small></label>
+                <div class="visits">
+                    <input
+                        v-model="form.visitsPerMonth"
+                        type="number"
+                        min="1"
+                        max="31"
+                        step="1"
+                        @input="visitsTouched = true"
+                    />
+                    <span class="visits__unit">회 / 월</span>
+                    <button v-if="visitsOverridden" class="btn btn--sm" type="button" @click="resetVisits">
+                        자동값({{ suggestedVisits }}회)으로
+                    </button>
+                </div>
+                <p v-if="visitsOverridden" class="warn-msg">
+                    요일·주기로 계산하면 {{ suggestedVisits }}회입니다. 직접 넣은 값을 그대로 씁니다.
+                </p>
+                <p v-else class="hint">
+                    요일과 주기를 고르면 자동으로 채워집니다.
+                    월 3회처럼 요일·주기로 표현할 수 없는 경우에는 직접 넣으세요.
+                </p>
+            </div>
+
             <div class="field">
                 <label>부가세 기준</label>
                 <select v-model="form.vatType">
@@ -416,6 +488,47 @@ function onCancel() {
     color: var(--text);
     font-size: 0.78rem;
     font-weight: 400;
+}
+
+/* 월 방문 횟수 — 입력칸과 단위·되돌리기 버튼을 한 줄에 둔다 */
+.visits {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.visits input {
+    max-width: 6.5rem;
+}
+
+.visits__unit {
+    font-size: 0.85rem;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.visits .btn {
+    padding: 0.32rem 0.6rem;
+    font-size: 0.78rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: #fff;
+    color: var(--text-h);
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+}
+
+.visits .btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* 자동값과 다를 때의 안내 — 실수로 남은 값을 알아채게 한다 */
+.warn-msg {
+    margin: 0.3rem 0 0;
+    color: #b45309;
+    font-size: 0.78rem;
 }
 
 .weekdays {

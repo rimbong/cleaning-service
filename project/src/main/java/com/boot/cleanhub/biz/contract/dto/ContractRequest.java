@@ -83,6 +83,14 @@ public class ContractRequest {
     /** 청소 주기(비우면 매주 WEEKLY) */
     private CleaningCycle cleaningCycle;
 
+    /**
+     * 월 방문 횟수 — 권장가 산정용. 비우면 요일·주기로 환산해서 쓴다.
+     * 요일·주기로 표현 못 하는 패턴(월 3회 등)은 여기에 직접 넣는다.
+     */
+    @Min(value = 1, message = "월 방문 횟수는 1 이상이어야 합니다.")
+    @Max(value = 31, message = "월 방문 횟수가 너무 큽니다. 값을 확인하세요.")
+    private Integer visitsPerMonth;
+
     /** 부가세 기준(비우면 부가세 별도 EXCLUSIVE) */
     private VatType vatType;
 

@@ -156,15 +156,14 @@ public class PricingService {
     }
 
     /**
-     * 계약의 청소 주기를 월 방문 횟수로 환산한다.
+     * 요일·주기로 월 방문 횟수를 환산한다.
      *
-     * 계약의 CleaningCycle 은 매주/격주/매월 3단계라 "주 몇 회"까지는 담지 못한다.
-     * 다만 계약에 청소 요일(cleaningWeekdays, 예 "MON,THU")이 있으므로,
-     * 매주인 경우에는 <b>요일 개수 x 4주</b>를 월 방문 횟수로 본다.
-     * 요일이 비어 있으면 주 1회로 본다.
+     * 계약에 월 방문 횟수가 직접 저장되어 있으면 그 값을 쓰고, 없을 때만 이 환산을 쓴다.
+     * 요일·주기는 "언제 가는지"라서 "한 달에 몇 번"을 항상 정확히 담지는 못하기 때문이다
+     * (월 3회 같은 패턴은 요일·주기 조합으로 표현할 수 없다).
      *
-     * 예전에는 이 값을 6단계 표에 끼워 맞추느라 주 4회가 주 3회로 깎였다.
-     * 지금은 계수를 공식으로 구하므로 요일이 몇 개든 그대로 반영된다.
+     * 격주도 요일 개수를 곱한다. 격주 + 월·목이면 2주에 2번씩 = 월 4회다.
+     * 예전에는 격주를 무조건 월 2회로 봐서 요일이 여럿인 계약이 낮게 잡혔다.
      *
      * @param cycle            계약의 청소 주기
      * @param cleaningWeekdays 계약의 청소 요일(쉼표 구분, 비어 있을 수 있음)
@@ -174,16 +173,31 @@ public class PricingService {
         if (cycle == null) {
             return null;
         }
+        int days = weekdayCount(cleaningWeekdays);
         switch (cycle) {
             case MONTHLY:
                 return 1;
             case BIWEEKLY:
-                return 2;
+                return days * (VisitFrequency.WEEKS_PER_MONTH / 2);
             case WEEKLY:
-                return weekdayCount(cleaningWeekdays) * VisitFrequency.WEEKS_PER_MONTH;
+                return days * VisitFrequency.WEEKS_PER_MONTH;
             default:
                 return null;
         }
+    }
+
+    /**
+     * 계약이 실제로 쓸 월 방문 횟수를 정한다.
+     * 계약에 저장된 값이 우선이고, 없으면 요일·주기로 환산한다.
+     *
+     * @param contract 계약
+     * @return 월 방문 횟수(판단할 수 없으면 null)
+     */
+    private Integer resolveVisitsPerMonth(Contract contract) {
+        if (contract.getVisitsPerMonth() != null && contract.getVisitsPerMonth() >= 1) {
+            return contract.getVisitsPerMonth();
+        }
+        return toVisitsPerMonth(contract.getCleaningCycle(), contract.getCleaningWeekdays());
     }
 
     /** 청소 요일 문자열("MON,THU")의 요일 개수. 비어 있으면 1(주 1회로 본다). */
@@ -219,7 +233,7 @@ public class PricingService {
                 skippedNoBuilding++;
                 continue;
             }
-            Integer visitsPerMonth = toVisitsPerMonth(contract.getCleaningCycle(), contract.getCleaningWeekdays());
+            Integer visitsPerMonth = resolveVisitsPerMonth(contract);
             if (visitsPerMonth == null) {
                 skippedNoCycle++;
                 continue;

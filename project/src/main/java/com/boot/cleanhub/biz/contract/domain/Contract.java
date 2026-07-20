@@ -99,6 +99,18 @@ public class Contract {
     @Column(name = "cleaning_cycle", length = 20)
     private CleaningCycle cleaningCycle;
 
+    /**
+     * 월 방문 횟수 — 권장가 산정의 입력값.
+     *
+     * 요일·주기는 "언제 가는지"(스케줄용)이고, 가격은 "한 달에 몇 번"이 필요하다.
+     * 요일·주기만으로는 월 3회 같은 패턴을 표현할 수 없어 따로 저장한다.
+     * 화면에서 요일·주기로 자동 계산해 채우되 직접 고칠 수 있다.
+     *
+     * null 이면 예전처럼 요일·주기로 환산해 쓴다.
+     */
+    @Column(name = "visits_per_month")
+    private Integer visitsPerMonth;
+
     /** 부가세 기준(별도/포함/면세) — 세금계산서 공급가액·세액 계산에 사용 */
     @Enumerated(EnumType.STRING)
     @Column(name = "vat_type", length = 20)

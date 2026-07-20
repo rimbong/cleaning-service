@@ -46,6 +46,8 @@ public class ContractResponse {
     private final List<String> cleaningWeekdays;
     private final CleaningCycle cleaningCycle;
     private final String cleaningCycleLabel;
+    /** 월 방문 횟수 — 권장가 산정용(미지정이면 null) */
+    private final Integer visitsPerMonth;
     private final VatType vatType;
     private final String vatTypeLabel;
     private final Long initialFee;
@@ -74,6 +76,7 @@ public class ContractResponse {
         this.cleaningWeekdays = splitWeekdays(c.getCleaningWeekdays());
         this.cleaningCycle = c.getCleaningCycle();
         this.cleaningCycleLabel = c.getCleaningCycle() != null ? c.getCleaningCycle().getLabel() : null;
+        this.visitsPerMonth = c.getVisitsPerMonth();
         this.vatType = c.getVatType();
         this.vatTypeLabel = c.getVatType() != null ? c.getVatType().getLabel() : null;
         this.initialFee = c.getInitialFee();

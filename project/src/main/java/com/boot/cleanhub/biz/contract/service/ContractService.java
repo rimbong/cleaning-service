@@ -177,6 +177,7 @@ public class ContractService {
         contract.setDoorCode(request.getDoorCode());
         contract.setCleaningWeekdays(joinWeekdays(request.getCleaningWeekdays()));
         contract.setCleaningCycle(request.getCleaningCycle() != null ? request.getCleaningCycle() : CleaningCycle.WEEKLY);
+        contract.setVisitsPerMonth(request.getVisitsPerMonth());
         contract.setVatType(request.getVatType() != null ? request.getVatType() : VatType.EXCLUSIVE);
         contract.setInitialFee(request.getInitialFee());
         contract.setCleaningScope(request.getCleaningScope());
