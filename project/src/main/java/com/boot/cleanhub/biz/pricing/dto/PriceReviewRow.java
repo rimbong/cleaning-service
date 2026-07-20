@@ -3,6 +3,8 @@ package com.boot.cleanhub.biz.pricing.dto;
 import java.math.BigDecimal;
 import java.util.List;
 
+import com.boot.cleanhub.biz.pricing.domain.VisitFrequency;
+
 import lombok.Getter;
 
 /**
@@ -51,15 +53,20 @@ public class PriceReviewRow {
      */
     private final List<PriceEstimateLine> breakdown;
 
+    /**
+     * @param weeklyRepeated 매주 반복되는 계약인지 — 주기 표시를 "주 N회" 로 할지 판단한다.
+     *                       매월 첫째주·넷째주 같은 계약은 월 2회지만 격주가 아니므로 구분이 필요하다.
+     */
     public PriceReviewRow(Long contractId, Long clientId, String clientName, String contractTitle,
-            String buildingSummary, long currentAmount, PriceEstimateResponse estimate) {
+            String buildingSummary, long currentAmount, PriceEstimateResponse estimate,
+            boolean weeklyRepeated) {
         this.contractId = contractId;
         this.clientId = clientId;
         this.clientName = clientName;
         this.contractTitle = contractTitle;
         this.buildingSummary = buildingSummary;
         this.visitsPerMonth = estimate.getVisitsPerMonth();
-        this.cycleLabel = estimate.getCycleLabel();
+        this.cycleLabel = VisitFrequency.label(estimate.getVisitsPerMonth(), weeklyRepeated);
         this.currentAmount = currentAmount;
         this.recommendedAmount = estimate.getRecommendedAmount();
         this.subtotal = estimate.getSubtotal();

@@ -85,9 +85,13 @@ public class ContractService {
         for (String code : WEEKDAY_CODES) {
             byDay.put(code, new ArrayList<>());
         }
+        // 요일이 없는 계약(매월 첫째주 수요일처럼 요일로 못 적는 경우)은 요일 칸에 넣을 수 없다.
+        // 그렇다고 빼버리면 "오늘 어디 가지?" 화면에서 사라져 청소를 빠뜨리게 되므로 따로 모아 보여준다.
+        List<ScheduleItem> unscheduled = new ArrayList<>();
         for (Contract c : contractRepository.findActiveWithClient()) {
             String weekdays = c.getCleaningWeekdays();
             if (weekdays == null || weekdays.trim().isEmpty()) {
+                unscheduled.add(ScheduleItem.of(c));
                 continue;
             }
             for (String code : weekdays.split(",")) {
@@ -101,7 +105,7 @@ public class ContractService {
         for (int i = 0; i < WEEKDAY_CODES.length; i++) {
             days.add(new ScheduleDay(WEEKDAY_CODES[i], WEEKDAY_LABELS[i], byDay.get(WEEKDAY_CODES[i])));
         }
-        return new WeeklyScheduleResponse(days);
+        return new WeeklyScheduleResponse(days, unscheduled);
     }
 
     /**

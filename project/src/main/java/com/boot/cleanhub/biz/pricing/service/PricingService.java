@@ -259,7 +259,8 @@ public class PricingService {
                     contract.getTitle(),
                     buildingSummary(client),
                     contract.getMonthlyFee() != null ? contract.getMonthlyFee() : 0L,
-                    estimate));
+                    estimate,
+                    contract.getCleaningCycle() == CleaningCycle.WEEKLY));
         }
 
         // 올려야 할 금액이 큰 순 — 먼저 손볼 거래처가 위로 온다.

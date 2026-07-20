@@ -68,29 +68,48 @@ function toggleWeekday(code) {
 const WEEKS_PER_MONTH = 4
 
 /**
+ * 매월 계약은 요일로 적을 수 없다.
+ * "매월 첫째주 수요일, 넷째주 금요일" 같은 패턴이라 요일 하나로는 표현이 안 되고,
+ * 요일을 골라두면 매주 가는 것으로 오해된다. 그래서 요일 선택을 막고
+ * 방문 횟수를 직접 넣게 한 뒤 상세 일정은 메모에 적는다.
+ */
+const isMonthly = computed(() => form.cleaningCycle === 'MONTHLY')
+
+/**
  * 요일·주기로 계산한 월 방문 횟수.
  * 요일은 "무슨 요일에 가는가", 주기는 "그 요일들을 얼마나 자주 반복하는가"이므로
- * 세 주기 모두 요일 개수를 곱하고 배수만 다르다(매주 4 / 격주 2 / 매월 1).
+ * 요일 개수를 곱하고 배수만 다르다(매주 4 / 격주 2).
+ * 매월은 요일로 못 적으므로 자동 계산 대상이 아니고 기본 1회로 둔다.
  */
 const suggestedVisits = computed(() => {
+    if (isMonthly.value) {
+        return 1
+    }
     const days = form.cleaningWeekdays.length || 1
-    if (form.cleaningCycle === 'MONTHLY') {
-        return days
-    }
-    if (form.cleaningCycle === 'BIWEEKLY') {
-        return days * (WEEKS_PER_MONTH / 2)
-    }
-    return days * WEEKS_PER_MONTH
+    return days * (form.cleaningCycle === 'BIWEEKLY' ? WEEKS_PER_MONTH / 2 : WEEKS_PER_MONTH)
 })
 
 /** 지금 고른 요일·주기가 무슨 뜻인지 한 문장으로 — "매주 월·목이면 월 8회" 처럼 바로 확인되게 */
 const scheduleSummary = computed(() => {
-    const picked = WEEKDAYS.filter((d) => form.cleaningWeekdays.includes(d.value)).map((d) => d.label)
     const cycleLabel = CLEANING_CYCLES.find((c) => c.value === form.cleaningCycle)?.label ?? ''
+    if (isMonthly.value) {
+        const n = form.visitsPerMonth === '' ? suggestedVisits.value : form.visitsPerMonth
+        return `${cycleLabel} → 월 ${n}회 (상세 일정은 메모에)`
+    }
+    const picked = WEEKDAYS.filter((d) => form.cleaningWeekdays.includes(d.value)).map((d) => d.label)
     if (picked.length === 0) {
         return `${cycleLabel} (요일 미선택) → 월 ${suggestedVisits.value}회`
     }
     return `${cycleLabel} ${picked.join('·')} → 월 ${suggestedVisits.value}회`
+})
+
+// 매월로 바꾸면 요일 선택을 비우고 예외 입력을 켠다.
+// 요일이 남아 있으면 스케줄 화면에서 매주 가는 것처럼 보인다.
+watch(isMonthly, (monthly) => {
+    if (monthly) {
+        form.cleaningWeekdays = []
+        visitsOverride.value = true
+    }
 })
 
 /**
@@ -324,11 +343,16 @@ function onCancel() {
                             type="button"
                             class="wd"
                             :class="{ 'is-on': form.cleaningWeekdays.includes(d.value) }"
+                            :disabled="isMonthly"
                             @click="toggleWeekday(d.value)"
                         >
                             {{ d.label }}
                         </button>
                     </div>
+                    <p v-if="isMonthly" class="hint">
+                        매월 계약은 요일로 적을 수 없습니다.
+                        아래에 월 방문 횟수를 넣고, 상세 일정은 메모에 적으세요.
+                    </p>
                 </div>
                 <div class="field">
                     <label>청소 주기</label>
@@ -344,20 +368,26 @@ function onCancel() {
                 <label>월 방문 횟수 <small class="hint">(권장가 산정에 사용)</small></label>
                 <p class="summary">{{ scheduleSummary }}</p>
 
-                <label class="check">
-                    <input v-model="visitsOverride" type="checkbox" />
+                <!-- 매월은 요일로 못 적으므로 직접 지정이 필수다. 체크박스를 끌 수 없게 한다. -->
+                <label class="check" :class="{ 'check--locked': isMonthly }">
+                    <input v-model="visitsOverride" type="checkbox" :disabled="isMonthly" />
                     <span>월 방문 횟수를 직접 지정 (예외 계약)</span>
                 </label>
 
                 <div v-if="visitsOverride" class="visits">
                     <input v-model="form.visitsPerMonth" type="number" min="1" max="31" step="1" />
                     <span class="visits__unit">회 / 월</span>
-                    <span v-if="Number(form.visitsPerMonth) !== suggestedVisits" class="visits__auto">
+                    <span v-if="!isMonthly && Number(form.visitsPerMonth) !== suggestedVisits" class="visits__auto">
                         요일·주기로는 {{ suggestedVisits }}회
                     </span>
                 </div>
 
-                <p v-if="visitsOverride" class="warn-msg">
+                <p v-if="isMonthly" class="warn-msg">
+                    매월 계약은 요일로 적을 수 없어 횟수를 직접 넣습니다.
+                    메모에 <b>매월 첫째주 수요일, 넷째주 금요일</b> 처럼 실제 일정을 적어두세요.
+                    청소 스케줄 화면에서는 요일 칸이 아니라 별도 목록에 표시됩니다.
+                </p>
+                <p v-else-if="visitsOverride" class="warn-msg">
                     예외 계약입니다. 어떤 사정인지 아래 메모에도 남겨두세요.
                 </p>
                 <p v-else class="hint">
@@ -549,6 +579,17 @@ function onCancel() {
 .check input {
     width: auto;
     margin: 0;
+}
+
+/* 매월 계약은 직접 지정이 필수라 끌 수 없다 — 눌러도 안 된다는 걸 보이게 */
+.check--locked {
+    opacity: 0.75;
+    cursor: not-allowed;
+}
+
+.wd:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 .visits .btn {

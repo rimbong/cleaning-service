@@ -26,6 +26,8 @@ public class ScheduleItem {
     private final String phone;           // 연락처
     private final String doorCode;        // 현관 비번(현장 필요)
     private final String cleaningCycleLabel; // 주기(매주/격주/매월)
+    /** 월 방문 횟수 — 직접 지정한 예외 계약만 값이 있다(요일로 떨어지는 계약은 null) */
+    private final Integer visitsPerMonth;
     private final String memo;
 
     private ScheduleItem(Contract c) {
@@ -38,6 +40,7 @@ public class ScheduleItem {
         this.phone = cl != null ? cl.getManagerPhone() : null;
         this.doorCode = c.getDoorCode();
         this.cleaningCycleLabel = c.getCleaningCycle() != null ? c.getCleaningCycle().getLabel() : null;
+        this.visitsPerMonth = c.getVisitsPerMonth();
         this.memo = c.getMemo();
     }
 

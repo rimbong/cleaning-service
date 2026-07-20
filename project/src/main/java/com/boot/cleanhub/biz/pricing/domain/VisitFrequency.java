@@ -24,19 +24,29 @@ public final class VisitFrequency {
     }
 
     /**
-     * 월 방문 횟수를 표시용 문구로 바꾼다.
-     * 예) 1 -> "월 1회", 2 -> "월 2회(격주)", 4 -> "주 1회 (월 4회)", 16 -> "주 4회 (월 16회)"
+     * 월 방문 횟수를 표시용 문구로 바꾼다. 예) 3 -> "월 3회"
+     *
+     * 횟수만으로 "주 몇 회"인지 단정하지 않는다. 매월 첫째주·넷째주에 가는 계약도
+     * 월 2회지만 격주가 아니다. 분포를 아는 경우에만 {@link #label(int, boolean)} 를 쓴다.
      *
      * @param visitsPerMonth 월 방문 횟수
      * @return 표시 문구
      */
     public static String label(int visitsPerMonth) {
-        if (visitsPerMonth == 2) {
-            return "월 2회(격주)";
-        }
-        if (visitsPerMonth >= WEEKS_PER_MONTH && visitsPerMonth % WEEKS_PER_MONTH == 0) {
+        return "월 " + visitsPerMonth + "회";
+    }
+
+    /**
+     * 방문이 매주 반복되는 계약이면 "주 N회 (월 M회)" 로, 아니면 "월 M회" 로 표시한다.
+     *
+     * @param visitsPerMonth   월 방문 횟수
+     * @param weeklyRepeated   매주 반복되는 계약인지(계약의 청소 주기가 매주인지)
+     * @return 표시 문구
+     */
+    public static String label(int visitsPerMonth, boolean weeklyRepeated) {
+        if (weeklyRepeated && visitsPerMonth >= WEEKS_PER_MONTH && visitsPerMonth % WEEKS_PER_MONTH == 0) {
             return "주 " + (visitsPerMonth / WEEKS_PER_MONTH) + "회 (월 " + visitsPerMonth + "회)";
         }
-        return "월 " + visitsPerMonth + "회";
+        return label(visitsPerMonth);
     }
 }
