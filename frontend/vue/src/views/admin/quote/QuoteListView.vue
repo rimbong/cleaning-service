@@ -97,9 +97,12 @@ function goDetail(id) {
                 <button class="btn" type="submit">검색</button>
                 <button v-if="appliedKeyword" class="btn btn--ghost" type="button" @click="resetSearch">초기화</button>
             </form>
-            <button class="btn btn--primary" type="button" @click="router.push({ name: 'admin-quote-new' })">
-                + 새 견적
-            </button>
+            <div class="tools">
+                <RouterLink class="btn" :to="{ name: 'admin-quote-guide' }">견적 가이드</RouterLink>
+                <button class="btn btn--primary" type="button" @click="router.push({ name: 'admin-quote-new' })">
+                    + 새 견적
+                </button>
+            </div>
         </div>
 
         <TableSkeleton v-if="isLoading" :rows="5" />
@@ -163,6 +166,11 @@ function goDetail(id) {
     gap: 1rem;
     margin-bottom: 1.25rem;
     flex-wrap: wrap;
+}
+
+.tools {
+    display: flex;
+    gap: 0.5rem;
 }
 
 .search {

@@ -12,6 +12,7 @@ import quoteRoutes from './quoteRoutes'
 import settlementRoutes from './settlementRoutes'
 import expenseRoutes from './expenseRoutes'
 import supplyRoutes from './supplyRoutes'
+import pricingRoutes from './pricingRoutes'
 import companyRoutes from './companyRoutes'
 
 export default [
@@ -38,6 +39,7 @@ export default [
             ...settlementRoutes,
             ...expenseRoutes,
             ...supplyRoutes,
+            ...pricingRoutes,
             ...companyRoutes,
         ],
     },

@@ -301,6 +301,7 @@ public class SupplyService {
     private void apply(SupplyItem item, SupplyItemRequest request) {
         item.setName(request.getName().trim());
         item.setSpec(trimToNull(request.getSpec()));
+        item.setPhType(request.getPhType());
         item.setUnit(request.getUnit().trim());
         item.setUnitPrice(request.getUnitPrice());
         item.setSafetyQty(request.getSafetyQty());

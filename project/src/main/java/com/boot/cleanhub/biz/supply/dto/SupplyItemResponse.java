@@ -2,6 +2,7 @@ package com.boot.cleanhub.biz.supply.dto;
 
 import java.time.LocalDateTime;
 
+import com.boot.cleanhub.biz.supply.domain.PhType;
 import com.boot.cleanhub.biz.supply.domain.SupplyItem;
 
 import lombok.Getter;
@@ -22,6 +23,11 @@ public class SupplyItemResponse {
     private final Long id;
     private final String name;
     private final String spec;
+    /** pH 구분 — 미분류면 null */
+    private final PhType phType;
+    private final String phTypeLabel;
+    /** 취급 시 주의·혼합 금지 사항(미분류면 null) */
+    private final String phMixWarning;
     private final String unit;
     private final Long unitPrice;
     private final Integer safetyQty;
@@ -37,6 +43,9 @@ public class SupplyItemResponse {
         this.id = item.getId();
         this.name = item.getName();
         this.spec = item.getSpec();
+        this.phType = item.getPhType();
+        this.phTypeLabel = item.getPhType() != null ? item.getPhType().getLabel() : null;
+        this.phMixWarning = item.getPhType() != null ? item.getPhType().getMixWarning() : null;
         this.unit = item.getUnit();
         this.unitPrice = item.getUnitPrice();
         this.safetyQty = item.getSafetyQty();

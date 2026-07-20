@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -49,6 +51,15 @@ public class SupplyItem {
     /** 단위(예: 통, 개, 박스) */
     @Column(nullable = false, length = 20)
     private String unit;
+
+    /**
+     * pH 구분(산성/중성/알칼리 등) — 선택.
+     * 오염에 맞는 약품을 고르는 기준이자, 같이 두면 위험한 조합(락스+산성)을
+     * 화면에서 경고하기 위한 근거다. 미분류면 null.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ph_type", length = 20)
+    private PhType phType;
 
     /** 최근 구매 단가(원) — 선택 */
     @Column(name = "unit_price")

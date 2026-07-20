@@ -32,6 +32,11 @@ const form = reactive({
     cleaningType: '',
     contractStartDate: '',
     memo: '',
+    floors: '',
+    householdCount: '',
+    sharedToilets: '',
+    extraFloors: '',
+    hasElevator: false,
     businessNumber: '',
     representativeName: '',
     businessType: '',
@@ -56,6 +61,11 @@ watch(() => props.id, async (id) => {
         form.cleaningType = c.cleaningType ?? ''
         form.contractStartDate = c.contractStartDate ?? ''
         form.memo = c.memo ?? ''
+        form.floors = c.floors ?? ''
+        form.householdCount = c.householdCount ?? ''
+        form.sharedToilets = c.sharedToilets ?? ''
+        form.extraFloors = c.extraFloors ?? ''
+        form.hasElevator = c.hasElevator ?? false
         form.businessNumber = c.businessNumber ?? ''
         form.representativeName = c.representativeName ?? ''
         form.businessType = c.businessType ?? ''
@@ -68,6 +78,21 @@ watch(() => props.id, async (id) => {
     }
 }, { immediate: true })
 
+/**
+ * 숫자 입력을 서버로 보낼 값으로 바꾼다.
+ * 빈칸(미실측)과 0 을 반드시 구분해야 한다 — 빈칸을 0 으로 보내면
+ * "0층 0세대 건물"로 저장되어 권장가가 실제보다 훨씬 낮게 나온다.
+ *
+ * @param {string|number} value 입력값
+ * @returns {number|null} 비었으면 null
+ */
+function numberOrNull(value) {
+    if (value === '' || value === null || value === undefined) {
+        return null
+    }
+    return Number(value)
+}
+
 function buildPayload() {
     // 빈 문자열은 null 로 보내 서버에서 NULL 로 저장되게 한다(선택 항목).
     return {
@@ -78,6 +103,13 @@ function buildPayload() {
         cleaningType: form.cleaningType || null,
         contractStartDate: form.contractStartDate || null,
         memo: form.memo.trim() || null,
+        // 건물 규모 — 실측 전이면 빈칸이고, 0 과 구분해야 하므로 빈칸은 null 로 보낸다.
+        //   (0 층으로 저장되면 권장가가 실제보다 낮게 나온다)
+        floors: numberOrNull(form.floors),
+        householdCount: numberOrNull(form.householdCount),
+        sharedToilets: numberOrNull(form.sharedToilets),
+        extraFloors: numberOrNull(form.extraFloors),
+        hasElevator: form.hasElevator,
         businessNumber: form.businessNumber.trim() || null,
         representativeName: form.representativeName.trim() || null,
         businessType: form.businessType.trim() || null,
@@ -165,6 +197,38 @@ function onCancel() {
                     <label>연락처</label>
                     <input v-model="form.managerPhone" placeholder="010-0000-0000" maxlength="30" />
                 </div>
+            </div>
+
+            <div class="section-label">건물 규모 (선택) — 계단청소 권장가 산정에 사용</div>
+            <p class="section-hint">
+                층수와 세대수를 넣어두면 견적 화면에서 권장가가 자동으로 계산되고,
+                나중에 적정가 재산정(인상 검토) 대상이 됩니다. 아직 실측 전이면 비워 두세요.
+            </p>
+            <div class="row">
+                <div class="field">
+                    <label>지상 층수</label>
+                    <input v-model="form.floors" type="number" min="0" max="100" step="1" placeholder="예: 5" />
+                </div>
+                <div class="field">
+                    <label>세대수 (호실 수)</label>
+                    <input v-model="form.householdCount" type="number" min="0" max="1000" step="1" placeholder="예: 10" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="field">
+                    <label>공용 화장실 (개)</label>
+                    <input v-model="form.sharedToilets" type="number" min="0" max="100" step="1" placeholder="없으면 0" />
+                </div>
+                <div class="field">
+                    <label>지하·옥상 추가층</label>
+                    <input v-model="form.extraFloors" type="number" min="0" max="20" step="1" placeholder="없으면 0" />
+                </div>
+            </div>
+            <div class="field field--check">
+                <label class="check">
+                    <input v-model="form.hasElevator" type="checkbox" />
+                    <span>엘리베이터 있음 (내부 바닥·거울·버튼판 청소 포함)</span>
+                </label>
             </div>
 
             <div class="section-label">세금계산서/사업자 정보 (선택)</div>
@@ -263,6 +327,33 @@ function onCancel() {
     border-top: 1px solid var(--border);
     padding-top: 1rem;
     margin-top: 0.25rem;
+}
+
+.section-hint {
+    margin: -0.6rem 0 0;
+    font-size: 0.78rem;
+    color: var(--text);
+    line-height: 1.5;
+}
+
+/* 체크박스는 라벨과 가로로 붙여야 자연스럽다(다른 field 는 세로 배치) */
+.field--check {
+    margin-top: -0.3rem;
+}
+
+.check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-h);
+    cursor: pointer;
+}
+
+.check input {
+    width: auto;
+    margin: 0;
 }
 
 .field input,

@@ -86,6 +86,20 @@ export const ADMIN_MENU = [
         desc: '약품·소모품 재고와 입출고',
     },
     {
+        to: '/admin/pricing/review',
+        label: '적정가 재산정',
+        icon: '📈',
+        exact: false,
+        desc: '현재 계약 단가 vs 권장가 비교',
+    },
+    {
+        to: '/admin/pricing/policy',
+        label: '단가 정책',
+        icon: '📐',
+        exact: false,
+        desc: '계단청소 권장가 단가·주기계수',
+    },
+    {
         to: '/admin/company',
         label: '회사 정보',
         icon: '🏛️',

@@ -12,6 +12,13 @@ export default [
         component: () => import('@/views/admin/quote/QuoteFormView.vue'),
         meta: { title: '견적 등록' },
     },
+    // 'quotes/:id' 보다 먼저 둔다 — guide 가 견적 id 로 잡히지 않도록.
+    {
+        path: 'quotes/guide',
+        name: 'admin-quote-guide',
+        component: () => import('@/views/admin/quote/QuotePricingGuideView.vue'),
+        meta: { title: '견적 산정 가이드' },
+    },
     {
         path: 'quotes/:id',
         name: 'admin-quote-detail',

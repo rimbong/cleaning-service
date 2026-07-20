@@ -7,7 +7,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useQueryClient } from '@tanstack/vue-query'
 
 import { quoteService, QUOTE_STATUSES } from '@/services/admin/quote/quoteService'
+import { clientService } from '@/services/admin/client/clientService'
 import ClientPickerField from '@/views/admin/client/ClientPickerField.vue'
+import PriceRecommendPanel from '@/views/admin/pricing/PriceRecommendPanel.vue'
 import { useFormErrors } from '@/common/composables/useFormErrors'
 import { useNotifyStore } from '@/stores/common/notify/notify'
 
@@ -46,6 +48,39 @@ watchEffect(() => {
         form.clientId = Number(route.query.clientId)
     }
 })
+
+// 선택한 거래처의 건물 규모 — 권장가 패널의 입력값을 자동으로 채우는 데 쓴다.
+// 규모가 아직 실측되지 않은 거래처(pricingReady=false)면 null 로 두어 패널이 안내 문구를 띄우게 한다.
+const clientSpec = ref(null)
+
+watch(() => form.clientId, async (id) => {
+    if (!id) {
+        clientSpec.value = null
+        return
+    }
+    try {
+        const c = (await clientService.get(id)).data.data
+        clientSpec.value = c.pricingReady
+            ? {
+                floors: c.floors,
+                householdCount: c.householdCount,
+                sharedToilets: c.sharedToilets,
+                extraFloors: c.extraFloors,
+                hasElevator: c.hasElevator,
+            }
+            : null
+    } catch (e) {
+        // 규모를 못 불러와도 견적 작성 자체는 막지 않는다(직접 입력하면 된다).
+        clientSpec.value = null
+    }
+}, { immediate: true })
+
+/** 권장가를 금액란으로 옮긴다. 덮어쓴 뒤에도 자유롭게 고칠 수 있다(흥정 여지). */
+function applyRecommended(amount) {
+    form.amount = amount
+    clearError('amount')
+    notify.toast('권장가를 금액란에 넣었습니다. 필요하면 조정하세요.', { type: 'info' })
+}
 
 // 수정 모드면 기존 값 로드 — props.id 를 명시적으로 추적.
 watch(() => props.id, async (id) => {
@@ -193,6 +228,13 @@ function onCancel() {
                     </select>
                 </div>
             </div>
+
+            <!-- 계단·공용부 정기청소 권장가. 금액을 자동으로 덮어쓰지 않고 '적용'을 눌렀을 때만 옮긴다. -->
+            <PriceRecommendPanel
+                :spec="clientSpec"
+                :current-amount="form.amount"
+                @apply="applyRecommended"
+            />
 
             <div class="row">
                 <div class="field" :class="{ 'has-error': errors.quoteDate }">

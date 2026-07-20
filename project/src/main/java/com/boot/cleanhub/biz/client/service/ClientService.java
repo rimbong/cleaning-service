@@ -131,6 +131,11 @@ public class ClientService {
         client.setCleaningType(request.getCleaningType());
         client.setContractStartDate(request.getContractStartDate());
         client.setMemo(request.getMemo());
+        client.setFloors(request.getFloors());
+        client.setHouseholdCount(request.getHouseholdCount());
+        client.setSharedToilets(request.getSharedToilets());
+        client.setExtraFloors(request.getExtraFloors());
+        client.setHasElevator(request.getHasElevator());
         client.setBusinessNumber(request.getBusinessNumber());
         client.setRepresentativeName(request.getRepresentativeName());
         client.setBusinessType(request.getBusinessType());

@@ -68,6 +68,30 @@ public class Client {
     @Column(columnDefinition = "TEXT")
     private String memo;
 
+    // ── 건물 규모(선택) — 계단청소 권장가 산정의 입력값 ──
+    //   전부 null 허용이다. 아직 실측하지 않은 거래처가 있고, 값이 없으면 권장가 산정에서
+    //   제외한다(모르는 값을 0 으로 채우면 엉뚱하게 낮은 금액이 나온다).
+
+    /** 지상 층수(계단 청소 대상 층) */
+    @Column(name = "floors")
+    private Integer floors;
+
+    /** 세대수(호실 수) */
+    @Column(name = "household_count")
+    private Integer householdCount;
+
+    /** 공용 화장실 개수 */
+    @Column(name = "shared_toilets")
+    private Integer sharedToilets;
+
+    /** 지하·옥상 등 추가 청소 층 */
+    @Column(name = "extra_floors")
+    private Integer extraFloors;
+
+    /** 엘리베이터 유무 */
+    @Column(name = "has_elevator")
+    private Boolean hasElevator;
+
     // ── 세금계산서/사업자 정보(선택) — 세금계산서 공급받는자란에 사용 ──
 
     /** 사업자번호 */

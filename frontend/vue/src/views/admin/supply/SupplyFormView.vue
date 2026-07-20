@@ -5,7 +5,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQueryClient } from '@tanstack/vue-query'
 
-import { supplyService } from '@/services/admin/supply/supplyService'
+import { supplyService, PH_TYPES } from '@/services/admin/supply/supplyService'
 import { useFormErrors } from '@/common/composables/useFormErrors'
 import { useNotifyStore } from '@/stores/common/notify/notify'
 
@@ -18,7 +18,10 @@ const isEdit = computed(() => props.id != null)
 const loading = ref(false)
 const saving = ref(false)
 
-const form = reactive({ name: '', spec: '', unit: '', unitPrice: '', safetyQty: 0, memo: '' })
+const form = reactive({ name: '', spec: '', phType: '', unit: '', unitPrice: '', safetyQty: 0, memo: '' })
+
+/** 선택한 pH 구분의 설명 — 무엇에 쓰는 약품인지 바로 보여준다 */
+const phInfo = computed(() => PH_TYPES.find((p) => p.value === form.phType) ?? null)
 
 // 필드별 인라인 검증 에러
 const { errors, setError, clearError, reset, hasErrors } = useFormErrors()
@@ -32,6 +35,7 @@ watch(() => props.id, async (id) => {
         const item = (await supplyService.get(id)).data.data
         form.name = item.name ?? ''
         form.spec = item.spec ?? ''
+        form.phType = item.phType ?? ''
         form.unit = item.unit ?? ''
         form.unitPrice = item.unitPrice ?? ''
         form.safetyQty = item.safetyQty ?? 0
@@ -70,6 +74,7 @@ async function onSubmit() {
         const payload = {
             name: form.name.trim(),
             spec: form.spec.trim() || null,
+            phType: form.phType || null,
             unit: form.unit.trim(),
             unitPrice: form.unitPrice === '' ? null : Number(form.unitPrice),
             safetyQty: Number(form.safetyQty),
@@ -110,6 +115,19 @@ async function onSubmit() {
                     <input v-model="form.spec" maxlength="50" placeholder="예: 20L 말통" />
                     <p class="hint">같은 약품이라도 용량이 다르면 규격으로 구분합니다.</p>
                 </div>
+            </div>
+            <div class="field">
+                <label>pH 구분</label>
+                <select v-model="form.phType">
+                    <option value="">미분류</option>
+                    <option v-for="p in PH_TYPES" :key="p.value" :value="p.value">{{ p.label }}</option>
+                </select>
+                <p v-if="phInfo && phInfo.soil" class="hint">
+                    {{ phInfo.range }} · 잘 지우는 오염: {{ phInfo.soil }}
+                </p>
+                <p v-else class="hint">
+                    분류해두면 재고 목록에서 구분되고, 같이 두면 위험한 조합(락스 + 산성)을 경고해 줍니다.
+                </p>
             </div>
             <div class="row">
                 <div class="field" :class="{ 'has-error': errors.unit }">
@@ -152,8 +170,8 @@ async function onSubmit() {
 .field { display: flex; flex-direction: column; gap: 0.35rem; }
 .field label { font-size: 0.85rem; color: var(--text); font-weight: 600; }
 .req { color: var(--danger); }
-.field input { padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius); font: inherit; color: var(--text-h); background: #fff; }
-.field input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.field input, .field select { padding: 0.55rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius); font: inherit; color: var(--text-h); background: #fff; }
+.field input:focus, .field select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .field.has-error input { border-color: var(--danger); }
 .field.has-error input:focus { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
 .err-msg { margin: 0; color: var(--danger); font-size: 0.78rem; }

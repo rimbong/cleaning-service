@@ -2,7 +2,9 @@ package com.boot.cleanhub.biz.client.dto;
 
 import java.time.LocalDate;
 
+import javax.validation.constraints.Max;
 import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.PositiveOrZero;
 import javax.validation.constraints.Size;
 
 import com.boot.cleanhub.biz.client.domain.CleaningType;
@@ -50,6 +52,27 @@ public class ClientRequest {
 
     /** 메모 */
     private String memo;
+
+    // ── 건물 규모(선택) — 계단청소 권장가 산정용. 실측 전이면 비워 둔다 ──
+    //   상한은 0 을 하나 더 붙이는 오타로 엉뚱한 권장가가 나오는 것을 막는다.
+
+    @PositiveOrZero(message = "층수는 0 이상이어야 합니다.")
+    @Max(value = 100, message = "층수가 너무 큽니다. 값을 확인하세요.")
+    private Integer floors;
+
+    @PositiveOrZero(message = "세대수는 0 이상이어야 합니다.")
+    @Max(value = 1000, message = "세대수가 너무 큽니다. 값을 확인하세요.")
+    private Integer householdCount;
+
+    @PositiveOrZero(message = "공용 화장실 수는 0 이상이어야 합니다.")
+    @Max(value = 100, message = "공용 화장실 수가 너무 큽니다. 값을 확인하세요.")
+    private Integer sharedToilets;
+
+    @PositiveOrZero(message = "추가 층수는 0 이상이어야 합니다.")
+    @Max(value = 20, message = "추가 층수가 너무 큽니다. 값을 확인하세요.")
+    private Integer extraFloors;
+
+    private Boolean hasElevator;
 
     // ── 세금계산서/사업자 정보(선택) ──
 

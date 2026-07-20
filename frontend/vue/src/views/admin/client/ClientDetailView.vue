@@ -90,6 +90,30 @@ function fmtDateTime(v) {
     return v ? String(v).slice(0, 16).replace('T', ' ') : '-'
 }
 
+/**
+ * 건물 규모를 한 줄로 정리한다. 층수·세대수가 없으면 권장가를 낼 수 없으므로
+ * 그 사실을 그대로 알려준다(빈칸으로 두면 "입력했는데 안 보이나?" 로 오해한다).
+ *
+ * @param {Object} c 거래처
+ * @returns {string} 표시 문자열
+ */
+function buildingSpec(c) {
+    if (!c.pricingReady) {
+        return '미입력 (권장가 산정 불가 — 수정에서 층수·세대수를 넣으세요)'
+    }
+    const parts = [`지상 ${c.floors}층`, `${c.householdCount}세대`]
+    if (c.sharedToilets) {
+        parts.push(`공용화장실 ${c.sharedToilets}개`)
+    }
+    if (c.extraFloors) {
+        parts.push(`추가 ${c.extraFloors}층`)
+    }
+    if (c.hasElevator) {
+        parts.push('엘리베이터')
+    }
+    return parts.join(' · ')
+}
+
 // 표시용 필드 행
 const rows = computed(() => {
     const c = client.value
@@ -103,6 +127,7 @@ const rows = computed(() => {
         { label: '담당자', value: fmt(c.managerName) },
         { label: '연락처', value: fmt(c.managerPhone) },
         { label: '계약 시작일', value: fmtDate(c.contractStartDate) },
+        { label: '건물 규모', value: buildingSpec(c) },
         { label: '사업자번호', value: fmt(c.businessNumber) },
         { label: '대표자', value: fmt(c.representativeName) },
         { label: '업태', value: fmt(c.businessType) },

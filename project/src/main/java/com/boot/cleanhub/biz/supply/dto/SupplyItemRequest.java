@@ -5,6 +5,8 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.PositiveOrZero;
 import javax.validation.constraints.Size;
 
+import com.boot.cleanhub.biz.supply.domain.PhType;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -27,6 +29,9 @@ public class SupplyItemRequest {
 
     @Size(max = 50)
     private String spec;
+
+    /** pH 구분(선택) — 미분류면 null */
+    private PhType phType;
 
     @NotBlank(message = "단위는 필수입니다.")
     @Size(max = 20)

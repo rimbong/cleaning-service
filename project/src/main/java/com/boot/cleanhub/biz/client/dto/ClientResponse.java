@@ -31,6 +31,14 @@ public class ClientResponse {
     private final String cleaningTypeLabel;
     private final LocalDate contractStartDate;
     private final String memo;
+    /** 건물 규모 — 권장가 산정 입력값(미실측이면 null) */
+    private final Integer floors;
+    private final Integer householdCount;
+    private final Integer sharedToilets;
+    private final Integer extraFloors;
+    private final Boolean hasElevator;
+    /** 권장가 산정이 가능한지(층수·세대수가 모두 있어야 한다) */
+    private final boolean pricingReady;
     private final String businessNumber;
     private final String representativeName;
     private final String businessType;
@@ -50,6 +58,14 @@ public class ClientResponse {
         this.cleaningTypeLabel = c.getCleaningType() != null ? c.getCleaningType().getLabel() : null;
         this.contractStartDate = c.getContractStartDate();
         this.memo = c.getMemo();
+        this.floors = c.getFloors();
+        this.householdCount = c.getHouseholdCount();
+        this.sharedToilets = c.getSharedToilets();
+        this.extraFloors = c.getExtraFloors();
+        this.hasElevator = c.getHasElevator();
+        // 층수·세대수가 단가의 뼈대라 둘 다 있어야 권장가를 낼 수 있다.
+        // 화장실·엘리베이터는 없으면 0/없음으로 봐도 금액이 크게 틀어지지 않는다.
+        this.pricingReady = c.getFloors() != null && c.getHouseholdCount() != null;
         this.businessNumber = c.getBusinessNumber();
         this.representativeName = c.getRepresentativeName();
         this.businessType = c.getBusinessType();

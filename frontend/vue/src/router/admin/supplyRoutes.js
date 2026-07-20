@@ -7,6 +7,12 @@ export default [
         meta: { title: '약품 재고' },
     },
     {
+        path: 'supplies/guide',
+        name: 'admin-supply-guide',
+        component: () => import('@/views/admin/supply/SupplyGuideView.vue'),
+        meta: { title: '약품 사용 가이드' },
+    },
+    {
         path: 'supplies/new',
         name: 'admin-supply-new',
         component: () => import('@/views/admin/supply/SupplyFormView.vue'),

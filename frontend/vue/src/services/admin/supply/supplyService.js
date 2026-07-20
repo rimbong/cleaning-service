@@ -74,6 +74,38 @@ export const supplyService = {
     },
 }
 
+/**
+ * 약품 pH 구분 — 서버 PhType 과 값이 일치해야 한다.
+ * 세제 선택의 원칙은 "오염의 성질과 반대되는 pH를 쓴다".
+ */
+export const PH_TYPES = [
+    { value: 'ACID', label: '산성', range: 'pH 0~6', soil: '물때·석회, 요석, 녹, 백화' },
+    { value: 'NEUTRAL', label: '중성', range: 'pH 6~8', soil: '먼지, 가벼운 기름·손때' },
+    { value: 'ALKALI', label: '알칼리성', range: 'pH 8~14', soil: '기름때·찌든때, 음식물, 그을음' },
+    { value: 'OXIDIZER', label: '표백·산화계', range: '종류마다 다름', soil: '곰팡이, 얼룩 색소, 살균' },
+    { value: 'ENZYME', label: '효소계', range: '약알칼리~중성', soil: '단백질, 배수구 유기물' },
+    { value: 'ETC', label: '기타', range: '', soil: '' },
+]
+
+/**
+ * 절대 섞으면 안 되는 조합 — 보유 약품에 이 둘이 함께 있으면 화면에서 경고한다.
+ * 청소 사고는 대부분 "더 강하게" 섞다가 난다.
+ */
+export const DANGEROUS_PAIRS = [
+    {
+        a: 'OXIDIZER',
+        b: 'ACID',
+        gas: '염소가스',
+        detail: '염소계 표백제(락스)와 산성 세제·식초·구연산을 섞으면 염소가스가 나옵니다. 소량으로도 중독·질식 위험이 있습니다.',
+    },
+    {
+        a: 'OXIDIZER',
+        b: 'ALKALI',
+        gas: '클로라민 가스',
+        detail: '락스와 암모니아가 든 세제를 섞으면 클로라민 가스가 나옵니다. 호흡곤란·폐 손상 위험이 있습니다.',
+    },
+]
+
 /** 입출고 구분 옵션 — ADJUST 는 "세어본 실제 수량"을 입력받는다(차이만 이력에 남음) */
 export const SUPPLY_TX_TYPES = [
     { value: 'IN', label: '입고' },

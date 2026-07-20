@@ -1,0 +1,50 @@
+package com.boot.cleanhub.biz.pricing.dto;
+
+import javax.validation.constraints.Max;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.PositiveOrZero;
+
+import com.boot.cleanhub.biz.pricing.domain.PricingCycle;
+
+import lombok.Getter;
+import lombok.Setter;
+
+/**
+ * <pre>
+ *   권장가 산정 요청 — 건물 규모와 청소 주기.
+ *
+ *   상한(@Max)은 오타로 0 을 더 붙였을 때 말도 안 되는 금액이 그대로 견적에 들어가는 것을 막는다.
+ *   (실무상 계단청소 대상 건물은 이 범위를 넘지 않는다)
+ * </pre>
+ *
+ * @author In-seong Hwang
+ * @since 2026.07.20
+ * @version 1.0
+ */
+@Getter
+@Setter
+public class PriceEstimateRequest {
+
+    @NotNull(message = "지상 층수는 필수입니다.")
+    @PositiveOrZero(message = "층수는 0 이상이어야 합니다.")
+    @Max(value = 100, message = "층수가 너무 큽니다. 값을 확인하세요.")
+    private Integer floors;
+
+    @NotNull(message = "세대수는 필수입니다.")
+    @PositiveOrZero(message = "세대수는 0 이상이어야 합니다.")
+    @Max(value = 1000, message = "세대수가 너무 큽니다. 값을 확인하세요.")
+    private Integer householdCount;
+
+    @PositiveOrZero(message = "공용 화장실 수는 0 이상이어야 합니다.")
+    @Max(value = 100, message = "공용 화장실 수가 너무 큽니다. 값을 확인하세요.")
+    private Integer sharedToilets;
+
+    @PositiveOrZero(message = "추가 층수는 0 이상이어야 합니다.")
+    @Max(value = 20, message = "추가 층수가 너무 큽니다. 값을 확인하세요.")
+    private Integer extraFloors;
+
+    private Boolean hasElevator;
+
+    @NotNull(message = "청소 주기는 필수입니다.")
+    private PricingCycle cycle;
+}
