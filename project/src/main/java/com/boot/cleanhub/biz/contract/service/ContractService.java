@@ -181,13 +181,31 @@ public class ContractService {
         contract.setDoorCode(request.getDoorCode());
         contract.setCleaningWeekdays(joinWeekdays(request.getCleaningWeekdays()));
         contract.setCleaningCycle(request.getCleaningCycle() != null ? request.getCleaningCycle() : CleaningCycle.WEEKLY);
-        contract.setVisitsPerMonth(request.getVisitsPerMonth());
+        applyVisitsPerMonth(contract, request);
         contract.setVatType(request.getVatType() != null ? request.getVatType() : VatType.EXCLUSIVE);
         contract.setInitialFee(request.getInitialFee());
         contract.setCleaningScope(request.getCleaningScope());
         contract.setServiceItems(request.getServiceItems());
         contract.setExtraServices(request.getExtraServices());
         contract.setExtraNotes(request.getExtraNotes());
+    }
+
+    /**
+     * 월 방문 횟수를 정한다.
+     *
+     * 매주·격주는 <b>요일에서 서버가 계산</b>하고 요청 값은 쓰지 않는다.
+     * 계산 규칙이 화면에도 있으면 두 곳이 어긋날 수 있고(격주·매월이 요일 개수를 무시하던
+     * 버그가 그렇게 났다), 요일과 맞지 않는 값이 API 로 들어와도 그대로 저장되기 때문이다.
+     * 화면의 계산은 저장 전에 결과를 보여주는 미리보기 용도다.
+     *
+     * 매월만 요청 값을 쓴다. "매월 첫째주 수요일"처럼 요일로 적을 수 없어 계산이 불가능하다.
+     *
+     * @param contract 대상 계약(요일·주기가 먼저 반영되어 있어야 한다)
+     * @param request  요청 값
+     */
+    private void applyVisitsPerMonth(Contract contract, ContractRequest request) {
+        Integer derived = contract.deriveVisitsPerMonth();
+        contract.setVisitsPerMonth(derived != null ? derived : request.getVisitsPerMonth());
     }
 
     /** 유효 요일 코드(월~일). 알 수 없는 값은 버린다. */

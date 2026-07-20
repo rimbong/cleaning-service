@@ -8,7 +8,6 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import com.boot.cleanhub.biz.client.domain.Client;
 import com.boot.cleanhub.biz.contract.domain.CleaningCycle;
@@ -156,47 +155,13 @@ public class PricingService {
     }
 
     /**
-     * 요일·주기로 월 방문 횟수를 환산한다.
+     * 계약이 쓸 월 방문 횟수를 정한다.
      *
-     * 계약에 월 방문 횟수가 직접 저장되어 있으면 그 값을 쓰고, 없을 때만 이 환산을 쓴다.
-     * 요일·주기는 "언제 가는지"라서 "한 달에 몇 번"을 항상 정확히 담지는 못하기 때문이다
-     * (월 3회 같은 패턴은 요일·주기 조합으로 표현할 수 없다).
+     * 계약에 저장된 값을 그대로 쓴다. 계산 규칙은 계약 도메인(Contract.deriveVisitsPerMonth)
+     * 한 곳에만 두고, 저장할 때 서버가 채워 넣는다. 여기서 다시 계산하면 규칙이 두 곳이 되어
+     * 서로 어긋난다(격주·매월이 요일 개수를 무시하던 버그가 그렇게 났다).
      *
-     * 세 주기 모두 요일 개수를 곱한다. 요일은 "무슨 요일에 가는가"이고 주기는
-     * "그 요일들을 얼마나 자주 반복하는가"라서, 배수만 다르고 규칙은 같다.
-     *   매주 = 요일수 x 4 / 격주 = 요일수 x 2 / 매월 = 요일수 x 1
-     * 예) 격주 + 월·목 = 2주에 2번씩 = 월 4회, 매월 + 월·목 = 매달 각 요일 1번 = 월 2회
-     *
-     * 예전에는 격주와 매월이 요일 개수를 무시하고 각각 2, 1 로 고정돼 있어
-     * 요일이 여럿인 계약이 낮게 잡혔다.
-     *
-     * @param cycle            계약의 청소 주기
-     * @param cleaningWeekdays 계약의 청소 요일(쉼표 구분, 비어 있을 수 있음)
-     * @return 월 방문 횟수(판단할 수 없으면 null)
-     */
-    public Integer toVisitsPerMonth(CleaningCycle cycle, String cleaningWeekdays) {
-        if (cycle == null) {
-            return null;
-        }
-        int days = weekdayCount(cleaningWeekdays);
-        switch (cycle) {
-            case MONTHLY:
-                return days;
-            case BIWEEKLY:
-                return days * (VisitFrequency.WEEKS_PER_MONTH / 2);
-            case WEEKLY:
-                return days * VisitFrequency.WEEKS_PER_MONTH;
-            default:
-                return null;
-        }
-    }
-
-    /**
-     * 계약이 실제로 쓸 월 방문 횟수를 정한다.
-     * 계약에 저장된 값이 우선이고, 없으면 요일·주기로 환산한다.
-     *
-     * 화면에서 저장하는 계약은 항상 값을 채워 넣으므로 환산은 폴백이다.
-     * (V26 이전 데이터, 또는 API 를 직접 호출해 값 없이 만든 계약 대비)
+     * 값이 없는 경우(V26 이전 데이터 등)만 같은 규칙으로 유도한다.
      *
      * @param contract 계약
      * @return 월 방문 횟수(판단할 수 없으면 null)
@@ -205,15 +170,7 @@ public class PricingService {
         if (contract.getVisitsPerMonth() != null && contract.getVisitsPerMonth() >= 1) {
             return contract.getVisitsPerMonth();
         }
-        return toVisitsPerMonth(contract.getCleaningCycle(), contract.getCleaningWeekdays());
-    }
-
-    /** 청소 요일 문자열("MON,THU")의 요일 개수. 비어 있으면 1(주 1회로 본다). */
-    private int weekdayCount(String cleaningWeekdays) {
-        if (!StringUtils.hasText(cleaningWeekdays)) {
-            return 1;
-        }
-        return cleaningWeekdays.split(",").length;
+        return contract.deriveVisitsPerMonth();
     }
 
     // ===================== 적정가 재산정 =====================

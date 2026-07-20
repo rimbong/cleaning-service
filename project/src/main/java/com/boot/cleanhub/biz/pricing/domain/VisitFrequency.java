@@ -1,5 +1,7 @@
 package com.boot.cleanhub.biz.pricing.domain;
 
+import com.boot.cleanhub.biz.contract.domain.CleaningCycle;
+
 /**
  * <pre>
  *   월 방문 횟수를 사람이 읽는 말로 바꾸는 유틸.
@@ -17,8 +19,12 @@ package com.boot.cleanhub.biz.pricing.domain;
  */
 public final class VisitFrequency {
 
-    /** 한 달을 몇 주로 보는지 — 원 단가표가 주1회=월4회로 잡은 것과 맞춘다. */
-    public static final int WEEKS_PER_MONTH = 4;
+    /**
+     * 한 달을 몇 주로 보는지.
+     * 계산에 쓰는 배수(CleaningCycle.WEEKLY)를 그대로 가져다 쓴다. 같은 뜻의 숫자를
+     * 두 곳에 적어두면 한쪽만 고쳐져 표시와 계산이 어긋난다.
+     */
+    public static final int WEEKS_PER_MONTH = CleaningCycle.WEEKLY.getMonthlyMultiplier();
 
     private VisitFrequency() {
     }

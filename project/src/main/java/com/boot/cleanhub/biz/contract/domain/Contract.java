@@ -104,9 +104,9 @@ public class Contract {
      *
      * 요일·주기는 "언제 가는지"(스케줄용)이고, 가격은 "한 달에 몇 번"이 필요하다.
      * 요일·주기만으로는 월 3회 같은 패턴을 표현할 수 없어 따로 저장한다.
-     * 화면에서 요일·주기로 자동 계산해 채우되 직접 고칠 수 있다.
      *
-     * null 이면 예전처럼 요일·주기로 환산해 쓴다.
+     * 매주·격주는 저장할 때 서버가 {@link #deriveVisitsPerMonth()} 로 계산해 채운다.
+     * 매월만 사용자가 직접 넣는다(요일로 적을 수 없으므로).
      */
     @Column(name = "visits_per_month")
     private Integer visitsPerMonth;
@@ -143,6 +143,27 @@ public class Contract {
     /** 수정 시각 */
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    /**
+     * 청소 요일과 주기로 월 방문 횟수를 계산한다.
+     *
+     * 월 방문 횟수 = 요일 개수 x 주기 배수(매주 4 / 격주 2).
+     * 예) 매주 월·목 = 2 x 4 = 8회, 격주 수 = 1 x 2 = 2회
+     *
+     * 매월은 "매월 첫째주 수요일"처럼 요일로 적을 수 없어 계산 대상이 아니다(null 반환).
+     * 요일이 비어 있으면 주 1회로 본다.
+     *
+     * @return 계산된 월 방문 횟수. 계산할 수 없으면 null(매월이거나 주기가 없는 경우)
+     */
+    public Integer deriveVisitsPerMonth() {
+        if (cleaningCycle == null || cleaningCycle == CleaningCycle.MONTHLY) {
+            return null;
+        }
+        int days = (cleaningWeekdays == null || cleaningWeekdays.trim().isEmpty())
+                ? 1
+                : cleaningWeekdays.split(",").length;
+        return days * cleaningCycle.getMonthlyMultiplier();
+    }
 
     /** 최초 저장 직전: 생성/수정 시각 기록 */
     @PrePersist

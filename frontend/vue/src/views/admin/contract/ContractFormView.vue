@@ -81,10 +81,11 @@ const WEEKS_PER_MONTH = 4
 const isMonthly = computed(() => form.cleaningCycle === 'MONTHLY')
 
 /**
- * 요일·주기로 계산한 월 방문 횟수.
- * 요일은 "무슨 요일에 가는가", 주기는 "그 요일들을 얼마나 자주 반복하는가"이므로
- * 요일 개수를 곱하고 배수만 다르다(매주 4 / 격주 2).
- * 매월은 요일로 못 적으므로 자동 계산 대상이 아니고 기본 1회로 둔다.
+ * 요일·주기로 계산한 월 방문 횟수 — <b>저장 전 미리보기 전용</b>이다.
+ *
+ * 실제로 저장되는 값은 서버가 계산한다(Contract.deriveVisitsPerMonth).
+ * 여기 계산은 "지금 고른 요일이면 월 몇 회인지"를 화면에서 바로 보여주기 위한 것이고,
+ * 서버 규칙(매주 4 / 격주 2)과 같은 값이 나오도록 맞춰 둔 것뿐이다.
  */
 const suggestedVisits = computed(() => {
     if (isMonthly.value) {
@@ -182,13 +183,11 @@ function buildPayload() {
         doorCode: form.doorCode.trim() || null,
         cleaningWeekdays: form.cleaningWeekdays,
         cleaningCycle: form.cleaningCycle || 'WEEKLY',
-        // 계산해서 넘기지 않고 <b>항상 값을 저장</b>한다.
-        //   - null 로 두면 계약을 수정할 때마다 값이 지워져 DB 에서 조회할 수 없다
-        //   - 나중에 환산 규칙이 바뀌면 과거 계약 금액까지 소급해서 달라진다
-        // 매주·격주는 요일에서 계산한 값을 그대로 넣는다(화면에서 고칠 수 없으니 어긋날 일이 없다).
-        visitsPerMonth: isMonthly.value
-            ? (form.visitsPerMonth === '' ? null : Number(form.visitsPerMonth))
-            : suggestedVisits.value,
+        // 매월만 값을 보낸다. 매주·격주는 <b>서버가 요일에서 계산해 저장</b>하므로
+        // 여기서 보내도 무시된다(계산 규칙을 화면과 서버 두 곳에 두면 어긋나기 때문).
+        visitsPerMonth: isMonthly.value && form.visitsPerMonth !== ''
+            ? Number(form.visitsPerMonth)
+            : null,
         vatType: form.vatType || 'EXCLUSIVE',
         initialFee: form.initialFee !== '' ? Number(form.initialFee) : null,
         cleaningScope: form.cleaningScope.trim() || null,
