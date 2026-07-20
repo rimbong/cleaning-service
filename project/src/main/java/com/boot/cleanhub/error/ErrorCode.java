@@ -61,6 +61,7 @@ public enum ErrorCode {
     // ===== 계약 (10-01) =====
     CONTRACT_NOT_FOUND       ("100101", HttpStatus.NOT_FOUND),
     CONTRACT_ATTACHMENT_NOT_FOUND("100102", HttpStatus.NOT_FOUND),
+    CONTRACT_VISITS_REQUIRED ("100103", HttpStatus.BAD_REQUEST),
 
     // ===== 견적 (10-02) =====
     QUOTE_NOT_FOUND          ("100201", HttpStatus.NOT_FOUND),

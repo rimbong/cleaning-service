@@ -1,9 +1,11 @@
 package com.boot.cleanhub.biz.contract.service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +20,7 @@ import com.boot.cleanhub.biz.contract.domain.CleaningCycle;
 import com.boot.cleanhub.biz.contract.domain.Contract;
 import com.boot.cleanhub.biz.contract.domain.ContractStatus;
 import com.boot.cleanhub.biz.contract.domain.VatType;
+import com.boot.cleanhub.biz.contract.dto.CleaningCycleOption;
 import com.boot.cleanhub.biz.contract.dto.ContractRequest;
 import com.boot.cleanhub.biz.contract.dto.ContractResponse;
 import com.boot.cleanhub.biz.contract.dto.ScheduleDay;
@@ -75,10 +78,25 @@ public class ContractService {
     private static final String[] WEEKDAY_LABELS = { "월", "화", "수", "목", "금", "토", "일" };
 
     /**
+     * 청소 주기 목록(값·라벨·월 배수).
+     *
+     * 화면이 주기 선택지와 월 방문 횟수 미리보기를 만들 때 쓴다.
+     * 배수를 화면에 두면 서버 규칙과 어긋나므로 여기서 내려준다.
+     *
+     * @return 주기 선택 항목
+     */
+    public List<CleaningCycleOption> cleaningCycles() {
+        return Arrays.stream(CleaningCycle.values())
+                .map(CleaningCycleOption::from)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * 주간 청소 스케줄 — 진행 중(ACTIVE) 계약을 청소 요일별로 분류.
      * 한 계약이 여러 요일(월수금 등)이면 각 요일에 모두 들어간다.
+     * 요일이 없는 계약(매월 등)은 요일 칸에 넣을 수 없어 별도 목록으로 담는다.
      *
-     * @return 월~일 각 요일의 청소 대상 거래처 목록
+     * @return 월~일 각 요일의 청소 대상 거래처 목록 + 요일 미지정 계약
      */
     public WeeklyScheduleResponse getWeeklySchedule() {
         Map<String, List<ScheduleItem>> byDay = new LinkedHashMap<>();
@@ -199,13 +217,23 @@ public class ContractService {
      * 화면의 계산은 저장 전에 결과를 보여주는 미리보기 용도다.
      *
      * 매월만 요청 값을 쓴다. "매월 첫째주 수요일"처럼 요일로 적을 수 없어 계산이 불가능하다.
+     * 그래서 매월은 값이 없으면 거부한다 — 없는 채로 저장하면 권장가를 낼 근거가 사라져
+     * 적정가 재산정에서 빠진다. 화면도 같은 검증을 하지만 서버가 최종 관문이다.
      *
      * @param contract 대상 계약(요일·주기가 먼저 반영되어 있어야 한다)
      * @param request  요청 값
+     * @throws BizException 매월인데 월 방문 횟수가 없으면 CONTRACT_VISITS_REQUIRED
      */
     private void applyVisitsPerMonth(Contract contract, ContractRequest request) {
         Integer derived = contract.deriveVisitsPerMonth();
-        contract.setVisitsPerMonth(derived != null ? derived : request.getVisitsPerMonth());
+        if (derived != null) {
+            contract.setVisitsPerMonth(derived);
+            return;
+        }
+        if (request.getVisitsPerMonth() == null) {
+            throw new BizException(ErrorCode.CONTRACT_VISITS_REQUIRED);
+        }
+        contract.setVisitsPerMonth(request.getVisitsPerMonth());
     }
 
     /** 유효 요일 코드(월~일). 알 수 없는 값은 버린다. */

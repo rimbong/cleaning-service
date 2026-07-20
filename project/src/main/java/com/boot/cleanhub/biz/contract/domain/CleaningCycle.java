@@ -28,11 +28,23 @@ public enum CleaningCycle {
 
     WEEKLY("매주", 4),
     BIWEEKLY("격주", 2),
-    /** 매월은 "매월 첫째주 수요일"처럼 요일로 적을 수 없어 배수로 계산하지 않는다(직접 입력). */
-    MONTHLY("매월", 1);
+    /**
+     * 매월은 "매월 첫째주 수요일, 넷째주 금요일"처럼 요일로 적을 수 없다.
+     * 배수를 null 로 두어 "요일로 계산할 수 없는 주기"임을 타입으로 표현한다.
+     * 이런 주기는 월 방문 횟수를 직접 입력받는다.
+     */
+    MONTHLY("매월", null);
 
     private final String label;
 
-    /** 청소 요일 하나가 한 달에 몇 번이 되는지 */
-    private final int monthlyMultiplier;
+    /**
+     * 청소 요일 하나가 한 달에 몇 번이 되는지.
+     * null 이면 요일로 계산할 수 없는 주기다(직접 입력 대상).
+     */
+    private final Integer monthlyMultiplier;
+
+    /** 요일과 주기로 월 방문 횟수를 계산할 수 있는지 */
+    public boolean isDerivable() {
+        return monthlyMultiplier != null;
+    }
 }

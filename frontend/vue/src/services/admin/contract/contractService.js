@@ -92,6 +92,17 @@ export const contractService = {
     getSchedule() {
         return get('/api/admin/schedule')
     },
+
+    /**
+     * 청소 주기 목록 → data: [{ value, label, monthlyMultiplier }]
+     *
+     * monthlyMultiplier 는 청소 요일 하나가 한 달에 몇 번이 되는지다(매주 4 / 격주 2).
+     * null 이면 요일로 계산할 수 없는 주기(매월)이므로 월 방문 횟수를 직접 입력받아야 한다.
+     * 이 값을 화면에 하드코딩하면 서버 규칙과 어긋나므로 받아서 쓴다.
+     */
+    getCleaningCycles() {
+        return get('/api/admin/contracts/cleaning-cycles')
+    },
 }
 
 /** 계약 상태 표시용 옵션(폼 셀렉트·라벨 매핑에 공용) */
@@ -113,11 +124,9 @@ export const WEEKDAYS = [
 ]
 
 /** 청소 주기 옵션 */
-export const CLEANING_CYCLES = [
-    { value: 'WEEKLY', label: '매주' },
-    { value: 'BIWEEKLY', label: '격주' },
-    { value: 'MONTHLY', label: '매월' },
-]
+// 청소 주기 목록은 서버(CleaningCycle)가 갖고 있다 — contractService.getCleaningCycles() 로 받는다.
+// 여기에 두면 월 배수(매주 4 / 격주 2)가 서버와 화면 두 곳에 존재하게 되어,
+// 한쪽만 바뀌면 저장되는 값과 화면에 보이는 값이 어긋난다.
 
 /** 부가세 기준 옵션 — 세금계산서 집계에서 공급가액·세액 산출에 사용 */
 export const VAT_TYPES = [

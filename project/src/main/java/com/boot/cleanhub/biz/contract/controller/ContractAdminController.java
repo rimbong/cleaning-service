@@ -1,5 +1,7 @@
 package com.boot.cleanhub.biz.contract.controller;
 
+import java.util.List;
+
 import javax.validation.Valid;
 
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.boot.cleanhub.common.api.ApiResponse;
 import com.boot.cleanhub.common.dto.PageRequestFactory;
 import com.boot.cleanhub.common.dto.PageResponse;
+import com.boot.cleanhub.biz.contract.dto.CleaningCycleOption;
 import com.boot.cleanhub.biz.contract.dto.ContractRequest;
 import com.boot.cleanhub.biz.contract.dto.ContractResponse;
 import com.boot.cleanhub.biz.contract.service.ContractDocumentService;
@@ -46,6 +49,17 @@ public class ContractAdminController {
 
     private final ContractService contractService;
     private final ContractDocumentService contractDocumentService;
+
+    /**
+     * 청소 주기 목록 — 화면의 선택 항목과 월 방문 횟수 미리보기에 쓴다.
+     *
+     * 배수를 화면에 하드코딩하면 서버 규칙과 어긋나므로 여기서 함께 내려준다.
+     * 경로가 "/{id}" 보다 구체적이라 계약 id 로 잘못 해석되지 않는다.
+     */
+    @GetMapping("/cleaning-cycles")
+    public ApiResponse<List<CleaningCycleOption>> cleaningCycles() {
+        return ApiResponse.ok(contractService.cleaningCycles());
+    }
 
     /** 계약 목록(계약명 검색 또는 거래처 필터 지원, 페이징) */
     @GetMapping

@@ -156,7 +156,10 @@ public class Contract {
      * @return 계산된 월 방문 횟수. 계산할 수 없으면 null(매월이거나 주기가 없는 경우)
      */
     public Integer deriveVisitsPerMonth() {
-        if (cleaningCycle == null || cleaningCycle == CleaningCycle.MONTHLY) {
+        // 매월을 이름으로 특정하지 않고 "배수가 있는가"로 판단한다.
+        // 새 주기를 추가할 때 배수만 비워두면 자동으로 직접입력 대상이 되므로,
+        // 여기 조건을 같이 고치는 걸 빠뜨려서 생기는 실수를 막는다(격주·매월에서 실제로 났던 실수).
+        if (cleaningCycle == null || !cleaningCycle.isDerivable()) {
             return null;
         }
         int days = (cleaningWeekdays == null || cleaningWeekdays.trim().isEmpty())

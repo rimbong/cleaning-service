@@ -2,11 +2,11 @@
 // 계약 등록/수정 겸용 폼.
 //  - props.id 없음 → 등록,  있음 → 수정(기존 값 로드).
 //  - 거래처(건물)는 검색 가능한 모달(ClientPickerField)로 선택한다.
-import { computed, reactive, ref, watch, watchEffect } from 'vue'
+import { computed, onMounted, reactive, ref, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQueryClient } from '@tanstack/vue-query'
 
-import { contractService, CONTRACT_STATUSES, WEEKDAYS, CLEANING_CYCLES, VAT_TYPES } from '@/services/admin/contract/contractService'
+import { contractService, CONTRACT_STATUSES, WEEKDAYS, VAT_TYPES } from '@/services/admin/contract/contractService'
 import ClientPickerField from '@/views/admin/client/ClientPickerField.vue'
 import { invalidatePricingReview } from '@/services/admin/pricing/pricingCache'
 import { useFormErrors } from '@/common/composables/useFormErrors'
@@ -70,35 +70,55 @@ function toggleWeekday(code) {
 // 자동으로 계산하더라도 <b>결과는 반드시 저장한다</b>. 저장하지 않고 매번 환산하면
 // 계약을 수정할 때마다 값이 지워지고, DB 에서 "월 몇 회 계약인지" 바로 볼 수 없다.
 
-/** 한 달을 몇 주로 보는지 — 서버(VisitFrequency.WEEKS_PER_MONTH)와 같아야 한다. */
-const WEEKS_PER_MONTH = 4
+/**
+ * 청소 주기 목록 — 서버에서 받는다(값·라벨·월 배수).
+ * 배수를 여기 적어두면 서버 규칙과 어긋나므로 하드코딩하지 않는다.
+ */
+const cleaningCycles = ref([])
+
+onMounted(async () => {
+    try {
+        cleaningCycles.value = (await contractService.getCleaningCycles()).data.data
+    } catch (e) {
+        // 주기 목록을 못 받아도 폼 자체는 쓸 수 있어야 하므로 저장을 막지는 않는다.
+        notify.bar('청소 주기 목록을 불러오지 못했습니다. 새로고침 해주세요.', { color: 'red' })
+    }
+})
+
+/** 지금 고른 주기의 서버 정의(못 찾으면 null) */
+const currentCycle = computed(
+    () => cleaningCycles.value.find((c) => c.value === form.cleaningCycle) ?? null,
+)
 
 /**
- * 매월 계약은 요일로 적을 수 없다.
- * "매월 첫째주 수요일, 넷째주 금요일" 같은 패턴이라 요일 하나로는 표현이 안 되고,
+ * 요일로 월 방문 횟수를 계산할 수 없는 주기인지 — 서버가 배수를 주지 않으면 그렇다(매월).
+ *
+ * "매월 첫째주 수요일, 넷째주 금요일" 같은 패턴은 요일 하나로 표현되지 않고,
  * 요일을 골라두면 매주 가는 것으로 오해된다. 그래서 요일 선택을 막고
  * 방문 횟수를 직접 넣게 한 뒤 상세 일정은 메모에 적는다.
+ *
+ * 주기 이름('MONTHLY')으로 판단하지 않는 이유: 나중에 같은 성격의 주기가 늘어도
+ * 서버에서 배수만 비워두면 화면은 고치지 않아도 된다.
  */
-const isMonthly = computed(() => form.cleaningCycle === 'MONTHLY')
+const isMonthly = computed(() => currentCycle.value != null && currentCycle.value.monthlyMultiplier == null)
 
 /**
  * 요일·주기로 계산한 월 방문 횟수 — <b>저장 전 미리보기 전용</b>이다.
- *
  * 실제로 저장되는 값은 서버가 계산한다(Contract.deriveVisitsPerMonth).
- * 여기 계산은 "지금 고른 요일이면 월 몇 회인지"를 화면에서 바로 보여주기 위한 것이고,
- * 서버 규칙(매주 4 / 격주 2)과 같은 값이 나오도록 맞춰 둔 것뿐이다.
+ * 배수는 서버에서 받은 값을 그대로 쓰므로 규칙이 한 곳에만 존재한다.
  */
 const suggestedVisits = computed(() => {
-    if (isMonthly.value) {
+    const multiplier = currentCycle.value?.monthlyMultiplier
+    if (multiplier == null) {
         return 1
     }
     const days = form.cleaningWeekdays.length || 1
-    return days * (form.cleaningCycle === 'BIWEEKLY' ? WEEKS_PER_MONTH / 2 : WEEKS_PER_MONTH)
+    return days * multiplier
 })
 
 /** 지금 고른 요일·주기가 무슨 뜻인지 한 문장으로 — "매주 월·목이면 월 8회" 처럼 바로 확인되게 */
 const scheduleSummary = computed(() => {
-    const cycleLabel = CLEANING_CYCLES.find((c) => c.value === form.cleaningCycle)?.label ?? ''
+    const cycleLabel = currentCycle.value?.label ?? ''
     if (isMonthly.value) {
         const n = form.visitsPerMonth === '' ? suggestedVisits.value : form.visitsPerMonth
         return `${cycleLabel} → 월 ${n}회 (상세 일정은 메모에)`
@@ -153,8 +173,9 @@ watch(() => props.id, async (id) => {
         form.doorCode = c.doorCode ?? ''
         form.cleaningWeekdays = Array.isArray(c.cleaningWeekdays) ? [...c.cleaningWeekdays] : []
         form.cleaningCycle = c.cleaningCycle ?? 'WEEKLY'
-        // 횟수는 매월 계약에서만 쓴다. 매주·격주는 요일로 계산되므로 화면에 담아두지 않는다.
-        form.visitsPerMonth = c.cleaningCycle === 'MONTHLY' ? (c.visitsPerMonth ?? 1) : ''
+        // 저장된 값을 그대로 담는다. 매주·격주면 입력칸이 보이지 않고 저장 시에도 보내지 않으므로
+        // 남아 있어도 무해하다(로드 시점에는 주기 목록이 아직 없어 매월인지 판단할 수 없다).
+        form.visitsPerMonth = c.visitsPerMonth ?? ''
         form.vatType = c.vatType ?? 'EXCLUSIVE'
         form.initialFee = c.initialFee ?? ''
         form.cleaningScope = c.cleaningScope ?? ''
@@ -352,7 +373,7 @@ function onCancel() {
                 <div class="field">
                     <label>청소 주기</label>
                     <select v-model="form.cleaningCycle">
-                        <option v-for="c in CLEANING_CYCLES" :key="c.value" :value="c.value">{{ c.label }}</option>
+                        <option v-for="c in cleaningCycles" :key="c.value" :value="c.value">{{ c.label }}</option>
                     </select>
                 </div>
             </div>
