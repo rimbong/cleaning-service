@@ -68,6 +68,17 @@ export const supplyService = {
         return del(`/api/admin/supplies/${id}/transactions/${transactionId}`)
     },
 
+    /**
+     * 보유 약품의 위험 조합 경고 → data: SupplyHazardResponse[]
+     *
+     * 목록과 따로 부르는 이유: 목록은 한 페이지(10건)만 내려오므로 그것으로 판정하면
+     * 락스와 산성 세제가 다른 페이지에 있을 때 경고가 뜨지 않는다.
+     * 안전 정보라 창고 전체를 봐야 하고, 그 판정은 서버가 한다.
+     */
+    hazards() {
+        return get('/api/admin/supplies/hazards')
+    },
+
     /** 재고 현황 엑셀 다운로드(품목명 검색 반영, Bearer 자동) */
     downloadExcel(keyword, fallbackName) {
         return downloadGet('/api/admin/supplies/excel', { params: keyword ? { keyword } : {}, fallbackName })
@@ -87,24 +98,8 @@ export const PH_TYPES = [
     { value: 'ETC', label: '기타', range: '', soil: '' },
 ]
 
-/**
- * 절대 섞으면 안 되는 조합 — 보유 약품에 이 둘이 함께 있으면 화면에서 경고한다.
- * 청소 사고는 대부분 "더 강하게" 섞다가 난다.
- */
-export const DANGEROUS_PAIRS = [
-    {
-        a: 'OXIDIZER',
-        b: 'ACID',
-        gas: '염소가스',
-        detail: '염소계 표백제(락스)와 산성 세제·식초·구연산을 섞으면 염소가스가 나옵니다. 소량으로도 중독·질식 위험이 있습니다.',
-    },
-    {
-        a: 'OXIDIZER',
-        b: 'ALKALI',
-        gas: '클로라민 가스',
-        detail: '락스와 암모니아가 든 세제를 섞으면 클로라민 가스가 나옵니다. 호흡곤란·폐 손상 위험이 있습니다.',
-    },
-]
+// 위험 조합 목록은 서버(HazardousMix)가 갖고 있다.
+// 화면에 두면 목록에 보이는 품목만으로 판정하게 되어 다른 페이지의 약품을 놓친다.
 
 /** 입출고 구분 옵션 — ADJUST 는 "세어본 실제 수량"을 입력받는다(차이만 이력에 남음) */
 export const SUPPLY_TX_TYPES = [

@@ -2,10 +2,13 @@ package com.boot.cleanhub.biz.supply.service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -16,9 +19,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.boot.cleanhub.biz.supply.domain.HazardousMix;
+import com.boot.cleanhub.biz.supply.domain.PhType;
 import com.boot.cleanhub.biz.supply.domain.SupplyItem;
 import com.boot.cleanhub.biz.supply.domain.SupplyTransaction;
 import com.boot.cleanhub.biz.supply.domain.SupplyTxType;
+import com.boot.cleanhub.biz.supply.dto.SupplyHazardResponse;
 import com.boot.cleanhub.biz.supply.dto.SupplyItemRequest;
 import com.boot.cleanhub.biz.supply.dto.SupplyItemResponse;
 import com.boot.cleanhub.biz.supply.dto.SupplyTransactionRequest;
@@ -81,17 +87,18 @@ public class SupplyService {
 
     @Transactional
     public SupplyItemResponse create(SupplyItemRequest request) {
+        checkDuplicate(request, NO_EXCLUDE_ID);
         SupplyItem item = new SupplyItem();
         apply(item, request);
-        checkDuplicate(item, NO_EXCLUDE_ID);
         return SupplyItemResponse.from(supplyItemRepository.save(item), 0);
     }
 
     @Transactional
     public SupplyItemResponse update(Long id, SupplyItemRequest request) {
         SupplyItem item = findItemOrThrow(id);
+        // 검사를 apply 보다 먼저 한다 — 이유는 checkDuplicate 주석 참고.
+        checkDuplicate(request, id);
         apply(item, request);
-        checkDuplicate(item, id);
         supplyItemRepository.saveAndFlush(item);
         return SupplyItemResponse.from(item, currentStock(id));
     }
@@ -109,6 +116,26 @@ public class SupplyService {
             throw new BizException(ErrorCode.SUPPLY_ITEM_HAS_HISTORY);
         }
         supplyItemRepository.delete(item);
+    }
+
+    /**
+     * 보유 약품에서 성립하는 위험 조합 경고.
+     *
+     * 창고 전체를 기준으로 판정한다. 화면에 보이는 목록(한 페이지)으로 하면
+     * 락스와 산성 세제가 다른 페이지에 있을 때 어느 페이지에서도 경고가 뜨지 않는다.
+     * 안전 정보라 "경고 없음"이 "안전"으로 읽히므로 범위를 좁히면 안 된다.
+     *
+     * @return 성립하는 조합 목록(없으면 빈 목록)
+     */
+    public List<SupplyHazardResponse> hazards() {
+        Set<PhType> inStock = new HashSet<>(supplyItemRepository.findPhTypesInStock());
+        List<SupplyHazardResponse> warnings = new ArrayList<>();
+        for (HazardousMix mix : HazardousMix.values()) {
+            if (mix.matches(inStock)) {
+                warnings.add(SupplyHazardResponse.from(mix));
+            }
+        }
+        return warnings;
     }
 
     // ===================== 입출고 =====================
@@ -308,10 +335,23 @@ public class SupplyService {
         item.setMemo(request.getMemo());
     }
 
-    private void checkDuplicate(SupplyItem item, long excludeId) {
+    /**
+     * 같은 이름·규격의 품목이 이미 있는지 <b>엔티티에 값을 넣기 전에</b> 검사한다.
+     *
+     * 엔티티를 먼저 고치면 안 되는 이유: 영속 상태 엔티티를 수정한 뒤 이 검사 쿼리를 실행하면
+     * Hibernate 가 auto-flush 로 UPDATE 를 먼저 내보낸다. 그러면 검사가 돌기도 전에
+     * DB 의 유니크 인덱스(V21 uk_supply_item_name_spec)가 거부해 500 이 나간다.
+     * 등록은 409 인데 수정만 500 이 되는 문제가 실제로 있었다.
+     *
+     * @param request   요청 값(apply 와 같은 방식으로 다듬어서 비교한다)
+     * @param excludeId 검사에서 제외할 id — 신규 등록이면 NO_EXCLUDE_ID
+     */
+    private void checkDuplicate(SupplyItemRequest request, long excludeId) {
+        String name = request.getName() != null ? request.getName().trim() : "";
+        String spec = trimToNull(request.getSpec());
         // 규격 없음(null)을 그대로 넘기면 JPQL 파라미터 타입이 정해지지 않는다. 빈 문자열로 맞춰서 넘긴다.
-        String spec = item.getSpec() != null ? item.getSpec() : "";
-        if (supplyItemRepository.existsDuplicate(item.getName(), spec, excludeId)) {
+        String specKey = spec != null ? spec : "";
+        if (supplyItemRepository.existsDuplicate(name, specKey, excludeId)) {
             throw new BizException(ErrorCode.SUPPLY_ITEM_DUPLICATE);
         }
     }

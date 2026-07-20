@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router'
 import { useQueryClient } from '@tanstack/vue-query'
 
 import { supplyService, PH_TYPES } from '@/services/admin/supply/supplyService'
+import { invalidateSupplyCaches } from '@/services/admin/supply/supplyCache'
 import { useFormErrors } from '@/common/composables/useFormErrors'
 import { useNotifyStore } from '@/stores/common/notify/notify'
 
@@ -87,10 +88,8 @@ async function onSubmit() {
             await supplyService.create(payload)
             notify.toast('등록되었습니다.', { type: 'success' })
         }
-        // 목록('supplies')과 단건('supply')은 queryKey 가 달라 따로 지워야 한다.
-        // 단건을 안 지우면 이력 화면 상단 요약(품목명·단위)이 수정 전 값으로 남는다.
-        queryClient.invalidateQueries({ queryKey: ['supplies'] })
-        queryClient.invalidateQueries({ queryKey: ['supply'] })
+        // pH 구분을 바꾸면 위험 조합 판정까지 달라지므로 관련 캐시를 모두 지운다(supplyCache 참고).
+        invalidateSupplyCaches(queryClient)
         router.replace({ name: 'admin-supplies' })
     } catch (e) {
         notify.bar(e.response?.data?.message ?? '저장 실패', { color: 'red' })

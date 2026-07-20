@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.boot.cleanhub.biz.supply.domain.PhType;
 import com.boot.cleanhub.biz.supply.domain.SupplyItem;
 
 /**
@@ -46,4 +47,18 @@ public interface SupplyItemRepository extends JpaRepository<SupplyItem, Long> {
     @Query("SELECT COUNT(i) > 0 FROM SupplyItem i "
             + "WHERE i.name = :name AND COALESCE(i.spec, '') = :spec AND i.id <> :excludeId")
     boolean existsDuplicate(@Param("name") String name, @Param("spec") String spec, @Param("excludeId") Long excludeId);
+
+    /**
+     * 재고가 남아 있는 품목들의 pH 구분(중복 제거).
+     *
+     * 위험 조합 경고는 <b>창고 전체</b>를 기준으로 판정해야 한다. 화면에 보이는 목록으로 하면
+     * 락스와 산성 세제가 다른 페이지에 있을 때 어느 페이지에서도 경고가 뜨지 않는다.
+     * 재고가 0 인 품목은 지금 창고에 없다는 뜻이므로 제외한다.
+     *
+     * @return 보유 중인 pH 구분 목록
+     */
+    @Query("SELECT DISTINCT i.phType FROM SupplyItem i "
+            + "WHERE i.phType IS NOT NULL "
+            + "AND (SELECT COALESCE(SUM(t.quantity), 0) FROM SupplyTransaction t WHERE t.item = i) > 0")
+    List<PhType> findPhTypesInStock();
 }

@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/vue-query'
 
 import { supplyService } from '@/services/admin/supply/supplyService'
+import { invalidateSupplyCaches } from '@/services/admin/supply/supplyCache'
 import SupplyTxModal from './SupplyTxModal.vue'
 import Pager from '@/common/components/common/Pager.vue'
 import TableSkeleton from '@/common/components/common/TableSkeleton.vue'
@@ -66,9 +67,8 @@ const removeMut = useMutation({
     mutationFn: (transactionId) => supplyService.removeTransaction(props.id, transactionId),
     onSuccess: () => {
         notify.toast('삭제되었습니다.', { type: 'info' })
-        queryClient.invalidateQueries({ queryKey: ['supply-history'] })
-        queryClient.invalidateQueries({ queryKey: ['supply'] })
-        queryClient.invalidateQueries({ queryKey: ['supplies'] })
+        // 이력이 빠지면 재고 합계가 달라지고 위험 조합 판정도 바뀔 수 있다(supplyCache 참고).
+        invalidateSupplyCaches(queryClient)
     },
     onError: (e) => notify.bar(e.response?.data?.message ?? '삭제 실패', { color: 'red' }),
 })

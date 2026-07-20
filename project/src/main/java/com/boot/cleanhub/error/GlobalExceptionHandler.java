@@ -7,6 +7,7 @@ import javax.validation.ConstraintViolationException;
 
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -17,6 +18,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import com.boot.cleanhub.common.api.ApiResponse;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * <pre>
@@ -29,6 +31,7 @@ import lombok.RequiredArgsConstructor;
  * @since 2025.08.05
  * @version 3.0
  */
+@Slf4j
 @RestControllerAdvice
 @RequiredArgsConstructor
 public class GlobalExceptionHandler {
@@ -66,6 +69,23 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse<Void>> handleMaxUploadSize(MaxUploadSizeExceededException e) {
         ErrorCode ec = ErrorCode.FILE_TOO_LARGE;
+        return ResponseEntity.status(ec.getStatus()).body(ApiResponse.error(ec.getCode(), resolve(ec, null)));
+    }
+
+    /**
+     * DB 제약(유니크·외래키 등) 위반 → 409.
+     *
+     * 서비스에서 미리 검사해 안내 메시지를 주는 것이 원칙이고, 이 핸들러는 그 검사를 빠져나간
+     * 경우를 위한 안전망이다. 대표적으로 두 요청이 동시에 같은 값을 저장하면 검사는 둘 다
+     * 통과하고 DB 에서만 걸린다. 그때 500(서버 오류)으로 보이면 사용자가 원인을 알 수 없다.
+     *
+     * 데이터는 안전하다 — 제약이 막았으므로 중복 저장은 일어나지 않는다.
+     * 구체적인 원인은 예외 메시지에만 있으므로 로그로 남기고, 화면에는 일반 문구를 준다.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException e) {
+        ErrorCode ec = ErrorCode.DATA_INTEGRITY_VIOLATION;
+        log.warn("DB 제약 위반 — 서비스 단계 검사를 빠져나갔다(동시 저장 가능성). {}", e.getMostSpecificCause().getMessage());
         return ResponseEntity.status(ec.getStatus()).body(ApiResponse.error(ec.getCode(), resolve(ec, null)));
     }
 

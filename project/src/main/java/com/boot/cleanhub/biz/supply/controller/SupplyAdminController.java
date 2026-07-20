@@ -1,5 +1,7 @@
 package com.boot.cleanhub.biz.supply.controller;
 
+import java.util.List;
+
 import javax.validation.Valid;
 
 import org.springframework.http.ResponseEntity;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.boot.cleanhub.biz.supply.dto.SupplyHazardResponse;
 import com.boot.cleanhub.biz.supply.dto.SupplyItemRequest;
 import com.boot.cleanhub.biz.supply.dto.SupplyItemResponse;
 import com.boot.cleanhub.biz.supply.dto.SupplyTransactionRequest;
@@ -50,6 +53,15 @@ public class SupplyAdminController {
     public ResponseEntity<byte[]> excel(@RequestParam(required = false) String keyword) {
         byte[] bytes = supplyService.buildExcel(keyword);
         return FileUtillMo.downloadResponse(bytes, "약품재고현황.xlsx", XLSX_CONTENT_TYPE);
+    }
+
+    /**
+     * 보유 약품에서 성립하는 위험 조합 경고(창고 전체 기준).
+     * 목록과 따로 두는 이유: 목록은 페이지 단위라 그것만 보면 다른 페이지의 약품을 놓친다.
+     */
+    @GetMapping("/hazards")
+    public ApiResponse<List<SupplyHazardResponse>> hazards() {
+        return ApiResponse.ok(supplyService.hazards());
     }
 
     @GetMapping

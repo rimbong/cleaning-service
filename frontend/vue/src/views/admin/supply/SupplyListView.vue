@@ -5,7 +5,8 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/vue-query'
 
-import { supplyService, PH_TYPES, DANGEROUS_PAIRS } from '@/services/admin/supply/supplyService'
+import { supplyService } from '@/services/admin/supply/supplyService'
+import { invalidateSupplyCaches } from '@/services/admin/supply/supplyCache'
 import SupplyTxModal from './SupplyTxModal.vue'
 import Pager from '@/common/components/common/Pager.vue'
 import TableSkeleton from '@/common/components/common/TableSkeleton.vue'
@@ -49,26 +50,17 @@ watch(totalPages, (tp) => {
 const shortageCount = computed(() => items.value.filter((i) => i.belowSafety).length)
 
 /**
- * 보유 약품 중 섞으면 위험한 조합이 있는지 찾는다.
- * 청소 사고는 대부분 "더 강하게" 하려고 섞다가 나므로, 창고에 둘 다 있으면 미리 알린다.
- * 재고가 남아 있는 품목만 본다(0 이면 지금 창고에 없다는 뜻).
+ * 섞으면 위험한 조합을 보유 중인지 — <b>서버가 창고 전체를 보고</b> 판정한 결과다.
+ *
+ * 화면의 목록으로 판정하면 안 된다. 목록은 한 페이지(10건)뿐이라
+ * 락스와 산성 세제가 다른 페이지에 있으면 어느 페이지에서도 경고가 뜨지 않는다.
+ * 안전 정보는 "경고 없음"이 "안전"으로 읽히므로 범위를 좁히면 위험하다.
  */
-const dangerWarnings = computed(() => {
-    const present = new Set(
-        items.value.filter((i) => i.phType && i.currentQuantity > 0).map((i) => i.phType),
-    )
-    return DANGEROUS_PAIRS
-        .filter((pair) => present.has(pair.a) && present.has(pair.b))
-        .map((pair) => ({
-            ...pair,
-            aLabel: labelOfPh(pair.a),
-            bLabel: labelOfPh(pair.b),
-        }))
+const { data: hazardData } = useQuery({
+    queryKey: ['supply-hazards'],
+    queryFn: () => supplyService.hazards().then((r) => r.data.data),
 })
-
-function labelOfPh(value) {
-    return PH_TYPES.find((p) => p.value === value)?.label ?? value
-}
+const dangerWarnings = computed(() => hazardData.value ?? [])
 
 function doSearch() {
     appliedKeyword.value = searchInput.value.trim()
@@ -104,10 +96,8 @@ const removeMut = useMutation({
     mutationFn: (id) => supplyService.remove(id),
     onSuccess: () => {
         notify.toast('삭제되었습니다.', { type: 'info' })
-        // 품목이 사라지면 목록뿐 아니라 그 품목의 단건·이력 캐시도 의미가 없어진다.
-        queryClient.invalidateQueries({ queryKey: ['supplies'] })
-        queryClient.invalidateQueries({ queryKey: ['supply'] })
-        queryClient.invalidateQueries({ queryKey: ['supply-history'] })
+        // 품목이 사라지면 목록뿐 아니라 단건·이력·위험경고 판정도 달라진다.
+        invalidateSupplyCaches(queryClient)
     },
     onError: (e) => notify.bar(e.response?.data?.message ?? '삭제 실패', { color: 'red' }),
 })
@@ -149,9 +139,10 @@ async function onDownload() {
             </div>
         </div>
 
-        <!-- 섞으면 유독가스가 나오는 조합을 둘 다 보유 중일 때. 안전 문제라 목록 맨 위에 둔다. -->
+        <!-- 섞으면 유독가스가 나오는 조합을 둘 다 보유 중일 때(창고 전체 기준).
+             안전 문제라 목록 맨 위에 둔다. -->
         <div v-for="w in dangerWarnings" :key="w.gas" class="danger">
-            <strong>같이 두면 위험: {{ w.aLabel }} + {{ w.bLabel }} → {{ w.gas }}</strong>
+            <strong>같이 두면 위험: {{ w.firstLabel }} + {{ w.secondLabel }} → {{ w.gas }}</strong>
             <p>{{ w.detail }}</p>
             <p class="danger__rule">세제는 한 번에 한 종류만. 다른 세제로 바꿀 땐 물로 완전히 헹군 뒤 사용하세요.</p>
         </div>

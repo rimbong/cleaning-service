@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query'
 
 import Modal from '@/common/components/common/Modal.vue'
 import { supplyService, SUPPLY_TX_TYPES } from '@/services/admin/supply/supplyService'
+import { invalidateSupplyCaches } from '@/services/admin/supply/supplyCache'
 import { useNotifyStore } from '@/stores/common/notify/notify'
 
 const props = defineProps({
@@ -51,25 +52,12 @@ const hint = computed(() => {
     return form.txType === 'IN' ? `들여온 수량(${unit})` : `현장에서 쓴 수량(${unit})`
 })
 
-/**
- * 재고와 얽힌 캐시를 한꺼번에 지운다.
- * 목록·단건·이력의 queryKey 가 서로 달라서('supplies' / 'supply' / 'supply-history')
- * 하나만 지우면 나머지 화면은 이미 떠 있는 동안 옛 값을 그대로 보여준다.
- *
- * (전역 staleTime 이 0 이라 화면을 나갔다 들어오면 어차피 갱신되지만,
- *  등록 직후 같은 화면에서 바로 반영되게 하려면 여기서 지워야 한다)
- */
-function invalidateSupplyCaches() {
-    queryClient.invalidateQueries({ queryKey: ['supplies'] })
-    queryClient.invalidateQueries({ queryKey: ['supply'] })
-    queryClient.invalidateQueries({ queryKey: ['supply-history'] })
-}
-
 const saveMut = useMutation({
     mutationFn: (payload) => supplyService.addTransaction(props.item.id, payload),
     onSuccess: () => {
         notify.toast('등록되었습니다.', { type: 'success' })
-        invalidateSupplyCaches()
+        // 재고가 바뀌면 목록·단건·이력·위험경고가 한꺼번에 옛 값이 된다(supplyCache 참고).
+        invalidateSupplyCaches(queryClient)
         emit('close')
     },
     onError: (e) => {

@@ -88,6 +88,8 @@ public enum ErrorCode {
 
     // ===== 공통 / 프레임워크 (99) =====
     VALIDATION_ERROR         ("999001", HttpStatus.BAD_REQUEST),
+    // DB 제약(유니크·외래키) 위반 — 서비스 검사를 빠져나간 경우의 안전망(동시 저장 등)
+    DATA_INTEGRITY_VIOLATION ("999002", HttpStatus.CONFLICT),
     // 최후 안전망: properties 조회 실패에 대비해 default 를 명시적으로 선언한 예외 케이스.
     INTERNAL_ERROR           ("999999", HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다.");
 
