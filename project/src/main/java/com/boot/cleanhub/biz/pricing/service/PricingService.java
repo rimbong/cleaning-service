@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,8 @@ import com.boot.cleanhub.biz.pricing.dto.PriceReviewSkipped;
 import com.boot.cleanhub.biz.pricing.dto.PricingPolicyRequest;
 import com.boot.cleanhub.biz.pricing.dto.PricingPolicyResponse;
 import com.boot.cleanhub.biz.pricing.repository.PricingPolicyRepository;
+import com.boot.cleanhub.error.BizException;
+import com.boot.cleanhub.error.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -69,13 +72,29 @@ public class PricingService {
 
     // ===================== 단가 정책 =====================
 
+    /**
+     * 단가 정책 조회 — <b>없으면 기본값을 채워서 돌려주되 저장하지 않는다</b>.
+     *
+     * 조회 경로에서 저장하면 안 되는 이유가 두 가지다.
+     *   1) 이 클래스는 readOnly 트랜잭션이라 쓰기가 예측대로 동작하지 않는다.
+     *   2) 사용자가 조정해 둔 단가가 사라진 상황에서 조용히 기본값을 만들면,
+     *      틀린 금액이 나가는 것을 아무도 모른다.
+     *
+     * 대신 화면이 "아직 저장되지 않았다"를 알 수 있도록 saved 를 함께 내려준다.
+     * 단가 정책 화면은 여기서 열리므로 사용자가 값을 확인하고 저장할 수 있다.
+     *
+     * @return 단가 정책(저장 여부 포함)
+     */
     public PricingPolicyResponse getPolicy() {
-        return PricingPolicyResponse.from(getSingleton());
+        return findPolicy()
+                .map(policy -> PricingPolicyResponse.from(policy, true))
+                .orElseGet(() -> PricingPolicyResponse.from(defaultPolicy(), false));
     }
 
     @Transactional
     public PricingPolicyResponse updatePolicy(PricingPolicyRequest request) {
-        PricingPolicy policy = getSingleton();
+        // 저장은 쓰기 트랜잭션이므로 여기서는 만들어도 된다(행이 사라졌을 때 복구 경로).
+        PricingPolicy policy = findPolicy().orElseGet(PricingPolicy::new);
         policy.setBaseFee(request.getBaseFee());
         policy.setPerFloor(request.getPerFloor());
         policy.setPerHousehold(request.getPerHousehold());
@@ -85,7 +104,7 @@ public class PricingService {
         policy.setCoefExponent(request.getCoefExponent());
         policy.setRoundingUnit(request.getRoundingUnit());
         policy.setMemo(request.getMemo());
-        return PricingPolicyResponse.from(pricingPolicyRepository.saveAndFlush(policy));
+        return PricingPolicyResponse.from(pricingPolicyRepository.saveAndFlush(policy), true);
     }
 
     // ===================== 권장가 산정 =====================
@@ -97,7 +116,7 @@ public class PricingService {
      * @return 권장가와 산출 근거
      */
     public PriceEstimateResponse estimate(PriceEstimateRequest request) {
-        return calculate(getSingleton(),
+        return calculate(requirePolicy(),
                 nullToZero(request.getFloors()),
                 nullToZero(request.getHouseholdCount()),
                 nullToZero(request.getSharedToilets()),
@@ -188,7 +207,7 @@ public class PricingService {
      * @return 비교 결과와 제외 건수
      */
     public PriceReviewResponse review() {
-        PricingPolicy policy = getSingleton();
+        PricingPolicy policy = requirePolicy();
         List<PriceReviewRow> rows = new ArrayList<>();
         List<PriceReviewSkipped> skipped = new ArrayList<>();
 
@@ -283,24 +302,44 @@ public class PricingService {
     }
 
     /**
-     * 단일 행 획득. V22 가 초기값을 넣어두므로 정상적으로는 항상 존재한다.
-     * 누군가 지운 경우에 대비해 기본값으로 되살리되, 조용히 넘어가면 엉뚱한 금액이
-     * 나갈 수 있으므로 경고 로그를 남긴다.
+     * 저장된 단가 정책(없으면 empty).
+     * V22 가 초기값을 넣어두므로 정상적으로는 항상 존재한다.
      */
-    @Transactional
-    PricingPolicy getSingleton() {
-        return pricingPolicyRepository.findAll().stream().findFirst().orElseGet(() -> {
-            log.warn("단가 정책 행이 없어 기본값으로 생성합니다. 단가를 확인하세요(관리자 > 단가 정책).");
-            PricingPolicy p = new PricingPolicy();
-            p.setBaseFee(DEFAULT_BASE_FEE);
-            p.setPerFloor(DEFAULT_PER_FLOOR);
-            p.setPerHousehold(DEFAULT_PER_HOUSEHOLD);
-            p.setPerToilet(DEFAULT_PER_TOILET);
-            p.setElevatorFee(DEFAULT_ELEVATOR_FEE);
-            p.setCoefBase(DEFAULT_COEF_BASE);
-            p.setCoefExponent(DEFAULT_COEF_EXPONENT);
-            p.setRoundingUnit(DEFAULT_ROUNDING_UNIT);
-            return pricingPolicyRepository.save(p);
+    private Optional<PricingPolicy> findPolicy() {
+        return pricingPolicyRepository.findTopByOrderByIdAsc();
+    }
+
+    /**
+     * 금액 계산에 쓸 단가 정책. 없으면 예외를 던진다.
+     *
+     * 조용히 기본값으로 계산하면 안 된다. 사용자가 조정해 둔 단가가 사라진 상황에서
+     * 코드에 박힌 값으로 금액을 내면 틀린 견적이 나가는 것을 아무도 모른다.
+     * 멈추고 알리는 편이 낫다.
+     *
+     * @return 단가 정책
+     * @throws BizException 정책이 없으면 PRICING_POLICY_NOT_FOUND
+     */
+    private PricingPolicy requirePolicy() {
+        return findPolicy().orElseThrow(() -> {
+            log.warn("단가 정책이 없어 권장가를 계산할 수 없습니다. 관리자 > 단가 정책에서 저장이 필요합니다.");
+            return new BizException(ErrorCode.PRICING_POLICY_NOT_FOUND);
         });
+    }
+
+    /**
+     * 화면에 채워 보여줄 기본값 — <b>저장하지 않는다</b>.
+     * 정책이 없을 때 단가 정책 화면이 빈 폼 대신 이 값을 보여주고, 사용자가 확인 후 저장한다.
+     */
+    private PricingPolicy defaultPolicy() {
+        PricingPolicy p = new PricingPolicy();
+        p.setBaseFee(DEFAULT_BASE_FEE);
+        p.setPerFloor(DEFAULT_PER_FLOOR);
+        p.setPerHousehold(DEFAULT_PER_HOUSEHOLD);
+        p.setPerToilet(DEFAULT_PER_TOILET);
+        p.setElevatorFee(DEFAULT_ELEVATOR_FEE);
+        p.setCoefBase(DEFAULT_COEF_BASE);
+        p.setCoefExponent(DEFAULT_COEF_EXPONENT);
+        p.setRoundingUnit(DEFAULT_ROUNDING_UNIT);
+        return p;
     }
 }

@@ -79,6 +79,9 @@ public enum ErrorCode {
     // ===== 지출 (10-04) =====
     EXPENSE_NOT_FOUND        ("100401", HttpStatus.NOT_FOUND),
 
+    // ===== 권장가 산정 (10-06) =====
+    PRICING_POLICY_NOT_FOUND ("100601", HttpStatus.CONFLICT),
+
     // ===== 약품/소모품 재고 (10-05) =====
     SUPPLY_ITEM_NOT_FOUND    ("100501", HttpStatus.NOT_FOUND),
     SUPPLY_ITEM_DUPLICATE    ("100502", HttpStatus.CONFLICT),

@@ -16,6 +16,12 @@ const queryClient = useQueryClient()
 const loading = ref(true)
 const saving = ref(false)
 const updatedAt = ref(null)
+/**
+ * 단가 정책이 아직 저장된 적 없는 상태인지.
+ * 이때 화면의 값은 서버가 채워준 기본값이고, 저장 전까지는 권장가 계산이 거부된다.
+ * (정상적으로는 마이그레이션이 초기값을 넣어두므로 이 상태가 되지 않는다)
+ */
+const unsaved = ref(false)
 
 const form = reactive({
     baseFee: 0,
@@ -77,6 +83,7 @@ async function load() {
         })
         form.memo = p.memo ?? ''
         updatedAt.value = p.updatedAt
+        unsaved.value = p.saved === false
     } catch (e) {
         notify.bar('단가 정책을 불러오지 못했습니다.', { color: 'red' })
     } finally {
@@ -100,6 +107,7 @@ async function onSubmit() {
         }
         const p = (await pricingService.updatePolicy(payload)).data.data
         updatedAt.value = p.updatedAt
+        unsaved.value = false
         // 단가가 바뀌면 모든 계약의 권장가가 한꺼번에 달라진다. 재산정 화면을 옛 금액으로 두면 안 된다.
         invalidatePricingReview(queryClient)
         notify.toast('저장되었습니다.', { type: 'success' })
@@ -119,6 +127,12 @@ function fmtDateTime(v) {
     <section class="policy-page">
         <p v-if="loading" class="state">불러오는 중…</p>
         <form v-else class="card" @submit.prevent="onSubmit">
+            <!-- 정책이 저장된 적 없으면 권장가 계산이 거부되므로 먼저 저장하도록 유도한다. -->
+            <div v-if="unsaved" class="notice notice--warn">
+                <b>단가 정책이 아직 저장되지 않았습니다.</b>
+                아래 값은 기본값이며, <b>저장하기 전까지 권장가 계산과 적정가 재산정이 동작하지 않습니다.</b>
+                값을 확인하고 저장하세요.
+            </div>
             <div class="notice">
                 여기서 바꾼 단가는 <b>앞으로 계산하는 권장가</b>에만 적용됩니다.
                 이미 맺은 계약 금액은 바뀌지 않습니다. 기존 거래처 인상은 '적정가 재산정' 화면에서 검토하세요.
@@ -198,6 +212,8 @@ function fmtDateTime(v) {
 .policy-page { max-width: 860px; margin: 0 auto; }
 .card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
 .notice { background: #fff8e6; border: 1px solid #f0e0a8; border-radius: var(--radius); padding: 0.8rem 1rem; font-size: 0.83rem; color: #6b5900; line-height: 1.6; }
+/* 저장 전 상태 — 권장가가 아예 안 나오는 상황이라 더 눈에 띄게 */
+.notice--warn { background: #fdeaea; border-color: #f3c4c4; color: #8f1d1d; }
 .section-label { font-size: 0.85rem; font-weight: 700; color: var(--text-h); border-top: 1px solid var(--border); padding-top: 1rem; margin-top: 0.25rem; }
 .section-hint { margin: -0.6rem 0 0; font-size: 0.78rem; color: var(--text); line-height: 1.5; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; }
